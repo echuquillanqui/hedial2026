@@ -166,7 +166,7 @@
                 <div style="border-top: 1px solid #000; padding-top: 5px;">
                     <span class="label" style="font-size: 7px;">{{ $r['l'] }}</span>
                     <span style="font-size: 7px; display: block; line-height: 1.1;">
-                        <strong>{{ strtoupper($r['u']->name ?? '') }}</strong>
+                        <strong>{{ strtoupper($r['u']->name ?? '') }}</strong><br>
                         {{ strtoupper($r['u']->profession ?? '') }}
                         
                         {{-- Solo mostramos la colegiatura si NO es el último elemento --}}

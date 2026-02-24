@@ -203,7 +203,7 @@
 
                 {{-- Solo en la última columna --}}
                 @if($loop->last)
-                    <span style="display:block; text-align:right; font-size:8px; margin-top:-3px;">
+                    <span style="display:block; text-align:right; font-size:9px; margin-top:-3px;">
                         FECHA: ____/____/____ &nbsp; HORA: ____:____
                     </span>
                 @endif
