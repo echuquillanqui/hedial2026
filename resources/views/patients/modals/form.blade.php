@@ -70,9 +70,9 @@
                         <div class="col-md-3">
                             <label class="form-label small fw-bold">Tipo de Seguro</label>
                             <select name="insurance_type" x-model="currentPatient.insurance_type" class="form-select border-0 shadow-sm">
-                                <option value="SIS">SIS</option>
                                 <option value="ESSALUD">ESSALUD</option>
                                 <option value="SALUDPOL">SALUDPOL</option>
+                                <option value="SIS">SIS</option>
                             </select>
                         </div>
                     </div>
@@ -86,6 +86,35 @@
                             <label class="form-label small fw-bold">Dirección</label>
                             <input type="text" name="address" x-model="currentPatient.address" class="form-control rounded-3 border-0 shadow-sm">
                         </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Seecuencia</label>
+                            <select name="secuencia" x-model="currentPatient.secuencia" class="form-select border-0 shadow-sm">
+                                <option value="L-M-V">L-M-V</option>
+                                <option value="M-J-S">M-J-S</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Turno</label>
+                            <select name="turno" x-model="currentPatient.turno" class="form-select border-0 shadow-sm">
+                                <option value="1">Turno 1</option>
+                                <option value="2">Turno 2</option>
+                                <option value="3">Turno 3</option>
+                                <option value="4">Turno 4</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Modulo</label>
+                            <select name="modulo" x-model="currentPatient.modulo" class="form-select border-0 shadow-sm">
+                                <option value="1">Modulo 1</option>
+                                <option value="2">Modulo 2</option>
+                                <option value="3">Modulo 3</option>
+                                <option value="4">Modulo 4</option>
+                            </select>
+                        </div>
+                        
                     </div>
                 </div>
 

@@ -81,7 +81,7 @@
                         <tr>
                             <td class="px-3 fw-bold text-success small text-left">{{ $order->codigo_unico }}</td>
                             <td class="text-start">
-                                <div class="fw-bold text-uppercase small">{{ $order->patient->surname }} {{ $order->patient->first_name }}</div>
+                                <div class="fw-bold text-uppercase small">{{ $order->patient->surname }} {{ $order->patient->last_name }}, {{ $order->patient->first_name }} {{ $order->patient->other_names }}</div>
                             </td>
                             <td class="text-center"><span class="badge bg-light text-success border border-success">{{ $order->sala }}</span></td>
                             <td class="fw-bold small text-center">TURNO - {{ $order->turno }}</td>

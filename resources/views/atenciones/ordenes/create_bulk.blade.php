@@ -127,7 +127,7 @@
                                                    x-model="selected" class="form-check-input border-success shadow-sm">
                                         </td>
                                         <td>
-                                            <div class="fw-bold text-uppercase small text-dark">{{ $patient->surname }} {{ $patient->first_name }}</div>
+                                            <div class="fw-bold text-uppercase small text-dark">{{ $patient->surname }} {{ $patient->last_name }}, {{ $patient->first_name }} {{ $patient->other_names }}</div>
                                             <span class="badge bg-light text-success border border-success small" style="font-size: 0.65rem;">
                                                 MOD: {{ $patient->modulo }}
                                             </span>
