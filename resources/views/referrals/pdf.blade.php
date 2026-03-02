@@ -77,13 +77,17 @@
 
     <table class="table" style="margin-top: -1px;">
         <tr>
-            <td style="width: 50%;"><span class="label">Piel y Subcutáneo / Estado Gral.</span><span class="data-text">{{ strtoupper($referral->skin_subcutaneous ?? 'SIN HALLAZGOS') }}</span></td>
-            <td style="width: 50%;"><span class="label">Aparato Respiratorio / Pulmones</span><span class="data-text">{{ strtoupper($referral->respiratory_system ?? 'NORMAL') }}</span></td>
+            <td style="width: 50%;"><span class="label">Estado General</span><span class="data-text">{{ strtoupper($referral->general_state ?? 'ESTABLE') }}</span></td>
+            <td style="width: 50%;"><span class="label">Pulmones</span><span class="data-text">{{ strtoupper($referral->respiratory_system ?? 'NORMAL') }}</span></td>
         </tr>
         <tr>
-            <td style="width: 50%;"><span class="label">Aparato Cardiovascular (CV)</span><span class="data-text">{{ strtoupper($referral->cardiovascular ) }}</span></td>
-            <td style="width: 50%;"><span class="label">Neurológico / Otros</span><span class="data-text">{{ strtoupper($referral->neurological ?? 'SIN HALLAZGOS') }}</span></td>
+            <td style="width: 50%;"><span class="label">CV (Cardiovascular)</span><span class="data-text">{{ strtoupper($referral->cardiovascular ) }}</span></td>
+            <td style="width: 50%;"><span class="label">Otros</span><span class="data-text">{{ strtoupper($referral->neurological ?? 'SIN HALLAZGOS') }}</span></td>
         </tr>
+    </table>
+
+    <table class="table">
+        <tr><td style="height: 30px;"><span class="label">Examenes auxiliares</span><span class="data-text">{{ strtoupper($referral->auxiliary_exams ?? 'SIN EXAMENES') }}</span></td></tr>
     </table>
 
     <table class="table" style="margin-top: 5px;">
@@ -151,41 +155,52 @@
         </tr>
     </table>
 
-    <table class="table" style="margin-top: 10px;">
-        <tr>
-            @php
-                $roles = [
-                    ['l' => 'Responsable RF', 'u' => $referral->referralResponsible],
-                    ['l' => 'Resp. Establecimiento', 'u' => $referral->facilityResponsible],
-                    ['l' => 'Personal Acompaña', 'u' => $referral->escortStaff],
-                    ['l' => 'Personal Recibe', 'u' => $referral->receivingStaff],
-                ];
-            @endphp
-            @foreach($roles as $r)
-            <td style="height: 180px; text-align: center; vertical-align: bottom; position: relative;">
-                <div style="border-top: 1px solid #000; padding-top: 5px;">
-                    <span class="label" style="font-size: 7px;">{{ $r['l'] }}</span>
-                    <span style="font-size: 7px; display: block; line-height: 1.1;">
-                        <strong>{{ strtoupper($r['u']->name ?? '') }}</strong><br>
-                        {{ strtoupper($r['u']->profession ?? '') }}
-                        
-                        {{-- Solo mostramos la colegiatura si NO es el último elemento --}}
-                        @if(!$loop->last)
-                            <br>{{ $r['u']->license_number }}
-                        @endif
-                    </span>
+    <table class="table" style="margin-top: 10px; width: 100%; table-layout: fixed;">
+    <tr>
+        @php
+            $roles = [
+                ['l' => 'Responsable RF', 'u' => $referral->referralResponsible],
+                ['l' => 'Resp. Establecimiento', 'u' => $referral->facilityResponsible],
+                ['l' => 'Personal Acompaña', 'u' => $referral->escortStaff],
+                ['l' => 'Personal Recibe', 'u' => $referral->receivingStaff],
+            ];
+        @endphp
 
-                    {{-- Si es el último cuadro (Personal que Recibe), añadimos la Fecha y Hora --}}
-                    @if($loop->last)
-                        <div style="text-align: right; font-size: 7.5px; margin-top: 8px; font-weight: bold;">
-                            FECHA: ____/____/____ &nbsp; HORA: ____:____
-                        </div>
+        @foreach($roles as $r)
+        <td style="height: 150px; text-align: center; vertical-align: bottom; position: relative; padding: 5px;">
+            <div style="border-top: 1px solid #000; padding-top: 5px; min-height: 60px;">
+                
+                <span class="label" style="font-size: 7px; font-weight: bold; display: block; margin-bottom: 3px;">
+                    {{ $r['l'] }}
+                </span>
+
+                <span style="font-size: 7px; display: block; line-height: 1.2; min-height: 30px;">
+                    {{-- Nombre del usuario o espacio en blanco --}}
+                    <strong>{{ strtoupper($r['u']->name ?? ' ') }}</strong><br>
+                    
+                    {{-- Profesión o espacio en blanco --}}
+                    {{ strtoupper($r['u']->profession ?? ' ') }}
+                    
+                    {{-- Colegiatura (solo si no es el último y existe el dato) --}}
+                    @if(!$loop->last)
+                        <br>{{ $r['u']->license_number ?? ' ' }}
                     @endif
-                </div>
-            </td>
-            @endforeach
-        </tr>
-    </table>
+                </span>
+
+                {{-- Espacio para Fecha y Hora solo en el último recuadro --}}
+                @if($loop->last)
+                    <div style="text-align: right; font-size: 7px; margin-top: 5px; font-weight: bold;">
+                        FECHA: ____/____/____ &nbsp; HORA: ____:____
+                    </div>
+                @else
+                    {{-- Espaciador para mantener simetría con el último cuadro --}}
+                    <div style="height: 12px;"></div> 
+                @endif
+            </div>
+        </td>
+        @endforeach
+    </tr>
+</table>
 
     <div class="section-header">RECEPCIÓN (Condición Final)</div>
     <table class="table">

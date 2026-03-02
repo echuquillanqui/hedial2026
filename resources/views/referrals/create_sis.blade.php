@@ -72,14 +72,15 @@
                         <label class="data-title">Anamnesis</label>
                         <textarea name="anamnesis" class="form-control @error('anamnesis') is-invalid @enderror" rows="3">{{ old('anamnesis') }}</textarea>
                     </div>
-                    <div class="col-md-3"><label class="data-title">T°</label><input type="text" name="temperature" class="form-control @if(old('temperature')) is-valid @endif" value="{{ old('temperature') }}"></div>
                     <div class="col-md-3"><label class="data-title">PA</label><input type="text" name="blood_pressure" class="form-control @if(old('blood_pressure')) is-valid @endif" value="{{ old('blood_pressure') }}"></div>
-                    <div class="col-md-3"><label class="data-title">FR</label><input type="text" name="respiratory_rate" class="form-control @if(old('respiratory_rate')) is-valid @endif" value="{{ old('respiratory_rate') }}"></div>
-                    <div class="col-md-3"><label class="data-title">FC</label><input type="text" name="heart_rate" class="form-control @if(old('heart_rate')) is-valid @endif" value="{{ old('heart_rate') }}"></div>
+                    <div class="col-md-2"><label class="data-title">T°</label><input type="text" name="temperature" class="form-control @if(old('temperature')) is-valid @endif" value="{{ old('temperature') }}"></div>
+                    <div class="col-md-2"><label class="data-title">FR</label><input type="text" name="respiratory_rate" class="form-control @if(old('respiratory_rate')) is-valid @endif" value="{{ old('respiratory_rate') }}"></div>
+                    <div class="col-md-2"><label class="data-title">FC</label><input type="text" name="heart_rate" class="form-control @if(old('heart_rate')) is-valid @endif" value="{{ old('heart_rate') }}"></div>
+                    <div class="col-md-3"><label class="data-title">SAT</label><input type="text" name="oxygen_saturation" class="form-control @if(old('oxygen_saturation')) is-valid @endif" value="{{ old('oxygen_saturation') }}"></div>
                 </div>
 
                 <div class="row g-3 mb-4">
-                    <div class="col-md-6"><label class="data-title">TCSC (Piel)</label><input type="text" name="skin_subcutaneous" class="form-control" value="{{ old('skin_subcutaneous', 'No edemas') }}"></div>
+                    <div class="col-md-6"><label class="data-title">Estado General</label><input type="text" name="skin_subcutaneous" class="form-control" value="{{ old('skin_subcutaneous', $referral->general_state ?? 'ESTABLE') }}"></div>
                     <div class="col-md-6"><label class="data-title">Pulmones</label><input type="text" name="lungs" class="form-control" value="{{ old('lungs', 'Murmullo vesicular pasa en ambos campos pulmonares, no crépitos. ') }}"></div>
                     <div class="col-md-6"><label class="data-title">Cardiovascular</label><input type="text" name="cardiovascular" class="form-control" value="{{ old('cardiovascular', 'Ruidos cardiacos ritmicos, regular intensidad. No frote.
 ') }}"></div>
@@ -89,7 +90,6 @@
                 <div class="section-label">Exámenes Auxiliares</div>
                 <div class="row mb-4">
                     <div class="col-12">
-                        <label class="data-title">Resultados</label>
                         <textarea name="auxiliary_exams" class="form-control" rows="2">{{ old('auxiliary_exams') }}</textarea>
                     </div>
                 </div>
@@ -124,10 +124,12 @@
                         <option value="CONSULTA EXTERNA" {{ old('referral_type')=='CONSULTA EXTERNA'?'selected':'' }}>CONSULTA EXTERNA</option>
                         <option value="APOYO AL DX" {{ old('referral_type')=='APOYO AL DX'?'selected':'' }}>APOYO AL DX</option>
                     </select></div>
+
                     <div class="col-md-2"><label class="data-title">Fecha Cita</label><input type="date" name="appointment_date" class="form-control" value="{{ old('appointment_date') }}"></div>
                     <div class="col-md-2"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control" value="{{ old('appointment_time') }}"></div>
-                    <div class="col-md-3"><label class="data-title">Atenderá</label><input type="text" name="attending_physician_name" class="form-control" value="{{ old('attending_physician_name') }}"></div>
+                    <div class="col-md-2"><label class="data-title">Atenderá</label><input type="text" name="attending_physician_name" class="form-control" value="{{ old('attending_physician_name') }}"></div>
                     <div class="col-md-3"><label class="data-title">Coordinado con</label><input type="text" name="coordination_name" class="form-control" value="{{ old('coordination_name') }}"></div>
+                    
                     <div class="col-md-6"><label class="data-title">Especialidad Destino</label><input type="text" name="destination_specialty" class="form-control" value="{{ old('destination_specialty', 'MEDICINA INTERNA / NEFROLOGÍA') }}"></div>
                     <div class="col-md-3"><label class="data-title">Condición Inicio</label><select name="patient_condition" class="form-select">
                         <option value="ESTABLE" {{ old('patient_condition')=='ESTABLE'?'selected':'' }}>ESTABLE</option>

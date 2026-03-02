@@ -13,9 +13,43 @@ class ReferralController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    // En ReferralController.php
+
+    public function index(Request $request)
     {
-        $referrals = Referral::with(['patient', 'referralResponsible'])->latest()->get();
+        $query = Referral::with(['patient', 'referralResponsible']);
+
+        // Filtro por Texto (Nombre, DNI, Código)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('referral_code', 'LIKE', "%{$search}%")
+                ->orWhere('origin_facility', 'LIKE', "%{$search}%")
+                ->orWhere('destination_facility', 'LIKE', "%{$search}%")
+                ->orWhereHas('patient', function($p) use ($search) {
+                    $p->where('first_name', 'LIKE', "%{$search}%")
+                        ->orWhere('last_name', 'LIKE', "%{$search}%")
+                        ->orWhere('surname', 'LIKE', "%{$search}%")
+                        ->orWhere('dni', 'LIKE', "%{$search}%");
+                });
+            });
+        }
+
+        // Filtro por Fechas
+        if ($request->filled('from_date') && $request->filled('to_date')) {
+            $query->whereBetween('created_at', [
+                Carbon::parse($request->from_date)->startOfDay(),
+                Carbon::parse($request->to_date)->endOfDay()
+            ]);
+        }
+
+        $referrals = $query->latest()->get();
+
+        // Si es una petición AJAX (desde nuestro script de búsqueda)
+        if ($request->ajax()) {
+            return view('referrals.partials.table_rows', compact('referrals'))->render();
+        }
+
         return view('referrals.index', compact('referrals'));
     }
 
@@ -143,15 +177,20 @@ class ReferralController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit($id)
+    public function edit(Referral $referral)
     {
-        // Buscamos la referencia con sus diagnósticos y el paciente cargado
-        $referral = Referral::with(['diagnosisTreatments', 'patient'])->findOrFail($id);
-        
-        // Obtenemos el personal para los selects de responsables
-        $staff = \App\Models\User::all(); 
+        // Cargamos las relaciones necesarias
+        $referral->load('patient');
+        $staff = User::all();
 
-        return view('referrals.edit_sis', compact('referral', 'staff'));
+        // Detectamos el tipo según el dato guardado en la referencia
+        // Si no tienes un campo 'type', podrías usar el régimen del paciente
+        $type = $referral->type ?? ($referral->patient->insurance_type === 'ESSALUD' ? 'ESSALUD' : 'SIS');
+
+        // Elegimos la vista correspondiente
+        $view = ($type === 'ESSALUD') ? 'referrals.edit_essalud' : 'referrals.edit_sis';
+
+        return view($view, compact('referral', 'staff', 'type'));
     }
 
     /**
@@ -182,7 +221,7 @@ class ReferralController extends Controller
         }
     }
 
-    return redirect()->route('referrals.index')->with('success', 'Referencia actualizada.');
+    return redirect()->route('referrals.edit', $referral->id)->with('success', 'Referencia actualizada.');
 }
 
     /**

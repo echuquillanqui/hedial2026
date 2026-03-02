@@ -170,7 +170,7 @@
         </tr>
     </table>
 
-    <table class="table" style="margin-top: 10px; width: 100%;">
+    <table class="table" style="margin-top: 10px; width: 100%; table-layout: fixed;">
     <tr>
         @php
             $roles = [
@@ -182,30 +182,38 @@
         @endphp
 
         @foreach($roles as $role)
-        <td style="height: 160px; text-align: center; vertical-align: bottom;">
+        <td style="height: 180px; text-align: center; vertical-align: bottom; position: relative; padding: 5px;">
             
             <div style="border-top: 1px solid #000; padding-top: 5px;">
                 
-                <span class="label" style="font-size: 8px;">
+                {{-- Etiqueta del Rol --}}
+                <span class="label" style="font-size: 7px; display: block; font-weight: bold; margin-bottom: 2px;">
                     {{ $role['label'] }}
                 </span>
 
-                <span style="font-size: 8.5px; display: block; line-height: 1.1;">
+                {{-- Información del Usuario --}}
+                <span style="font-size: 7px; display: block; line-height: 1.1; min-height: 25px;">
                     <strong>{{ strtoupper($role['user']->name ?? ' ') }}</strong><br>
                     {{ strtoupper($role['user']->profession ?? ' ') }}
                     <br>
                     
-                    {{-- Muestra "Col:" solo si NO es la última columna --}}
+                    {{-- Muestra la colegiatura solo si NO es la última columna --}}
                     @if(!$loop->last)
-                        {{ $role['user']->license_number }}
+                        {{ $role['user']->license_number ?? ' ' }}
+                    @else
+                        {{-- Espacio invisible para mantener la altura si es el último --}}
+                        &nbsp;
                     @endif
                 </span>
 
-                {{-- Solo en la última columna --}}
+                {{-- Solo en la última columna (Fecha y Hora) --}}
                 @if($loop->last)
-                    <span style="display:block; text-align:right; font-size:9px; margin-top:-3px;">
+                    <span style="display:block; text-align:right; font-size:7px; margin-top:5px; font-weight: bold;">
                         FECHA: ____/____/____ &nbsp; HORA: ____:____
                     </span>
+                @else
+                    {{-- Div de compensación para que las líneas de firma queden niveladas --}}
+                    <div style="height: 10px;"></div>
                 @endif
 
             </div>
