@@ -24,6 +24,16 @@
     {{-- 1. CAMBIO DE RUTA Y MÉTODO --}}
     <form action="{{ route('referrals.update', $referral->id) }}" method="POST">
         @csrf
+         @if ($errors->any())
+            <div class="alert alert-danger">
+                <strong>Se encontraron errores en el formulario:</strong>
+                <ul class="mb-0 mt-2">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         @method('PUT')
         
         <div class="card shadow-sm border-0">
@@ -110,9 +120,9 @@
                         <tbody>
                             <template x-for="(row, index) in rows" :key="index">
                                 <tr>
-                                    <td><input type="text" :name="`diagnoses[${index}][icd_10_code]`" x-model="row.icd_10_code" class="form-control form-control-sm"></td>
-                                    <td><input type="text" :name="`diagnoses[${index}][diagnosis]`" x-model="row.diagnosis" class="form-control form-control-sm"></td>
-                                    <td><textarea :name="`diagnoses[${index}][treatment]`" x-model="row.treatment" class="form-control form-control-sm" rows="1"></textarea></td>
+                                    <td><input type="text" :name="`diagnoses[${index}][icd_10_code]`" x-model="row.icd_10_code" class="form-control form-control-sm" required></td>
+                                    <td><input type="text" :name="`diagnoses[${index}][diagnosis]`" x-model="row.diagnosis" class="form-control form-control-sm" required></td>
+                                    <td><textarea :name="`diagnoses[${index}][treatment]`" x-model="row.treatment" class="form-control form-control-sm" rows="1" required></textarea></td>
                                     <td class="text-center"><input type="checkbox" :name="`diagnoses[${index}][D]`" value="X" :checked="row.D"></td>
                                     <td class="text-center"><input type="checkbox" :name="`diagnoses[${index}][P]`" value="X" :checked="row.P"></td>
                                     <td class="text-center"><input type="checkbox" :name="`diagnoses[${index}][R]`" value="X" :checked="row.R"></td>
@@ -128,7 +138,7 @@
                 <div class="row g-3">
                     <div class="col-md-2">
                         <label class="data-title">Tipo de Referencia</label>
-                        <select name="referral_type" class="form-select">
+                        <select name="referral_type" class="form-select @error('referral_type') is-invalid @enderror" required>
                             @foreach(['EMERGENCIA', 'CONSULTA EXTERNA', 'APOYO AL DX'] as $type)
                                 <option value="{{ $type }}" {{ old('referral_type', $referral->referral_type) == $type ? 'selected' : '' }}>{{ $type }}</option>
                             @endforeach
@@ -138,16 +148,16 @@
                     <div class="col-md-2"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control" value="{{ old('appointment_time', $referral->appointment_time) }}"></div>
                     <div class="col-md-3"><label class="data-title">Atenderá</label><input type="text" name="attending_physician_name" class="form-control" value="{{ old('attending_physician_name', $referral->attending_physician_name) }}"></div>
                     <div class="col-md-3"><label class="data-title">Coordinado con</label><input type="text" name="coordination_name" class="form-control" value="{{ old('coordination_name', $referral->coordination_name) }}"></div>
-                    <div class="col-md-6"><label class="data-title">Especialidad Destino</label><input type="text" name="destination_specialty" class="form-control" value="{{ old('destination_specialty', $referral->destination_specialty) }}"></div>
+                    <div class="col-md-6"><label class="data-title">Especialidad Destino</label><input type="text" name="destination_specialty" class="form-control @error('destination_specialty') is-invalid @enderror" required value="{{ old('destination_specialty', $referral->destination_specialty) }}"></div>
                     
                     <div class="col-md-3">
                         <label class="data-title">Condición Inicio</label>
-                        <select name="patient_condition" class="form-select">
+                        <select name="patient_condition" class="form-select @error('patient_condition') is-invalid @enderror" required>
                         <option value="ESTABLE" {{ old('patient_condition', $referral->patient_condition) == 'ESTABLE' ? 'selected' : '' }}>ESTABLE</option>
                         <option value="MAL ESTADO" {{ old('patient_condition', $referral->patient_condition) == 'MAL ESTADO' ? 'selected' : '' }}>MAL ESTADO</option>
                     </select></div>
 
-                    <div class="col-md-3"><label class="data-title">Condición Llegada</label><select name="arrival_condition" class="form-select">
+                    <div class="col-md-3"><label class="data-title">Condición Llegada</label><select name="arrival_condition" class="form-select @error('arrival_condition') is-invalid @enderror" required>
                         <option value="ESTABLE" {{ old('arrival_condition', $referral->arrival_condition) == 'ESTABLE' ? 'selected' : '' }}>ESTABLE</option>
                         <option value="MAL ESTADO" {{ old('arrival_condition', $referral->arrival_condition) == 'MAL ESTADO' ? 'selected' : '' }}>MAL ESTADO</option>
                         <option value="FALLECIDO" {{ old('arrival_condition', $referral->arrival_condition) == 'FALLECIDO' ? 'selected' : '' }}>FALLECIDO</option>
@@ -165,7 +175,7 @@
                     @foreach($staff_fields as $field => $label)
                     <div class="col-md-3">
                         <label class="data-title">{{ $label }}</label>
-                        <select name="{{ $field }}" class="form-select">
+                        <select name="{{ $field }}" class="form-select @error($field) is-invalid @enderror" required>
                             <option value="">Seleccione...</option>
                             @foreach($staff as $user)
                                 <option value="{{ $user->id }}" {{ old($field, $referral->$field) == $user->id ? 'selected' : '' }}>{{ $user->name }}</option>

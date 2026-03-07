@@ -75,33 +75,28 @@ class ReferralController extends Controller
     public function store(Request $request)
     {
         // 1. Validar los datos (opcional pero recomendado)
-        $request->validate([
-            'patient_id' => 'required',
-            // añade aquí tus validaciones...
-        ]);
+         $validated = $this->validateReferral($request);
 
         try {
-            return DB::transaction(function () use ($request) {
+            return DB::transaction(function () use ($validated) {
                 
                 // 2. Crear la referencia
                 // Al ejecutar 'create', se dispara el evento 'creating' en Referral.php
                 // El cual buscará la numeración, incrementará el contador y asignará el code.
-                $referral = Referral::create($request->except('diagnoses'));
+                $referral = Referral::create(collect($validated)->except('diagnoses')->toArray());
 
                 // 3. Guardar los diagnósticos asociados
-                if ($request->has('diagnoses')) {
-                    foreach ($request->diagnoses as $row) {
+                if (!empty($validated['diagnoses'])) {
+                    foreach ($validated['diagnoses'] as $row) {
                         // Validamos que la fila tenga datos básicos antes de guardar
-                        if (!empty($row['diagnosis'])) {
-                            $referral->diagnosisTreatments()->create([
-                                'icd_10_code' => $row['icd_10_code'] ?? null,
-                                'diagnosis'    => $row['diagnosis'],
-                                'treatment'    => $row['treatment'] ?? null,
-                                'D'            => isset($row['D']) ? 'X' : null,
-                                'P'            => isset($row['P']) ? 'X' : null,
-                                'R'            => isset($row['R']) ? 'X' : null,
-                            ]);
-                        }
+                        $referral->diagnosisTreatments()->create([
+                            'icd_10_code' => $row['icd_10_code'],
+                            'diagnosis'    => $row['diagnosis'],
+                            'treatment'    => $row['treatment'],
+                            'D'            => isset($row['D']) ? 'X' : null,
+                            'P'            => isset($row['P']) ? 'X' : null,
+                            'R'            => isset($row['R']) ? 'X' : null,
+                        ]);
                     }
                 }
 
@@ -197,32 +192,33 @@ class ReferralController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, $id)
-{
-    $referral = Referral::findOrFail($id);
+    {
+        $referral = Referral::findOrFail($id);
 
-    // 1. Actualizar datos principales
-    $referral->update($request->except('diagnoses'));
+        $validated = $this->validateReferral($request);
 
-    // 2. Sincronizar Diagnósticos (Borrar y crear es lo más seguro para tablas dinámicas)
-    $referral->diagnosisTreatments()->delete();
+        // 1. Actualizar datos principales
+        $referral->update(collect($validated)->except('diagnoses')->toArray());
 
-    if ($request->has('diagnoses')) {
-        foreach ($request->diagnoses as $row) {
-            if (!empty($row['icd_10_code']) || !empty($row['diagnosis'])) {
-                $referral->diagnosisTreatments()->create([
-                    'icd_10_code' => $row['icd_10_code'],
-                    'diagnosis'    => $row['diagnosis'],
-                    'treatment'    => $row['treatment'],
-                    'D'            => isset($row['D']) ? 'X' : null,
-                    'P'            => isset($row['P']) ? 'X' : null,
-                    'R'            => isset($row['R']) ? 'X' : null,
-                ]);
+        // 2. Sincronizar Diagnósticos (Borrar y crear es lo más seguro para tablas dinámicas)
+        $referral->diagnosisTreatments()->delete();
+
+        if (!empty($validated['diagnoses'])) {
+            foreach ($validated['diagnoses'] as $row) {
+                    $referral->diagnosisTreatments()->create([
+                        'icd_10_code' => $row['icd_10_code'],
+                        'diagnosis'    => $row['diagnosis'],
+                        'treatment'    => $row['treatment'],
+                        'D'            => isset($row['D']) ? 'X' : null,
+                        'P'            => isset($row['P']) ? 'X' : null,
+                        'R'            => isset($row['R']) ? 'X' : null,
+                    ]);
+                }
             }
-        }
-    }
+        
 
-    return redirect()->route('referrals.edit', $referral->id)->with('success', 'Referencia actualizada.');
-}
+        return redirect()->route('referrals.edit', $referral->id)->with('success', 'Referencia actualizada.');
+    }
 
     /**
      * Remove the specified resource from storage.
@@ -243,12 +239,35 @@ class ReferralController extends Controller
         return $request->validate([
             'patient_id' => 'required|exists:patients,id',
             'referral_type' => 'required|in:EMERGENCIA,CONSULTA EXTERNA,APOYO AL DX',
-            'origin_facility' => 'required|string',
-            'destination_facility' => 'required|string',
+            'origin_facility' => 'required|string|max:255',
+            'destination_facility' => 'required|string|max:255',
+            'destination_specialty' => 'required|string|max:255',
+            'patient_condition' => 'required|in:ESTABLE,MAL ESTADO',
+            'arrival_condition' => 'required|in:ESTABLE,MAL ESTADO,FALLECIDO',
             'diagnoses' => 'required|array|min:1',
             'diagnoses.*.icd_10_code' => 'required|string|max:10',
             'diagnoses.*.diagnosis' => 'required|string',
-            'referral_responsible_id' => 'required|exists:users,id',
+            'facility_responsible_id' => 'required|exists:users,id',
+            'escort_staff_id' => 'required|exists:users,id',
+            'receiving_staff_id' => 'required|exists:users,id',
+            ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'diagnoses.required' => 'Debe registrar al menos un diagnóstico.',
+            'diagnoses.*.icd_10_code.required' => 'El CIE-10 es obligatorio en cada fila de diagnóstico.',
+            'diagnoses.*.diagnosis.required' => 'El diagnóstico es obligatorio en cada fila.',
+            'diagnoses.*.treatment.required' => 'El tratamiento es obligatorio en cada fila.',
+        ], [
+            'patient_id' => 'paciente',
+            'referral_type' => 'tipo de referencia',
+            'origin_facility' => 'establecimiento de origen',
+            'destination_facility' => 'establecimiento destino',
+            'destination_specialty' => 'especialidad destino',
+            'patient_condition' => 'condición de inicio',
+            'arrival_condition' => 'condición de llegada',
+            'referral_responsible_id' => 'responsable de referencia',
+            'facility_responsible_id' => 'responsable del establecimiento',
+            'escort_staff_id' => 'personal acompañante',
+            'receiving_staff_id' => 'responsable de recepción',
         ]);
     }
 

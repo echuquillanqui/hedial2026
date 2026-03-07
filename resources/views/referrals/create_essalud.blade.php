@@ -28,6 +28,17 @@
 
     <form action="{{ route('referrals.store') }}" method="POST">
         @csrf
+
+         @if ($errors->any())
+            <div class="alert alert-danger">
+                <strong>Se encontraron errores en el formulario:</strong>
+                <ul class="mb-0 mt-2">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         <div class="card shadow-sm border-0">
             <div class="card-header py-3">
                 <div class="row align-items-center">
@@ -113,9 +124,9 @@
                         <tbody>
                             <template x-for="(row, index) in rows" :key="index">
                                 <tr>
-                                    <td><input type="text" :name="`diagnoses[${index}][icd_10_code]`" x-model="row.icd_10_code" class="form-control form-control-sm text-center fw-bold"></td>
-                                    <td><input type="text" :name="`diagnoses[${index}][diagnosis]`" x-model="row.diagnosis" class="form-control form-control-sm"></td>
-                                    <td><textarea :name="`diagnoses[${index}][treatment]`" x-model="row.treatment" class="form-control form-control-sm" rows="1"></textarea></td>
+                                    <td><input type="text" :name="`diagnoses[${index}][icd_10_code]`" x-model="row.icd_10_code" class="form-control form-control-sm text-center fw-bold" required></td>
+                                    <td><input type="text" :name="`diagnoses[${index}][diagnosis]`" x-model="row.diagnosis" class="form-control form-control-sm" required></td>
+                                    <td><textarea :name="`diagnoses[${index}][treatment]`" x-model="row.treatment" class="form-control form-control-sm" rows="1" required></textarea></td>
                                     <td class="text-center"><input type="checkbox" :name="`diagnoses[${index}][D]`" value="X" :checked="row.D"></td>
                                     <td class="text-center"><input type="checkbox" :name="`diagnoses[${index}][P]`" value="X" :checked="row.P"></td>
                                     <td class="text-center"><input type="checkbox" :name="`diagnoses[${index}][R]`" value="X" :checked="row.R"></td>
@@ -133,23 +144,23 @@
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="data-title">Prioridad de Referencia</label>
-                        <select name="referral_type" class="form-select">
+                        <select name="referral_type" class="form-select @error('referral_type') is-invalid @enderror" required>
                             <option value="EMERGENCIA" {{ old('referral_type')=='EMERGENCIA'?'selected':'' }}>I - EMERGENCIA</option>
                             <option value="CONSULTA EXTERNA" {{ old('referral_type')=='CONSULTA EXTERNA'?'selected':'' }}>II - CONSULTA EXTERNA</option>
                             <option value="APOYO AL DX" {{ old('referral_type')=='APOYO AL DX'?'selected':'' }}>III - APOYO AL DIAGNÓSTICO</option>
                         </select>
                     </div>
-                    <div class="col-md-3"><label class="data-title">Especialidad Destino</label><input type="text" name="destination_specialty" class="form-control" value="{{ old('destination_specialty', 'MEDICINA / NEFROLOGÍA') }}"></div>
+                    <div class="col-md-3"><label class="data-title">Especialidad Destino</label><input type="text" name="destination_specialty" class="form-control @error('destination_specialty') is-invalid @enderror" required value="{{ old('destination_specialty', 'MEDICINA / NEFROLOGÍA') }}"></div>
                     <div class="col-md-3">
                         <label class="data-title">Condición de Inicio</label>
-                        <select name="patient_condition" class="form-select">
+                        <select name="patient_condition" class="form-select @error('patient_condition') is-invalid @enderror" required>
                             <option value="ESTABLE" {{ old('patient_condition')=='ESTABLE'?'selected':'' }}>ESTABLE</option>
                             <option value="MAL ESTADO" {{ old('patient_condition')=='MAL ESTADO'?'selected':'' }}>MAL ESTADO</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <label class="data-title">Condición de Llegada</label>
-                        <select name="arrival_condition" class="form-select">
+                        <select name="arrival_condition" class="form-select @error('arrival_condition') is-invalid @enderror" required>
                             <option value="ESTABLE" {{ old('arrival_condition')=='ESTABLE'?'selected':'' }}>ESTABLE</option>
                             <option value="MAL ESTADO" {{ old('arrival_condition')=='MAL ESTADO'?'selected':'' }}>MAL ESTADO</option>
                             <option value="FALLECIDO" {{ old('arrival_condition')=='FALLECIDO'?'selected':'' }}>FALLECIDO</option>
@@ -159,7 +170,7 @@
                     @foreach(['referral_responsible_id' => 'Médico Tratante', 'facility_responsible_id' => 'Jefe de IPRESS', 'escort_staff_id' => 'Personal Acompañante', 'receiving_staff_id' => 'Responsable Recepción'] as $name => $label)
                     <div class="col-md-3">
                         <label class="data-title">{{ $label }}</label>
-                        <select name="{{ $name }}" class="form-select shadow-sm @error($name) is-invalid @enderror">
+                        <select name="{{ $name }}" class="form-select shadow-sm @error($name) is-invalid @enderror" required>
                             <option value="">Seleccione personal...</option>
                             @foreach($staff as $user) 
                                 <option value="{{ $user->id }}" {{ old($name) == $user->id ? 'selected':'' }}>
