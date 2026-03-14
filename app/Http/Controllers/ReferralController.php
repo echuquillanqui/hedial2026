@@ -247,9 +247,10 @@ class ReferralController extends Controller
             'diagnoses' => 'required|array|min:1',
             'diagnoses.*.icd_10_code' => 'required|string|max:10',
             'diagnoses.*.diagnosis' => 'required|string',
+            'referral_responsible_id' => 'required|exists:users,id',
             'facility_responsible_id' => 'required|exists:users,id',
             'escort_staff_id' => 'required|exists:users,id',
-            'receiving_staff_id' => 'required|exists:users,id',
+            //'receiving_staff_id' => 'required|exists:users,id',
             ], [
             'required' => 'El campo :attribute es obligatorio.',
             'diagnoses.required' => 'Debe registrar al menos un diagnóstico.',
@@ -267,7 +268,7 @@ class ReferralController extends Controller
             'referral_responsible_id' => 'responsable de referencia',
             'facility_responsible_id' => 'responsable del establecimiento',
             'escort_staff_id' => 'personal acompañante',
-            'receiving_staff_id' => 'responsable de recepción',
+            //'receiving_staff_id' => 'responsable de recepción',
         ]);
     }
 

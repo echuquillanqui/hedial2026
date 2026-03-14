@@ -175,7 +175,7 @@
                     @foreach($staff_fields as $field => $label)
                     <div class="col-md-3">
                         <label class="data-title">{{ $label }}</label>
-                        <select name="{{ $field }}" class="form-select @error($field) is-invalid @enderror" required>
+                        <select name="{{ $field }}" class="form-select @error($field) is-invalid @enderror">
                             <option value="">Seleccione...</option>
                             @foreach($staff as $user)
                                 <option value="{{ $user->id }}" {{ old($field, $referral->$field) == $user->id ? 'selected' : '' }}>{{ $user->name }}</option>

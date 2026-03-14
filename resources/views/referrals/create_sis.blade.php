@@ -155,7 +155,7 @@
                     </select></div>
 
                     @foreach(['referral_responsible_id' => 'Responsable RF', 'facility_responsible_id' => 'Resp. Establ.', 'escort_staff_id' => 'Acompañante', 'receiving_staff_id' => 'Recibe'] as $name => $label)
-                    <div class="col-md-3"><label class="data-title">{{ $label }}</label><select name="{{ $name }}" class="form-select shadow-sm @error($name) is-invalid @enderror" required>
+                    <div class="col-md-3"><label class="data-title">{{ $label }}</label><select name="{{ $name }}" class="form-select shadow-sm @error($name) is-invalid @enderror">
                         <option value="">Seleccione...</option>
                         @foreach($staff as $user) <option value="{{ $user->id }}" {{ old($name) == $user->id ? 'selected':'' }}>{{ $user->name }}</option> @endforeach
                     </select></div>

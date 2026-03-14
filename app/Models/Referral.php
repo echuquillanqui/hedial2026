@@ -12,7 +12,38 @@ class Referral extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'referral_code',
+        'patient_id',
+        'origin_facility',
+        'destination_facility',
+        'destination_specialty',
+        'anamnesis',
+        'general_state',
+        'temperature',
+        'blood_pressure',
+        'respiratory_rate',
+        'heart_rate',
+        'oxygen_saturation',
+        'skin_subcutaneous',
+        'lungs',
+        'cardiovascular',
+        'neurological',
+        'auxiliary_exams',
+        'others',
+        'referral_type',
+        'appointment_date',
+        'appointment_time',
+        'attending_physician_name',
+        'coordination_name',
+        'patient_condition',
+        'referral_responsible_id',
+        'facility_responsible_id',
+        'escort_staff_id',
+        'receiving_staff_id',
+        'arrival_condition',
+        'numeration_id',
+    ];
 
     /**
      * Lógica automática para generar la numeración al crear el registro.
