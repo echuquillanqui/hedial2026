@@ -110,10 +110,10 @@
                 </div>                
 
                 <div class="row g-3 mb-4">
-                    <div class="col-md-3"><label class="data-title">Fecha Cita</label><input type="date" name="appointment_date" class="form-control @error('appointment_date') is-invalid @enderror" required value="{{ old('appointment_date') }}"></div>
-                    <div class="col-md-3"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control @error('appointment_time') is-invalid @enderror" required value="{{ old('appointment_time') }}"></div>
-                    <div class="col-md-3"><label class="data-title">Nombre de quien atenderá</label><input type="text" name="attending_physician_name" class="form-control @error('attending_physician_name') is-invalid @enderror" required value="{{ old('attending_physician_name') }}"></div>
-                    <div class="col-md-3"><label class="data-title">Coordinado con</label><input type="text" name="coordination_name" class="form-control @error('coordination_name') is-invalid @enderror" required value="{{ old('coordination_name') }}"></div>
+                    <div class="col-md-3"><label class="data-title">Fecha Cita</label><input type="date" name="appointment_date" class="form-control @error('appointment_date') is-invalid @enderror" value="{{ old('appointment_date') }}"></div>
+                    <div class="col-md-3"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control @error('appointment_time') is-invalid @enderror" value="{{ old('appointment_time') }}"></div>
+                    <div class="col-md-3"><label class="data-title">Nombre de quien atenderá</label><input type="text" name="attending_physician_name" class="form-control @error('attending_physician_name') is-invalid @enderror" value="{{ old('attending_physician_name') }}"></div>
+                    <div class="col-md-3"><label class="data-title">Coordinado con</label><input type="text" name="coordination_name" class="form-control @error('coordination_name') is-invalid @enderror" value="{{ old('coordination_name') }}"></div>
                 </div>
 
                 <div class="section-label">3. Diagnósticos (CIE-10) y Plan de Trabajo</div>

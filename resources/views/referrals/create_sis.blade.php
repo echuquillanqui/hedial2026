@@ -143,10 +143,10 @@
                         <option value="APOYO AL DX" {{ old('referral_type')=='APOYO AL DX'?'selected':'' }}>APOYO AL DX</option>
                     </select></div>
 
-                    <div class="col-md-2"><label class="data-title">Fecha Cita</label><input type="date" name="appointment_date" class="form-control @error('appointment_date') is-invalid @enderror" required value="{{ old('appointment_date') }}"></div>
-                    <div class="col-md-2"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control @error('appointment_time') is-invalid @enderror" required value="{{ old('appointment_time') }}"></div>
-                    <div class="col-md-2"><label class="data-title">Atenderá</label><input type="text" name="attending_physician_name" class="form-control @error('attending_physician_name') is-invalid @enderror" required value="{{ old('attending_physician_name') }}"></div>
-                    <div class="col-md-3"><label class="data-title">Coordinado con</label><input type="text" name="coordination_name" class="form-control @error('coordination_name') is-invalid @enderror" required value="{{ old('coordination_name') }}"></div>
+                    <div class="col-md-2"><label class="data-title">Fecha Cita</label><input type="date" name="appointment_date" class="form-control @error('appointment_date') is-invalid @enderror" value="{{ old('appointment_date') }}"></div>
+                    <div class="col-md-2"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control @error('appointment_time') is-invalid @enderror" value="{{ old('appointment_time') }}"></div>
+                    <div class="col-md-2"><label class="data-title">Atenderá</label><input type="text" name="attending_physician_name" class="form-control @error('attending_physician_name') is-invalid @enderror" value="{{ old('attending_physician_name') }}"></div>
+                    <div class="col-md-3"><label class="data-title">Coordinado con</label><input type="text" name="coordination_name" class="form-control @error('coordination_name') is-invalid @enderror" value="{{ old('coordination_name') }}"></div>
                     
                     <div class="col-md-6"><label class="data-title">Especialidad Destino</label><input type="text" name="destination_specialty" class="form-control @error('destination_specialty') is-invalid @enderror" required value="{{ old('destination_specialty', 'MEDICINA INTERNA / NEFROLOGÍA') }}"></div>
                     <div class="col-md-3"><label class="data-title">Condición Inicio</label><select name="patient_condition" class="form-select @error('patient_condition') is-invalid @enderror" required>
