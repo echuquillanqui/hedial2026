@@ -31,7 +31,7 @@
             </div>
         @endif
 
-    <form action="{{ route('referrals.store') }}" method="POST">
+    <form id="referralFormSis" action="{{ route('referrals.store') }}" method="POST">
         @csrf
 
         
@@ -83,27 +83,32 @@
                 <div class="row g-3 mb-3">
                     <div class="col-12">
                         <label class="data-title">Anamnesis</label>
-                        <textarea name="anamnesis" class="form-control @error('anamnesis') is-invalid @enderror" rows="3">{{ old('anamnesis') }}</textarea>
+                        <textarea name="anamnesis" class="form-control @error('anamnesis') is-invalid @enderror" rows="3" required>{{ old('anamnesis') }}</textarea>
                     </div>
-                    <div class="col-md-3"><label class="data-title">PA</label><input type="text" name="blood_pressure" class="form-control @if(old('blood_pressure')) is-valid @endif" value="{{ old('blood_pressure') }}"></div>
-                    <div class="col-md-2"><label class="data-title">T°</label><input type="text" name="temperature" class="form-control @if(old('temperature')) is-valid @endif" value="{{ old('temperature') }}"></div>
-                    <div class="col-md-2"><label class="data-title">FR</label><input type="text" name="respiratory_rate" class="form-control @if(old('respiratory_rate')) is-valid @endif" value="{{ old('respiratory_rate') }}"></div>
-                    <div class="col-md-2"><label class="data-title">FC</label><input type="text" name="heart_rate" class="form-control @if(old('heart_rate')) is-valid @endif" value="{{ old('heart_rate') }}"></div>
-                    <div class="col-md-3"><label class="data-title">SAT</label><input type="text" name="oxygen_saturation" class="form-control @if(old('oxygen_saturation')) is-valid @endif" value="{{ old('oxygen_saturation') }}"></div>
+                    <div class="col-md-3"><label class="data-title">PA</label><input type="text" name="blood_pressure" class="form-control @error('blood_pressure') is-invalid @enderror" required value="{{ old('blood_pressure') }}"></div>
+                    <div class="col-md-2"><label class="data-title">T°</label><input type="text" name="temperature" class="form-control @error('temperature') is-invalid @enderror" required value="{{ old('temperature') }}"></div>
+                    <div class="col-md-2"><label class="data-title">FR</label><input type="text" name="respiratory_rate" class="form-control @error('respiratory_rate') is-invalid @enderror" required value="{{ old('respiratory_rate') }}"></div>
+                    <div class="col-md-2"><label class="data-title">FC</label><input type="text" name="heart_rate" class="form-control @error('heart_rate') is-invalid @enderror" required value="{{ old('heart_rate') }}"></div>
+                    <div class="col-md-3"><label class="data-title">SAT</label><input type="text" name="oxygen_saturation" class="form-control @error('oxygen_saturation') is-invalid @enderror" required value="{{ old('oxygen_saturation') }}"></div>
                 </div>
 
                 <div class="row g-3 mb-4">
-                    <div class="col-md-6"><label class="data-title">Estado General</label><input type="text" name="skin_subcutaneous" class="form-control" value="{{ old('skin_subcutaneous', $referral->general_state ?? 'ESTABLE') }}"></div>
-                    <div class="col-md-6"><label class="data-title">Pulmones</label><input type="text" name="lungs" class="form-control" value="{{ old('lungs', 'Murmullo vesicular pasa en ambos campos pulmonares, no crépitos. ') }}"></div>
-                    <div class="col-md-6"><label class="data-title">Cardiovascular</label><input type="text" name="cardiovascular" class="form-control" value="{{ old('cardiovascular', 'Ruidos cardiacos ritmicos, regular intensidad. No frote.
+                    <div class="col-md-6"><label class="data-title">Estado General</label><input type="text" name="skin_subcutaneous" class="form-control @error('skin_subcutaneous') is-invalid @enderror" required value="{{ old('skin_subcutaneous', 'ESTABLE') }}"></div>
+                    <input type="hidden" name="general_state" id="general_state" value="{{ old('general_state', old('skin_subcutaneous', 'ESTABLE')) }}">
+                    <div class="col-md-6"><label class="data-title">Pulmones</label><input type="text" name="lungs" class="form-control @error('lungs') is-invalid @enderror" required value="{{ old('lungs', 'Murmullo vesicular pasa en ambos campos pulmonares, no crépitos. ') }}"></div>
+                    <div class="col-md-6"><label class="data-title">Cardiovascular</label><input type="text" name="cardiovascular" class="form-control @error('cardiovascular') is-invalid @enderror" required value="{{ old('cardiovascular', 'Ruidos cardiacos ritmicos, regular intensidad. No frote.
 ') }}"></div>
-                    <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control" value="{{ old('neurological', 'despierta, lúcida, no signos de focalización. Pupilas isocóricas, fotoreactivas. ') }}"></div>
+                    <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control @error('neurological') is-invalid @enderror" required value="{{ old('neurological', 'despierta, lúcida, no signos de focalización. Pupilas isocóricas, fotoreactivas. ') }}"></div>
                 </div>
 
                 <div class="section-label">Exámenes Auxiliares</div>
                 <div class="row mb-4">
                     <div class="col-12">
-                        <textarea name="auxiliary_exams" class="form-control" rows="2">{{ old('auxiliary_exams') }}</textarea>
+                        <textarea name="auxiliary_exams" class="form-control @error('auxiliary_exams') is-invalid @enderror" rows="2" required>{{ old('auxiliary_exams') }}</textarea>
+                    </div>
+                    <div class="col-12 mt-3">
+                        <label class="data-title">Otros</label>
+                        <textarea name="others" class="form-control @error('others') is-invalid @enderror" rows="2" required>{{ old('others') }}</textarea>
                     </div>
                 </div>
 
@@ -138,10 +143,10 @@
                         <option value="APOYO AL DX" {{ old('referral_type')=='APOYO AL DX'?'selected':'' }}>APOYO AL DX</option>
                     </select></div>
 
-                    <div class="col-md-2"><label class="data-title">Fecha Cita</label><input type="date" name="appointment_date" class="form-control" value="{{ old('appointment_date') }}"></div>
-                    <div class="col-md-2"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control" value="{{ old('appointment_time') }}"></div>
-                    <div class="col-md-2"><label class="data-title">Atenderá</label><input type="text" name="attending_physician_name" class="form-control" value="{{ old('attending_physician_name') }}"></div>
-                    <div class="col-md-3"><label class="data-title">Coordinado con</label><input type="text" name="coordination_name" class="form-control" value="{{ old('coordination_name') }}"></div>
+                    <div class="col-md-2"><label class="data-title">Fecha Cita</label><input type="date" name="appointment_date" class="form-control @error('appointment_date') is-invalid @enderror" required value="{{ old('appointment_date') }}"></div>
+                    <div class="col-md-2"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control @error('appointment_time') is-invalid @enderror" required value="{{ old('appointment_time') }}"></div>
+                    <div class="col-md-2"><label class="data-title">Atenderá</label><input type="text" name="attending_physician_name" class="form-control @error('attending_physician_name') is-invalid @enderror" required value="{{ old('attending_physician_name') }}"></div>
+                    <div class="col-md-3"><label class="data-title">Coordinado con</label><input type="text" name="coordination_name" class="form-control @error('coordination_name') is-invalid @enderror" required value="{{ old('coordination_name') }}"></div>
                     
                     <div class="col-md-6"><label class="data-title">Especialidad Destino</label><input type="text" name="destination_specialty" class="form-control @error('destination_specialty') is-invalid @enderror" required value="{{ old('destination_specialty', 'MEDICINA INTERNA / NEFROLOGÍA') }}"></div>
                     <div class="col-md-3"><label class="data-title">Condición Inicio</label><select name="patient_condition" class="form-select @error('patient_condition') is-invalid @enderror" required>
@@ -155,7 +160,7 @@
                     </select></div>
 
                     @foreach(['referral_responsible_id' => 'Responsable RF', 'facility_responsible_id' => 'Resp. Establ.', 'escort_staff_id' => 'Acompañante', 'receiving_staff_id' => 'Recibe'] as $name => $label)
-                    <div class="col-md-3"><label class="data-title">{{ $label }}</label><select name="{{ $name }}" class="form-select shadow-sm @error($name) is-invalid @enderror">
+                    <div class="col-md-3"><label class="data-title">{{ $label }}</label><select name="{{ $name }}" class="form-select shadow-sm @error($name) is-invalid @enderror" {{ $name !== 'receiving_staff_id' ? 'required' : '' }}>
                         <option value="">Seleccione...</option>
                         @foreach($staff as $user) <option value="{{ $user->id }}" {{ old($name) == $user->id ? 'selected':'' }}>{{ $user->name }}</option> @endforeach
                     </select></div>
@@ -173,9 +178,36 @@
     @push('scripts')
         <script>
             $(document).ready(function() {
+
+                const form = $('#referralFormSis');
+                form.on('submit', function () {
+                    form.find('[required]').each(function () {
+                        const $field = $(this);
+                        if (!$field.val()) {
+                            $field.addClass('is-invalid');
+                        } else {
+                            $field.removeClass('is-invalid');
+                        }
+                    });
+
+                    const patientValue = $('#patient_search').val();
+                    const select2Selection = $('#patient_search').next('.select2-container').find('.select2-selection');
+                    if (!patientValue) {
+                        select2Selection.addClass('is-invalid');
+                    } else {
+                        select2Selection.removeClass('is-invalid');
+                    }
+
+                    $('#general_state').val($('input[name="skin_subcutaneous"]').val());
+                });
+
+                $('input[name="skin_subcutaneous"]').on('input', function () {
+                    $('#general_state').val($(this).val());
+                });
+
                 $('#patient_search').select2({
                     theme: 'bootstrap-5',
-                    ajax: { url: "{{ route('patients.search') }}", dataType: 'json', delay: 300, data: params => ({ q: params.term }), processResults: data => data },
+                    ajax: { url: "{{ route('patients.search') }}", dataType: 'json', delay: 300, data: params => ({ q: params.term, insurance_type: 'SIS' }), processResults: data => data },
                     minimumInputLength: 2
                 }).on('select2:select', function (e) {
                     let p = e.params.data;

@@ -100,9 +100,21 @@ class PatientController extends Controller
 
     public function search(Request $request) {
     $q = $request->q;
-    $patients = \App\Models\Patient::where('dni', 'LIKE', "%$q%")
-        ->orWhere('surname', 'LIKE', "%$q%")
-        ->get()
+    $insuranceType = strtoupper((string) $request->insurance_type);
+
+    $patientsQuery = \App\Models\Patient::query()
+        ->where(function ($query) use ($q) {
+            $query->where('dni', 'LIKE', "%$q%")
+                ->orWhere('surname', 'LIKE', "%$q%");
+        });
+
+    if ($insuranceType === 'SIS') {
+        $patientsQuery->where('insurance_type', 'SIS');
+    } elseif ($insuranceType === 'ESSALUD') {
+        $patientsQuery->where('insurance_type', '!=', 'SIS');
+    }
+
+    $patients = $patientsQuery->get()
         ->map(function($p) {
             return [
                 'id' => $p->id,
