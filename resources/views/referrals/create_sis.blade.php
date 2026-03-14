@@ -31,7 +31,7 @@
             </div>
         @endif
 
-    <form id="referralFormSis" action="{{ route('referrals.store') }}" method="POST">
+    <form id="referralFormSis" action="{{ route('referrals.store') }}" method="POST" novalidate>
         @csrf
 
         
@@ -180,25 +180,39 @@
             $(document).ready(function() {
 
                 const form = $('#referralFormSis');
-                form.on('submit', function () {
+                const validateRequiredFields = () => {
+                    let hasErrors = false;
+
                     form.find('[required]').each(function () {
                         const $field = $(this);
-                        if (!$field.val()) {
-                            $field.addClass('is-invalid');
-                        } else {
-                            $field.removeClass('is-invalid');
-                        }
+                        const value = ($field.val() ?? '').toString().trim();
+                        const isEmpty = value === '';
+
+                        $field.toggleClass('is-invalid', isEmpty);
+                        if (isEmpty) hasErrors = true;
                     });
 
-                    const patientValue = $('#patient_search').val();
+                    const patientValue = ($('#patient_search').val() ?? '').toString().trim();
                     const select2Selection = $('#patient_search').next('.select2-container').find('.select2-selection');
-                    if (!patientValue) {
-                        select2Selection.addClass('is-invalid');
-                    } else {
-                        select2Selection.removeClass('is-invalid');
+                    const missingPatient = patientValue === '';
+                    select2Selection.toggleClass('is-invalid', missingPatient);
+
+                    return !hasErrors && !missingPatient;
+                };
+
+                form.on('submit', function (e) {
+                    if (!validateRequiredFields()) {
+                        e.preventDefault();
+                        e.stopPropagation();
                     }
 
                     $('#general_state').val($('input[name="skin_subcutaneous"]').val());
+                });
+
+                form.on('input change', '[required]', function () {
+                    const $field = $(this);
+                    const value = ($field.val() ?? '').toString().trim();
+                    $field.toggleClass('is-invalid', value === '');
                 });
 
                 $('input[name="skin_subcutaneous"]').on('input', function () {
@@ -209,8 +223,14 @@
                     theme: 'bootstrap-5',
                     ajax: { url: "{{ route('patients.search') }}", dataType: 'json', delay: 300, data: params => ({ q: params.term, insurance_type: 'SIS' }), processResults: data => data },
                     minimumInputLength: 2
-                }).on('select2:select', function (e) {
-                    let p = e.params.data;
+                }).on('select2:select select2:clear', function (e) {
+                    const p = e.params && e.params.data ? e.params.data : null;
+                    $('#patient_search').removeClass('is-invalid');
+                    $('#patient_search').next('.select2-container').find('.select2-selection').removeClass('is-invalid');
+
+                    if (!p) {
+                        return;
+                    }
                     $('#snapshot_panel').removeClass('d-none');
                     $('#v_hc').text(p.medical_history_number || 'S/N');
                     $('#v_aff').text(p.affiliation_code || 'S/C');
