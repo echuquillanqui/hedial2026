@@ -93,16 +93,16 @@
                 </div>
 
                 <div class="row g-3 mb-4">
-                    <div class="col-md-6"><label class="data-title">Estado General</label><input type="text" name="skin_subcutaneous" class="form-control @error('skin_subcutaneous') is-invalid @enderror" required value="{{ old('skin_subcutaneous', 'ESTABLE') }}"></div>
+                    <div class="col-md-6"><label class="data-title">Estado General</label><input type="text" name="skin_subcutaneous" class="form-control @error('skin_subcutaneous') is-invalid @enderror" value="{{ old('skin_subcutaneous', 'ESTABLE') }}"></div>
                     <input type="hidden" name="general_state" id="general_state" value="{{ old('general_state', old('skin_subcutaneous', 'ESTABLE')) }}">
                     <div class="col-md-6"><label class="data-title">Pulmones</label><input type="text" name="lungs" class="form-control @error('lungs') is-invalid @enderror" required value="{{ old('lungs', 'Murmullo vesicular pasa en ambos campos pulmonares, no crépitos. ') }}"></div>
                     <div class="col-md-6"><label class="data-title">Cardiovascular</label><input type="text" name="cardiovascular" class="form-control @error('cardiovascular') is-invalid @enderror" required value="{{ old('cardiovascular', 'Ruidos cardiacos ritmicos, regular intensidad. No frote.
 ') }}"></div>
-                    <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control @error('neurological') is-invalid @enderror" required value="{{ old('neurological', 'despierta, lúcida, no signos de focalización. Pupilas isocóricas, fotoreactivas. ') }}"></div>
+                    <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control @error('neurological') is-invalid @enderror" value="{{ old('neurological', 'despierta, lúcida, no signos de focalización. Pupilas isocóricas, fotoreactivas. ') }}"></div>
                     
                     <div class="col-12 mt-3">
                         <label class="data-title">Otros</label>
-                        <textarea name="others" class="form-control @error('others') is-invalid @enderror" rows="2" required>{{ old('others') }}</textarea>
+                        <textarea name="others" class="form-control @error('others') is-invalid @enderror" rows="2">{{ old('others') }}</textarea>
                     </div>
                 
                 </div>

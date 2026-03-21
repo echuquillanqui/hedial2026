@@ -96,10 +96,12 @@
                 </div>
 
                 <div class="row g-3 mb-4">
-                    <div class="col-md-6"><label class="data-title">Estado General</label><input type="text" name="skin_subcutaneous" class="form-control" value="{{ old('skin_subcutaneous', $referral->skin_subcutaneous) }}"></div>
+                    <div class="col-md-6"><label class="data-title">Estado General</label><input type="text" name="general_state" class="form-control" value="{{ old('general_state', $referral->general_state) }}"></div>
+                    <div class="col-md-6"><label class="data-title">Piel y TCSC</label><input type="text" name="skin_subcutaneous" class="form-control" value="{{ old('skin_subcutaneous', $referral->skin_subcutaneous) }}"></div>
                     <div class="col-md-6"><label class="data-title">Pulmones</label><input type="text" name="lungs" class="form-control" value="{{ old('lungs', $referral->lungs) }}"></div>
                     <div class="col-md-6"><label class="data-title">Cardiovascular</label><input type="text" name="cardiovascular" class="form-control" value="{{ old('cardiovascular', $referral->cardiovascular) }}"></div>
                     <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control" value="{{ old('neurological', $referral->neurological) }}"></div>
+                    <div class="col-md-6"><label class="data-title">Otros</label><input type="text" name="others" class="form-control" value="{{ old('others', $referral->others) }}"></div>
                 </div>
 
                 <div class="section-label">Exámenes Auxiliares</div>
@@ -110,8 +112,8 @@
                 </div>
                 <div class="section-label">3. Diagnósticos</div>
                 <div x-data="diagnosisTreatmentForm({
-                    diagnoses: {{ json_encode(old('diagnoses', [['icd_10_code' => 'N18.9', 'diagnosis' => 'INSUFICIENCIA RENAL CRÓNICA TERMINAL', 'D' => true, 'P' => false, 'R' => false]])) }},
-                    treatments: {{ json_encode(old('treatments', [''])) }}
+                    diagnoses: {{ json_encode(old('diagnoses', $referral->diagnosisTreatments->map(fn($item) => ['icd_10_code' => $item->icd_10_code, 'diagnosis' => $item->diagnosis, 'D' => $item->D === 'X', 'P' => $item->P === 'X', 'R' => $item->R === 'X'])->values()->all() ?: [['icd_10_code' => 'N18.9', 'diagnosis' => 'INSUFICIENCIA RENAL CRÓNICA TERMINAL', 'D' => true, 'P' => false, 'R' => false]])) }},
+                    treatments: {{ json_encode(old('treatments', $referral->treatments ?? [''])) }}
                 })" x-init="init()">
                     <table class="table table-bordered align-middle">
                         <thead class="table-light text-center small">
@@ -158,7 +160,7 @@
                         </select>
                     </div>
                     <div class="col-md-2"><label class="data-title">Fecha Cita</label><input type="date" name="appointment_date" class="form-control" value="{{ old('appointment_date', $referral->appointment_date) }}"></div>
-                    <div class="col-md-2"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control" value="{{ old('appointment_time', $referral->appointment_time) }}"></div>
+                    <div class="col-md-2"><label class="data-title">Hora Cita</label><input type="time" name="appointment_time" class="form-control" value="{{ old('appointment_time', $referral->appointment_time ? \Carbon\Carbon::parse($referral->appointment_time)->format('H:i') : null) }}"></div>
                     <div class="col-md-3"><label class="data-title">Atenderá</label><input type="text" name="attending_physician_name" class="form-control" value="{{ old('attending_physician_name', $referral->attending_physician_name) }}"></div>
                     <div class="col-md-3"><label class="data-title">Coordinado con</label><input type="text" name="coordination_name" class="form-control" value="{{ old('coordination_name', $referral->coordination_name) }}"></div>
                     <div class="col-md-6"><label class="data-title">Especialidad Destino</label><input type="text" name="destination_specialty" class="form-control @error('destination_specialty') is-invalid @enderror" required value="{{ old('destination_specialty', $referral->destination_specialty) }}"></div>

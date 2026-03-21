@@ -158,7 +158,7 @@ class ReferralController extends Controller
 
     public function edit(Referral $referral)
     {
-        $referral->load('patient');
+        $referral->load(['patient', 'diagnosisTreatments']);
         $staff = User::all();
 
         $type = $referral->type ?? ($referral->patient->insurance_type === 'ESSALUD' ? 'ESSALUD' : 'SIS');
@@ -211,20 +211,20 @@ class ReferralController extends Controller
             'destination_facility' => 'required|string|max:255',
             'destination_specialty' => 'required|string|max:255',
             'anamnesis' => 'required|string',
-            'general_state' => 'required|string|max:255',
+            'general_state' => 'nullable|string|max:255',
             'temperature' => 'required|string|max:255',
             'blood_pressure' => 'required|string|max:255',
             'respiratory_rate' => 'required|string|max:255',
             'heart_rate' => 'required|string|max:255',
             'oxygen_saturation' => 'required|string|max:255',
-            'skin_subcutaneous' => 'required|string|max:255',
+            'skin_subcutaneous' => 'nullable|string|max:255',
             'lungs' => 'required|string|max:255',
             'cardiovascular' => 'required|string|max:255',
-            'neurological' => 'required|string|max:255',
+            'neurological' => 'nullable|string|max:255',
             'auxiliary_exams' => 'nullable|string',
             'others' => 'nullable|string',
             'appointment_date' => 'nullable|date',
-            'appointment_time' => 'nullable|date_format:H:i',
+            'appointment_time' => 'nullable|date_format:H:i,H:i:s',
             'attending_physician_name' => 'nullable|string|max:255',
             'coordination_name' => 'nullable|string|max:255',
             'patient_condition' => 'required|in:ESTABLE,MAL ESTADO',
