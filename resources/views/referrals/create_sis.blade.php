@@ -112,23 +112,28 @@
                 <div class="section-label">Exámenes Auxiliares</div>
                 <div class="row mb-4">
                     <div class="col-12">
-                        <textarea name="auxiliary_exams" class="form-control @error('auxiliary_exams') is-invalid @enderror" rows="2" required>{{ old('auxiliary_exams') }}</textarea>
+                        <textarea name="auxiliary_exams" class="form-control @error('auxiliary_exams') is-invalid @enderror" rows="2">{{ old('auxiliary_exams') }}</textarea>
                     </div>
                 
                 </div>
-
-                <div class="section-label">3. Diagnósticos y Tratamiento</div>
-                <div x-data="{ rows: {{ json_encode(old('diagnoses', [['icd_10_code' => 'N18.0', 'diagnosis' => ' Insuficiencia renal crónica terminal', 'treatment' => 'Diclofenaco 75 mg 1 amp EV STAT. ', 'D' => true, 'P' => false, 'R' => false]])) }} }">
+                <div class="section-label">3. Diagnósticos</div>
+                <div x-data="diagnosisTreatmentForm({
+                    diagnoses: {{ json_encode(old('diagnoses', [['icd_10_code' => 'N18.0', 'diagnosis' => 'INSUFICIENCIA RENAL CRÓNICA TERMINAL', 'D' => true, 'P' => false, 'R' => false]])) }},
+                    treatments: {{ json_encode(old('treatments', [''])) }}
+                })" x-init="init()">
                     <table class="table table-bordered align-middle">
                         <thead class="table-light text-center small">
-                            <tr><th width="12%">CIE-10</th><th width="33%">Diagnóstico</th><th width="33%">Tratamiento</th><th width="4%">D</th><th width="4%">P</th><th width="4%">R</th><th width="5%"></th></tr>
+                            <tr><th width="20%">CIE-10</th><th width="58%">Diagnóstico</th><th width="4%">D</th><th width="4%">P</th><th width="4%">R</th><th width="5%"></th></tr>
                         </thead>
                         <tbody>
                             <template x-for="(row, index) in rows" :key="index">
                                 <tr>
-                                    <td><input type="text" value="N18.0" :name="`diagnoses[${index}][icd_10_code]`" x-model="row.icd_10_code" class="form-control form-control-sm" required></td>
-                                    <td><input type="text" :name="`diagnoses[${index}][diagnosis]`" x-model="row.diagnosis" class="form-control form-control-sm" required></td>
-                                    <td><textarea :name="`diagnoses[${index}][treatment]`" x-model="row.treatment" class="form-control form-control-sm" rows="1" required></textarea></td>
+                                    <td>
+                                        <input type="text" :name="`diagnoses[${index}][icd_10_code]`" x-model="row.icd_10_code" class="form-control form-control-sm cie-code-input" :data-row="index" list="cie-options" placeholder="Código CIE-10">
+                                    </td>
+                                    <td>
+                                        <input type="text" :name="`diagnoses[${index}][diagnosis]`" x-model="row.diagnosis" class="form-control form-control-sm cie-desc-input" :data-row="index" list="cie-options" placeholder="Descripción CIE-10">
+                                    </td>
                                     <td class="text-center"><input type="checkbox" :name="`diagnoses[${index}][D]`" value="X" :checked="row.D"></td>
                                     <td class="text-center"><input type="checkbox" :name="`diagnoses[${index}][P]`" value="X" :checked="row.P"></td>
                                     <td class="text-center"><input type="checkbox" :name="`diagnoses[${index}][R]`" value="X" :checked="row.R"></td>
@@ -137,7 +142,17 @@
                             </template>
                         </tbody>
                     </table>
-                    <button type="button" @click="rows.push({ icd_10_code: '', diagnosis: '', treatment: '', D: false, P: false, R: false })" class="btn btn-sm btn-outline-success">+ Agregar Diagnóstico</button>
+                    <button type="button" @click="rows.push({ icd_10_code: '', diagnosis: '', D: false, P: false, R: false })" class="btn btn-sm btn-outline-success">+ Agregar Diagnóstico</button>
+
+                    <div class="section-label mt-4">Tratamiento / Recomendaciones</div>
+                    <template x-for="(treatment, tIndex) in treatments" :key="`tr-${tIndex}`">
+                        <div class="d-flex gap-2 mb-2">
+                            <input type="text" :name="`treatments[${tIndex}]`" x-model="treatments[tIndex]" class="form-control form-control-sm" placeholder="Tratamiento o recomendación (opcional)">
+                            <button type="button" class="btn btn-sm btn-outline-danger" @click="treatments.splice(tIndex, 1)" x-show="treatments.length > 1">×</button>
+                        </div>
+                    </template>
+                    <button type="button" @click="treatments.push('')" class="btn btn-sm btn-outline-secondary">+ Agregar Tratamiento</button>
+                    <datalist id="cie-options"></datalist>
                 </div>
 
                 <div class="section-label mt-5">4. Datos de Referencia</div>
@@ -165,7 +180,7 @@
                     </select></div>
 
                     @foreach(['referral_responsible_id' => 'Responsable RF', 'facility_responsible_id' => 'Resp. Establ.', 'escort_staff_id' => 'Acompañante', 'receiving_staff_id' => 'Recibe'] as $name => $label)
-                    <div class="col-md-3"><label class="data-title">{{ $label }}</label><select name="{{ $name }}" class="form-select shadow-sm @error($name) is-invalid @enderror" {{ $name !== 'receiving_staff_id' ? 'required' : '' }}>
+                    <div class="col-md-3"><label class="data-title">{{ $label }}</label><select name="{{ $name }}" class="form-select shadow-sm @error($name) is-invalid @enderror" {{ in_array($name, ['referral_responsible_id', 'facility_responsible_id']) ? 'required' : '' }}>
                         <option value="">Seleccione...</option>
                         @foreach($staff as $user) <option value="{{ $user->id }}" {{ old($name) == $user->id ? 'selected':'' }}>{{ $user->name }}</option> @endforeach
                     </select></div>
@@ -182,7 +197,49 @@
 
     @push('scripts')
         <script>
-            $(document).ready(function() {
+            
+            window.diagnosisTreatmentForm = function(config) {
+                return {
+                    rows: config.diagnoses?.length ? config.diagnoses : [{ icd_10_code: '', diagnosis: '', D: false, P: false, R: false }],
+                    treatments: config.treatments?.length ? config.treatments : [''],
+                    cieResults: [],
+                    init() {
+                        this.bindCieSearch();
+                    },
+                    bindCieSearch() {
+                        const fetchCie = async (term) => {
+                            if (!term || term.length < 2) return [];
+                            const response = await fetch(`{{ route('referrals.cie10.search') }}?q=${encodeURIComponent(term)}`);
+                            return await response.json();
+                        };
+
+                        document.addEventListener('input', async (event) => {
+                            const target = event.target;
+                            if (!target.classList.contains('cie-code-input') && !target.classList.contains('cie-desc-input')) {
+                                return;
+                            }
+
+                            const rowIndex = Number(target.dataset.row);
+                            const list = document.getElementById('cie-options');
+                            const results = await fetchCie(target.value);
+                            this.cieResults = results;
+                            list.innerHTML = results.map(item => `<option value="${target.classList.contains('cie-code-input') ? item.codigo : item.descripcion}"></option>`).join('');
+
+                            const selected = results.find(item =>
+                                item.codigo?.toLowerCase() === target.value.toLowerCase() ||
+                                item.descripcion?.toLowerCase() === target.value.toLowerCase()
+                            );
+
+                            if (selected && this.rows[rowIndex]) {
+                                this.rows[rowIndex].icd_10_code = selected.codigo;
+                                this.rows[rowIndex].diagnosis = selected.descripcion;
+                            }
+                        }, { passive: true });
+                    }
+                }
+            }
+
+    $(document).ready(function() {
 
                 const form = $('#referralFormSis');
                 const validateRequiredFields = () => {

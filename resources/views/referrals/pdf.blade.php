@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        @page { margin: 0.8cm 0.8cm 0.8cm 1.8cm; }
-        body { font-family: 'Helvetica', sans-serif; font-size: 8px; line-height: 1.1; color: #000; }
+        @page { margin: 0.45cm 0.45cm 0.45cm 0.9cm; size: A4 portrait; }
+        body { font-family: 'Helvetica', sans-serif; font-size: 7px; line-height: 1.0; color: #000; }
         .table { width: 100%; border-collapse: collapse; margin-bottom: 7px; table-layout: fixed; }
         .table th, .table td { border: 1px solid #000; padding: 4px; vertical-align: top; word-wrap: break-word; }
         
@@ -21,7 +21,10 @@
 
     <table style="width: 100%; border: none; margin-bottom: 5px;">
         <tr>
-            <td style="border: none; width: 70%; text-align: right;"><div class="header-title">HOJA DE REFERENCIA</div></td>
+            <td style="border: none; width: 30%;">
+                <img src="{{ public_path('logo/logo_03.jpeg') }}" style="height: 48px;">
+            </td>
+            <td style="border: none; width: 40%; text-align: center;"><div class="header-title">HOJA DE REFERENCIA</div></td>
             <td style="border: none; width: 30%; text-align: right;">
                 <div style="border: 1px solid #0056b3; padding: 5px; display: inline-block;">
                     <span class="label">N° REFERENCIA</span>
@@ -105,9 +108,9 @@
             <tr>
                 <td class="data-text">{{ strtoupper($dt->diagnosis) }}</td>
                 <td class="text-center data-text">{{ $dt->icd_10_code }}</td>
-                <td class="text-center data-text">{{ $dt->D }}</td>
-                <td class="text-center data-text">{{ $dt->P }}</td>
-                <td class="text-center data-text">{{ $dt->R }}</td>
+                <td class="text-center data-text">{{ filled($dt->D) ? 'X' : '' }}</td>
+                <td class="text-center data-text">{{ filled($dt->P) ? 'X' : '' }}</td>
+                <td class="text-center data-text">{{ filled($dt->R) ? 'X' : '' }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -120,11 +123,13 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($referral->diagnosisTreatments as $dt2)
+            @forelse(($referral->treatments ?? []) as $treatment)
             <tr>
-                <td class="data-text">{{ strtoupper($dt2->treatment) }}</td>
+                <td class="data-text">{{ strtoupper($treatment) }}</td>
             </tr>
-            @endforeach
+            @empty
+            <tr><td class="data-text">SIN TRATAMIENTO REGISTRADO</td></tr>
+            @endforelse
         </tbody>
     </table>
 

@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('cie10s', function (Blueprint $table) {
             $table->id();
+            $table->string('codigo')->unique(); // Código CIE-10
+            $table->string('descripcion'); // Descripción de la enfermedad
+            $table->string('cotejo_final')->nullable(); // Categoría o grupo al que pertenece la enfermedad
             $table->timestamps();
         });
     }

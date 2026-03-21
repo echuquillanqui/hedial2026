@@ -42,7 +42,13 @@ class Referral extends Model
         'escort_staff_id',
         'receiving_staff_id',
         'arrival_condition',
+        'treatments',
         'numeration_id',
+    ];
+
+
+    protected $casts = [
+        'treatments' => 'array',
     ];
 
     /**

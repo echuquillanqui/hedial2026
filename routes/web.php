@@ -34,6 +34,7 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('referrals', App\Http\Controllers\ReferralController::class);
     Route::get('/referrals/{id}/pdf', [App\Http\Controllers\ReferralController::class, 'downloadPdf'])->name('referrals.pdf');
     Route::get('/referrals/{id}/pdf-essalud', [App\Http\Controllers\ReferralController::class, 'downloadPdfEssalud'])->name('referrals.pdf_essalud');
+    Route::get('/cie10-search', [App\Http\Controllers\ReferralController::class, 'searchCie10'])->name('referrals.cie10.search');
 
     Route::resource('orders', App\Http\Controllers\OrderController::class);
     Route::post('orders/store-bulk', [App\Http\Controllers\OrderController::class, 'storeBulk'])
