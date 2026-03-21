@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        @page { margin: 0.45cm 0.45cm 0.45cm 0.9cm; size: A4 portrait; }
+        @page { margin: 0.45cm 0.45cm 1cm 1.8cm; size: A4 portrait; }
         body { font-family: 'Helvetica', sans-serif; font-size: 7px; line-height: 1.0; color: #000; }
         .table { width: 100%; border-collapse: collapse; margin-bottom: 5px; table-layout: fixed; }
         .table th, .table td { border: 1px solid #000; padding: 4px; vertical-align: top; word-wrap: break-word; }
