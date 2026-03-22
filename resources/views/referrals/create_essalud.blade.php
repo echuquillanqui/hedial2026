@@ -101,8 +101,8 @@
                     <div class="col-md-6"><label class="data-title">Aparato Respiratorio</label><input type="text" name="lungs" class="form-control @error('lungs') is-invalid @enderror" required value="{{ old('lungs', 'Murmullo vesicular conservado, no ruidos agregados.') }}"></div>
                     <div class="col-md-6"><label class="data-title">Cardiovascular</label><input type="text" name="cardiovascular" class="form-control @error('cardiovascular') is-invalid @enderror" required value="{{ old('cardiovascular', 'Ruidos cardiacos rítmicos, de buena intensidad.') }}"></div>
                     <div class="col-md-6"><label class="data-title">Otros</label><input type="text" name="others" class="form-control @error('others') is-invalid @enderror" value="{{ old('others') }}"></div>
-                    <div class="col-md-6"><label class="data-title">Piel y TCSC</label><input type="text" name="skin_subcutaneous" class="form-control @error('skin_subcutaneous') is-invalid @enderror" value="{{ old('skin_subcutaneous', 'Sin alteraciones') }}"></div>
-                    <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control @error('neurological') is-invalid @enderror" value="{{ old('neurological', 'Lúcido y orientado') }}"></div>
+                    {{-- <div class="col-md-6"><label class="data-title">Piel y TCSC</label><input type="text" name="skin_subcutaneous" class="form-control @error('skin_subcutaneous') is-invalid @enderror" value="{{ old('skin_subcutaneous', 'Sin alteraciones') }}"></div>
+                    <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control @error('neurological') is-invalid @enderror" value="{{ old('neurological', 'Lúcido y orientado') }}"></div> --}}
                     <div class="col-12">
                         <label class="data-title">Examenes auxiliares</label>
                         <textarea name="auxiliary_exams" class="form-control @error('auxiliary_exams') is-invalid @enderror" rows="2">{{ old('auxiliary_exams') }}</textarea>

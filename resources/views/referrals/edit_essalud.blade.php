@@ -108,8 +108,8 @@
                     <div class="col-md-6"><label class="data-title">Aparato Respiratorio</label><input type="text" name="lungs" class="form-control" value="{{ old('lungs', $referral->lungs) }}"></div>
                     <div class="col-md-6"><label class="data-title">Cardiovascular</label><input type="text" name="cardiovascular" class="form-control" value="{{ old('cardiovascular', $referral->cardiovascular) }}"></div>
                     <div class="col-md-6"><label class="data-title">Otros</label><input type="text" name="others" class="form-control" value="{{ old('others', $referral->others) }}"></div>
-                    <div class="col-md-6"><label class="data-title">Piel y TCSC</label><input type="text" name="skin_subcutaneous" class="form-control" value="{{ old('skin_subcutaneous', $referral->skin_subcutaneous) }}"></div>
-                    <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control" value="{{ old('neurological', $referral->neurological) }}"></div>
+                    {{-- <div class="col-md-6"><label class="data-title">Piel y TCSC</label><input type="text" name="skin_subcutaneous" class="form-control" value="{{ old('skin_subcutaneous', $referral->skin_subcutaneous) }}"></div>
+                    <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control" value="{{ old('neurological', $referral->neurological) }}"></div> --}}
                     <div class="col-12">
                         <label class="data-title">Examenes auxiliares</label>
                         <textarea name="auxiliary_exams" class="form-control" rows="2">{{ old('auxiliary_exams', $referral->auxiliary_exams) }}</textarea>
