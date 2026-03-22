@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -89,6 +90,39 @@ class NurseController extends Controller
 
     public function update(Request $request, Nurse $nurse)
     {
+        $validator = Validator::make($request->all(), [
+            't_hora.*' => ['nullable', 'date_format:H:i'],
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $monitoringFields = ['t_hora', 't_pa', 't_fc', 't_qb', 't_cnd', 't_ra', 't_rv', 't_ptm', 't_obs'];
+            $rowsCount = collect($monitoringFields)
+                ->map(fn ($field) => count($request->input($field, [])))
+                ->max() ?? 0;
+
+            for ($index = 0; $index < $rowsCount; $index++) {
+                $rowHasData = collect($monitoringFields)->contains(function ($field) use ($request, $index) {
+                    $value = $request->input($field . '.' . $index);
+                    return is_numeric($value) || (!is_null($value) && trim((string) $value) !== '');
+                });
+
+                if (!$rowHasData) {
+                    $validator->errors()->add(
+                        't_hora.' . $index,
+                        'La fila de monitoreo #' . ($index + 1) . ' está vacía. Complete al menos un dato o elimínela.'
+                    );
+                }
+            }
+        });
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
         try {
             DB::transaction(function () use ($request, $nurse) {
                 // Actualizamos la tabla nurses
