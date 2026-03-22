@@ -21,7 +21,12 @@
             font-family: 'Nunito', sans-serif;
             color: #334155;
         }
-        .navbar { background: var(--medical-blue) !important; }
+        .navbar {
+            background: var(--medical-blue) !important;
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+        }
         .card { border: none; border-radius: 12px; transition: all 0.3s; }
         .shadow-sm { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; }
         [x-cloak] { display: none !important; }

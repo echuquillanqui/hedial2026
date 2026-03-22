@@ -28,41 +28,37 @@ class HomeController extends Controller
     public function exportExcel(Request $request): StreamedResponse
     {
         $dashboard = $this->buildDashboardData($request->get('date', now()->format('Y-m-d')));
-        $filename = 'dashboard-hemodialisis-'.$dashboard['fechaActual'].'.csv';
+        $filename = 'dashboard-hemodialisis-'.$dashboard['fechaActual'].'.xls';
 
         return response()->streamDownload(function () use ($dashboard) {
-            $handle = fopen('php://output', 'w');
+            $escape = static function ($value): string {
+                return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+            };
 
-            fputcsv($handle, ['Dashboard de Hemodiálisis', $dashboard['fechaActual']]);
-            fputcsv($handle, []);
-            fputcsv($handle, ['Totales']);
-            fputcsv($handle, ['Total sesiones', $dashboard['kpis']['totalSesiones']]);
-            fputcsv($handle, ['Sesiones completas', $dashboard['kpis']['sesionesCompletas']]);
-            fputcsv($handle, ['Sesiones pendientes', $dashboard['kpis']['sesionesPendientes']]);
-            fputcsv($handle, ['Total heparina aplicada', $dashboard['kpis']['totalHeparina']]);
-            fputcsv($handle, ['Total dializadores registrados', $dashboard['kpis']['totalDializadoresRegistrados']]);
-            fputcsv($handle, ['Materiales no registrados (estimado por sesión)', $dashboard['kpis']['noRegistradosEstimados']]);
-            fputcsv($handle, []);
+            echo '<html><head><meta charset="UTF-8"></head><body>';
+            echo '<table border="1">';
+            echo '<tr><th colspan="2">Dashboard de Hemodiálisis</th><td>'.$escape($dashboard['fechaActual']).'</td></tr>';
+            echo '<tr><td colspan="3"></td></tr>';
+            echo '<tr><th colspan="3">Totales</th></tr>';
+            echo '<tr><td>Total sesiones</td><td>'.$escape($dashboard['kpis']['totalSesiones']).'</td></tr>';
+            echo '<tr><td>Sesiones completas</td><td>'.$escape($dashboard['kpis']['sesionesCompletas']).'</td></tr>';
+            echo '<tr><td>Sesiones pendientes</td><td>'.$escape($dashboard['kpis']['sesionesPendientes']).'</td></tr>';
+            echo '<tr><td>Total heparina aplicada</td><td>'.$escape($dashboard['kpis']['totalHeparina']).'</td></tr>';
+            echo '<tr><td>Total dializadores registrados</td><td>'.$escape($dashboard['kpis']['totalDializadoresRegistrados']).'</td></tr>';
+            echo '<tr><td>Materiales no registrados (estimado por sesión)</td><td>'.$escape($dashboard['kpis']['noRegistradosEstimados']).'</td></tr>';
+            echo '</table><br>';
 
-            fputcsv($handle, ['Consumo por sesión']);
-            fputcsv($handle, [
-                'Paciente',
-                'Código',
-                'Módulo',
-                'Turno',
-                'Dializador',
-                'Heparina',
-                'EPO',
-                'Hierro',
-                'Vitamina B12',
-                'Calcitriol',
-                'Bicarbonato',
-                'QB',
-                'Estado ficha',
-            ]);
+            echo '<table border="1">';
+            echo '<tr><th colspan="13">Consumo por sesión</th></tr>';
+            echo '<tr>';
+            foreach (['Paciente', 'Código', 'Módulo', 'Turno', 'Dializador', 'Heparina', 'EPO', 'Hierro', 'Vitamina B12', 'Calcitriol', 'Bicarbonato', 'QB', 'Estado ficha'] as $header) {
+                echo '<th>'.$escape($header).'</th>';
+            }
+            echo '</tr>';
 
             foreach ($dashboard['resumenInsumos'] as $fila) {
-                fputcsv($handle, [
+                echo '<tr>';
+                foreach ([
                     $fila['paciente'],
                     $fila['codigo'],
                     $fila['modulo'],
@@ -76,20 +72,23 @@ class HomeController extends Controller
                     $fila['bicarbonato'],
                     $fila['qb'],
                     $fila['estado'],
-                ]);
+                ] as $value) {
+                    echo '<td>'.$escape($value).'</td>';
+                }
+                echo '</tr>';
             }
+            echo '</table><br>';
 
-            fputcsv($handle, []);
-            fputcsv($handle, ['Materiales críticos no registrados automáticamente']);
-            fputcsv($handle, ['Material', 'Cantidad estimada']);
-
+            echo '<table border="1">';
+            echo '<tr><th colspan="2">Materiales críticos no registrados automáticamente</th></tr>';
+            echo '<tr><th>Material</th><th>Cantidad estimada</th></tr>';
             foreach ($dashboard['materialesNoRegistrados'] as $material) {
-                fputcsv($handle, [$material['nombre'], $material['cantidad']]);
+                echo '<tr><td>'.$escape($material['nombre']).'</td><td>'.$escape($material['cantidad']).'</td></tr>';
             }
-
-            fclose($handle);
+            echo '</table>';
+            echo '</body></html>';
         }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
         ]);
     }
 
@@ -110,21 +109,27 @@ class HomeController extends Controller
             $treatmentOk = $orden->treatments->count() > 0;
             $completa = $medicalOk && $nurseOk && $treatmentOk;
 
-            $epo = (int) ($medical->epo2000 ?? 0) + (int) ($medical->epo4000 ?? 0);
+            $dializador = ($nurse && $this->isFieldFilled($nurse->filtro ?? null) && strtoupper((string) $nurse->filtro) !== 'NO') ? 1 : 0;
+            $heparina = $this->isFieldFilled($medical->heparina ?? null) ? 1 : 0;
+            $epo = ($this->isFieldFilled($medical->epo2000 ?? null) || $this->isFieldFilled($medical->epo4000 ?? null)
+                || $this->isFieldFilled($nurse->epo2000 ?? null) || $this->isFieldFilled($nurse->epo4000 ?? null)) ? 1 : 0;
+            $hierro = ($this->isFieldFilled($medical->hierro ?? null) || $this->isFieldFilled($nurse->hierro ?? null)) ? 1 : 0;
+            $vitaminaB12 = ($this->isFieldFilled($medical->vitamina_b12 ?? null) || $this->isFieldFilled($nurse->vitamina_b12 ?? null)) ? 1 : 0;
+            $calcitriol = ($this->isFieldFilled($medical->calcitriol ?? null) || $this->isFieldFilled($nurse->calcitriol ?? null)) ? 1 : 0;
 
             return [
                 'paciente' => trim(($orden->patient->surname ?? '').' '.($orden->patient->first_name ?? '')),
                 'codigo' => $orden->codigo_unico,
                 'modulo' => $orden->sala,
                 'turno' => $orden->turno,
-                'dializador' => ($nurse && ! empty($nurse->filtro) && strtoupper($nurse->filtro) !== 'NO') ? 1 : 0,
-                'heparina' => (int) ($medical->heparina ?? 0),
+                'dializador' => $dializador,
+                'heparina' => $heparina,
                 'epo' => $epo,
-                'hierro' => (int) ($medical->hierro ?? 0),
-                'vitamina_b12' => (int) ($medical->vitamina_b12 ?? 0),
-                'calcitriol' => (int) ($medical->calcitriol ?? 0),
-                'bicarbonato' => ! empty($medical->bicarbonato) ? 1 : 0,
-                'qb' => ! empty($medical->qb) ? 1 : 0,
+                'hierro' => $hierro,
+                'vitamina_b12' => $vitaminaB12,
+                'calcitriol' => $calcitriol,
+                'bicarbonato' => $this->isFieldFilled($medical->bicarbonato ?? null) ? 1 : 0,
+                'qb' => $this->isFieldFilled($medical->qb ?? null) ? 1 : 0,
                 'estado' => $completa ? 'Completa' : 'Pendiente',
                 'completa' => $completa,
             ];
@@ -166,5 +171,18 @@ class HomeController extends Controller
                 'noRegistradosEstimados' => $materialesNoRegistrados->sum('cantidad'),
             ],
         ];
+    }
+
+    private function isFieldFilled($value): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+
+        if (is_string($value)) {
+            return trim($value) !== '';
+        }
+
+        return true;
     }
 }
