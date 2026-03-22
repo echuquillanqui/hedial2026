@@ -26,6 +26,8 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/home/export/pdf', [App\Http\Controllers\HomeController::class, 'exportPdf'])->name('home.export.pdf');
+Route::get('/home/export/excel', [App\Http\Controllers\HomeController::class, 'exportExcel'])->name('home.export.excel');
 
 Route::middleware(['auth'])->group(function () {
     Route::resource('users', UserController::class);
