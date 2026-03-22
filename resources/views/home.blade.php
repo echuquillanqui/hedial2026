@@ -89,13 +89,13 @@
                                         <td>{{ $fila['modulo'] }}</td>
                                         <td>{{ $fila['turno'] }}</td>
                                         <td>{{ $fila['dializador'] > 0 ? $fila['dializador'] : '-' }}</td>
-                                        <td>{{ $fila['heparina'] > 0 ? $fila['heparina'] : '-' }}</td>
-                                        <td>{{ $fila['epo'] > 0 ? $fila['epo'] : '-' }}</td>
-                                        <td>{{ $fila['hierro'] > 0 ? $fila['hierro'] : '-' }}</td>
-                                        <td>{{ $fila['vitamina_b12'] > 0 ? $fila['vitamina_b12'] : '-' }}</td>
-                                        <td>{{ $fila['calcitriol'] > 0 ? $fila['calcitriol'] : '-' }}</td>
-                                        <td>{{ $fila['bicarbonato'] > 0 ? '1' : '-' }}</td>
-                                        <td>{{ $fila['qb'] > 0 ? '1' : '-' }}</td>
+                                        <td>{{ $fila['heparina'] }}</td>
+                                        <td>{{ $fila['epo'] }}</td>
+                                        <td>{{ $fila['hierro'] }}</td>
+                                        <td>{{ $fila['vitamina_b12'] }}</td>
+                                        <td>{{ $fila['calcitriol'] }}</td>
+                                        <td>{{ $fila['bicarbonato'] }}</td>
+                                        <td>{{ $fila['qb'] }}</td>
                                         <td>
                                             <span class="badge rounded-pill {{ $fila['completa'] ? 'text-bg-success' : 'text-bg-warning' }}">
                                                 {{ $fila['estado'] }}

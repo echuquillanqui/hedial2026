@@ -110,12 +110,16 @@ class HomeController extends Controller
             $completa = $medicalOk && $nurseOk && $treatmentOk;
 
             $dializador = ($nurse && $this->isFieldFilled($nurse->filtro ?? null) && strtoupper((string) $nurse->filtro) !== 'NO') ? 1 : 0;
-            $heparina = $this->isFieldFilled($medical->heparina ?? null) ? 1 : 0;
-            $epo = ($this->isFieldFilled($medical->epo2000 ?? null) || $this->isFieldFilled($medical->epo4000 ?? null)
-                || $this->isFieldFilled($nurse->epo2000 ?? null) || $this->isFieldFilled($nurse->epo4000 ?? null)) ? 1 : 0;
-            $hierro = ($this->isFieldFilled($medical->hierro ?? null) || $this->isFieldFilled($nurse->hierro ?? null)) ? 1 : 0;
-            $vitaminaB12 = ($this->isFieldFilled($medical->vitamina_b12 ?? null) || $this->isFieldFilled($nurse->vitamina_b12 ?? null)) ? 1 : 0;
-            $calcitriol = ($this->isFieldFilled($medical->calcitriol ?? null) || $this->isFieldFilled($nurse->calcitriol ?? null)) ? 1 : 0;
+            $heparina = $this->normalizeDose($medical->heparina ?? null);
+            $epo = $this->normalizeDose($medical->epo2000 ?? null)
+                + $this->normalizeDose($medical->epo4000 ?? null)
+                + $this->normalizeDose($nurse->epo2000 ?? null)
+                + $this->normalizeDose($nurse->epo4000 ?? null);
+            $hierro = $this->normalizeDose($medical->hierro ?? null) + $this->normalizeDose($nurse->hierro ?? null);
+            $vitaminaB12 = $this->normalizeDose($medical->vitamina_b12 ?? null) + $this->normalizeDose($nurse->vitamina_b12 ?? null);
+            $calcitriol = $this->normalizeDose($medical->calcitriol ?? null) + $this->normalizeDose($nurse->calcitriol ?? null);
+            $bicarbonato = $this->normalizeDose($medical->bicarbonato ?? null);
+            $qb = $this->normalizeDose($medical->qb ?? null);
 
             return [
                 'paciente' => trim(($orden->patient->surname ?? '').' '.($orden->patient->first_name ?? '')),
@@ -128,8 +132,8 @@ class HomeController extends Controller
                 'hierro' => $hierro,
                 'vitamina_b12' => $vitaminaB12,
                 'calcitriol' => $calcitriol,
-                'bicarbonato' => $this->isFieldFilled($medical->bicarbonato ?? null) ? 1 : 0,
-                'qb' => $this->isFieldFilled($medical->qb ?? null) ? 1 : 0,
+                'bicarbonato' => $bicarbonato,
+                'qb' => $qb,
                 'estado' => $completa ? 'Completa' : 'Pendiente',
                 'completa' => $completa,
             ];
@@ -171,6 +175,25 @@ class HomeController extends Controller
                 'noRegistradosEstimados' => $materialesNoRegistrados->sum('cantidad'),
             ],
         ];
+    }
+
+
+    private function normalizeDose($value): float|int
+    {
+        if ($value === null) {
+            return 0;
+        }
+
+        if (is_string($value)) {
+            $clean = trim(str_replace(',', '.', $value));
+            if ($clean == '') {
+                return 0;
+            }
+
+            return is_numeric($clean) ? (0 + $clean) : 0;
+        }
+
+        return is_numeric($value) ? (0 + $value) : 0;
     }
 
     private function isFieldFilled($value): bool
