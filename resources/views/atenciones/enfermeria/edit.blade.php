@@ -154,7 +154,7 @@
         document.getElementById('maquinaInput').value = this.value;
     });
 
-    // Lógica Autocalcular (Suma 1 hora desde la primera fila)
+    // Lógica Autocalcular (avanza 1h y deja el sobrante solo al final)
     function autoCalcularHoras() {
         const tbody = document.querySelector('#tableTreatments tbody');
         const primeraFila = tbody.querySelector('tr');
@@ -166,19 +166,27 @@
         }
 
         const duracion = parseFloat("{{ $order->medical->hora_hd ?? 0 }}");
-        const numFilas = Math.floor(duracion) + 1;
+        if (!Number.isFinite(duracion) || duracion <= 0) {
+            Swal.fire({ icon: 'warning', title: 'Duración inválida', text: 'No se pudo autocalcular porque las horas HD no son válidas.' });
+            return;
+        }
+
+        const minutosTotales = Math.round(duracion * 60);
         let [hBase, mBase] = horaBaseInput.value.split(':').map(Number);
+        let minutosAcumulados = 0;
 
         tbody.innerHTML = '';
-        for (let i = 0; i < numFilas; i++) {
-            let h = hBase + i;
-            let m = mBase;
-            // Ajuste fracción final (ej: 3.5 -> suma 30 min al final)
-            if (i === numFilas - 1 && (duracion % 1) !== 0) {
-                m += Math.round((duracion % 1) * 60);
-                while(m >= 60) { h++; m -= 60; }
-            }
-            const timeStr = `${String(h % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+        insertarFila(horaBaseInput.value);
+
+        while (minutosAcumulados < minutosTotales) {
+            const minutosRestantes = minutosTotales - minutosAcumulados;
+            const bloque = Math.min(60, minutosRestantes); // 60 min por bloque, o solo el sobrante final
+            minutosAcumulados += bloque;
+
+            const minutosDesdeInicio = (hBase * 60 + mBase + minutosAcumulados) % (24 * 60);
+            const h = Math.floor(minutosDesdeInicio / 60);
+            const m = minutosDesdeInicio % 60;
+            const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
             insertarFila(timeStr);
         }
     }
