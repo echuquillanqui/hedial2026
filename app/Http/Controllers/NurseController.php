@@ -96,6 +96,7 @@ class NurseController extends Controller
 
         $validator->after(function ($validator) use ($request) {
             $monitoringFields = ['t_hora', 't_pa', 't_fc', 't_qb', 't_cnd', 't_ra', 't_rv', 't_ptm', 't_obs'];
+            $clinicalFields = ['t_pa', 't_fc', 't_qb', 't_cnd', 't_ra', 't_rv', 't_ptm', 't_obs'];
             $rowsCount = collect($monitoringFields)
                 ->map(fn ($field) => count($request->input($field, [])))
                 ->max() ?? 0;
@@ -110,6 +111,29 @@ class NurseController extends Controller
                     $validator->errors()->add(
                         't_hora.' . $index,
                         'La fila de monitoreo #' . ($index + 1) . ' está vacía. Complete al menos un dato o elimínela.'
+                    );
+                    continue;
+                }
+
+                $hasClinicalData = collect($clinicalFields)->contains(function ($field) use ($request, $index) {
+                    $value = $request->input($field . '.' . $index);
+                    return is_numeric($value) || (!is_null($value) && trim((string) $value) !== '');
+                });
+
+                $hora = $request->input('t_hora.' . $index);
+                $hasHora = !is_null($hora) && trim((string) $hora) !== '';
+
+                if ($hasClinicalData && !$hasHora) {
+                    $validator->errors()->add(
+                        't_hora.' . $index,
+                        'La fila de monitoreo #' . ($index + 1) . ' requiere una hora válida.'
+                    );
+                }
+
+                if ($hasHora && !$hasClinicalData) {
+                    $validator->errors()->add(
+                        't_hora.' . $index,
+                        'La fila de monitoreo #' . ($index + 1) . ' tiene hora pero no tiene datos clínicos. Complete al menos PA, FC, QB, CND, RA, RV, PTM u observación.'
                     );
                 }
             }

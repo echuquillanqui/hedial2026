@@ -221,6 +221,42 @@
         }).then((result) => { if (result.isConfirmed) btn.closest('tr').remove(); });
     }
 
+    function isFilled(value) {
+        return value !== null && value !== undefined && String(value).trim() !== '';
+    }
+
+    function validarFilasMonitoreo() {
+        const rows = document.querySelectorAll('#tableTreatments tbody tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const hora = row.querySelector('input[name="t_hora[]"]')?.value ?? '';
+            const clinicalValues = [
+                row.querySelector('input[name="t_pa[]"]')?.value ?? '',
+                row.querySelector('input[name="t_fc[]"]')?.value ?? '',
+                row.querySelector('input[name="t_qb[]"]')?.value ?? '',
+                row.querySelector('input[name="t_cnd[]"]')?.value ?? '',
+                row.querySelector('input[name="t_ra[]"]')?.value ?? '',
+                row.querySelector('input[name="t_rv[]"]')?.value ?? '',
+                row.querySelector('input[name="t_ptm[]"]')?.value ?? '',
+                row.querySelector('input[name="t_obs[]"]')?.value ?? '',
+            ];
+
+            const hasHora = isFilled(hora);
+            const hasClinicalData = clinicalValues.some(isFilled);
+
+            if (hasHora && !hasClinicalData) {
+                return `La fila de monitoreo #${i + 1} tiene hora pero no tiene datos clínicos.`;
+            }
+
+            if (!hasHora && hasClinicalData) {
+                return `La fila de monitoreo #${i + 1} tiene datos clínicos pero no tiene hora.`;
+            }
+        }
+
+        return null;
+    }
+
     // Submit con Validaciones
     document.getElementById('nurseForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -229,6 +265,11 @@
         const closure = document.querySelectorAll('.closure-field');
         const isClosing = Array.from(closure).some(el => el.value.trim() !== "");
         closure.forEach(el => isClosing ? el.setAttribute('required','required') : el.removeAttribute('required'));
+
+        const monitoringError = validarFilasMonitoreo();
+        if (monitoringError) {
+            return Swal.fire({ icon: 'warning', title: 'Monitoreo incompleto', text: monitoringError });
+        }
 
         if (!this.checkValidity()) {
             this.classList.add('was-validated');
