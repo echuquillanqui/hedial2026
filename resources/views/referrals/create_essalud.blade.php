@@ -111,7 +111,7 @@
 
                 <div class="section-label">3. Diagnósticos (CIE-10)</div>
                 <div x-data="diagnosisTreatmentForm({
-                    diagnoses: {{ json_encode(old('diagnoses', [['icd_10_code' => 'N18.9', 'diagnosis' => 'INSUFICIENCIA RENAL CRÓNICA TERMINAL', 'D' => true, 'P' => false, 'R' => false]])) }},
+                    diagnoses: {{ json_encode(old('diagnoses', [['icd_10_code' => 'N18.6', 'diagnosis' => 'ENFERMEDAD RENAL EN ESTADIO TERMINAL', 'D' => true, 'P' => false, 'R' => false]])) }},
                     treatments: {{ json_encode(old('treatments', [''])) }}
                 })" x-init="init()">
                     <table class="table table-bordered align-middle">
