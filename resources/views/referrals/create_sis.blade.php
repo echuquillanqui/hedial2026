@@ -99,11 +99,6 @@
                     <div class="col-md-6"><label class="data-title">Cardiovascular</label><input type="text" name="cardiovascular" class="form-control @error('cardiovascular') is-invalid @enderror" required value="{{ old('cardiovascular', 'Ruidos cardiacos ritmicos, regular intensidad. No frote.
 ') }}"></div>
                     <div class="col-md-6"><label class="data-title">Otros</label><input type="text" name="others" class="form-control @error('others') is-invalid @enderror" value="{{ old('others', 'despierta, lúcida, no signos de focalización. Pupilas isocóricas, fotoreactivas. ') }}"></div>
-                    
-                    <div class="col-12 mt-3">
-                        <label class="data-title">Otros</label>
-                        <textarea name="others" class="form-control @error('others') is-invalid @enderror" rows="2">{{ old('others') }}</textarea>
-                    </div>
                 
                 </div>
 
