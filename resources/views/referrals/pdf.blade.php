@@ -10,7 +10,7 @@
         
         /* MANTENEMOS COLORES ORIGINALES SIS */
         .header-title { text-align: center; font-size: 14px; font-weight: bold; text-decoration: underline; text-transform: uppercase; }
-        .section-header { background-color: #f0f0f0; font-weight: bold; padding: 6px; border: 1px solid #000; text-transform: uppercase; font-size: 8px; margin-top: 5px; }
+        .section-header { background-color: #ffeebc; font-weight: bold; padding: 6px; border: 1px solid #000; text-transform: up    percase; font-size: 8px; margin-top: 5px; }
         
         .label { font-weight: bold; font-size: 8px; display: block; text-transform: uppercase; margin-bottom: 2px; }
         .data-text { font-size: 9px; text-transform: uppercase; font-weight: normal; }
