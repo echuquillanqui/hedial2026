@@ -35,9 +35,30 @@ class UserController extends Controller
     public function permissionsManager()
     {
         $users = User::with('permissions')->orderBy('name', 'asc')->get();
+        $roles = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
 
-        return view('users.permissions-manager', compact('users', 'permissions'));
+        $permissionManagerUsers = $users->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'email' => $user->email,
+                'permissions' => $user->permissions->pluck('name')->values(),
+            ];
+        })->values();
+
+        $permissionCatalog = $permissions->pluck('name')->values();
+        $rolesCatalog = $roles->pluck('name')->values();
+
+        return view('users.permissions-manager', compact(
+            'users',
+            'roles',
+            'permissions',
+            'permissionManagerUsers',
+            'permissionCatalog',
+            'rolesCatalog'
+        ));
     }
 
     public function create()

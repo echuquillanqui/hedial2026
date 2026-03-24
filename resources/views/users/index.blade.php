@@ -11,11 +11,11 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-0">Personal del Centro</h2>
-            <p class="text-muted mb-0">Gestión de usuarios, roles y permisos en HEMODIAL.</p>
+            <p class="text-muted mb-0">Aquí solo se gestiona la búsqueda/listado del personal. Roles y permisos están en su vista separada.</p>
         </div>
         <div class="d-flex gap-2">
             <a href="{{ route('users.permissions-manager') }}" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm">
-                <i class="bi bi-sliders me-2"></i>Gestor de permisos
+                <i class="bi bi-sliders me-2"></i>Gestión de roles y permisos
             </a>
             <button class="btn btn-primary rounded-pill px-4 shadow-sm" @click="openModal()">
                 <i class="bi bi-person-plus-fill me-2"></i> Registrar Personal
@@ -31,113 +31,6 @@
                        placeholder="Buscar por nombre, usuario, colegiatura..."
                        x-model="search" @input="page = 1">
             </div>
-        </div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-12 col-xl-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 pt-3">
-                    <h6 class="fw-bold mb-0">Crear Rol</h6>
-                    <small class="text-muted">Asigne permisos al rol al momento de crearlo.</small>
-                </div>
-                <div class="card-body">
-                    <form action="{{ route('users.roles.store') }}" method="POST" class="row g-2">
-                        @csrf
-                        <div class="col-12">
-                            <input type="text" name="name" class="form-control" placeholder="Ej: referrals.manager" required>
-                        </div>
-                        <div class="col-12">
-                            <label class="small text-muted">Permisos del rol</label>
-                            <select name="permissions[]" class="form-select" multiple size="6">
-                                @foreach($permissions as $permission)
-                                    <option value="{{ $permission->name }}">{{ $permission->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-12 text-end">
-                            <button class="btn btn-outline-primary btn-sm rounded-pill px-3" type="submit">
-                                <i class="bi bi-shield-plus me-1"></i>Crear rol
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-xl-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 pt-3">
-                    <h6 class="fw-bold mb-0">Crear Permiso</h6>
-                    <small class="text-muted">Formato recomendado: modulo.accion (ej: referrals.view).</small>
-                </div>
-                <div class="card-body">
-                    <form action="{{ route('users.permissions.store') }}" method="POST" class="row g-2">
-                        @csrf
-                        <div class="col-12">
-                            <input type="text" name="name" class="form-control" placeholder="Ej: users.assign.massive" required>
-                        </div>
-                        <div class="col-12 text-end">
-                            <button class="btn btn-outline-success btn-sm rounded-pill px-3" type="submit">
-                                <i class="bi bi-key-fill me-1"></i>Crear permiso
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-0 pt-3">
-            <h6 class="fw-bold mb-0">Asignación masiva</h6>
-            <small class="text-muted">Seleccione usuarios y aplique roles/permisos en bloque.</small>
-        </div>
-        <div class="card-body">
-            <form action="{{ route('users.bulk-permissions') }}" method="POST" class="row g-3">
-                @csrf
-                <div class="col-12">
-                    <label class="small fw-bold text-muted">Usuarios</label>
-                    <div class="border rounded-3 p-2" style="max-height:160px; overflow:auto;">
-                        @foreach($users as $user)
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="user_ids[]" value="{{ $user->id }}" id="user_bulk_{{ $user->id }}">
-                                <label class="form-check-label" for="user_bulk_{{ $user->id }}">
-                                    {{ $user->name }} <span class="text-muted">(@{{ $user->username }})</span>
-                                </label>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <label class="small fw-bold text-muted">Modo</label>
-                    <select name="mode" class="form-select" required>
-                        <option value="add">Agregar sin quitar</option>
-                        <option value="replace">Reemplazar todo</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="small fw-bold text-muted">Roles</label>
-                    <select name="roles[]" class="form-select" multiple size="4">
-                        @foreach($roles as $role)
-                            <option value="{{ $role->name }}">{{ $role->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="small fw-bold text-muted">Permisos directos</label>
-                    <select name="permissions[]" class="form-select" multiple size="4">
-                        @foreach($permissions as $permission)
-                            <option value="{{ $permission->name }}">{{ $permission->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-12 text-end">
-                    <button class="btn btn-dark rounded-pill px-4" type="submit">
-                        <i class="bi bi-people-fill me-1"></i>Aplicar masivamente
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 
