@@ -8,10 +8,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+
+    protected $guard_name = 'web';
 
     /**
      * The attributes that are mass assignable.
@@ -48,25 +51,25 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    // Referencias donde es el Responsable de la RF 
+    // Referencias donde es el Responsable de la RF
     public function referralsAsResponsible(): HasMany
     {
         return $this->hasMany(Referral::class, 'referral_responsible_id');
     }
 
-    // Referencias donde es el Responsable del Establecimiento 
+    // Referencias donde es el Responsable del Establecimiento
     public function referralsAsFacilityHead(): HasMany
     {
         return $this->hasMany(Referral::class, 'facility_responsible_id');
     }
 
-    // Referencias donde es el Personal que acompaña 
+    // Referencias donde es el Personal que acompaña
     public function referralsAsEscort(): HasMany
     {
         return $this->hasMany(Referral::class, 'escort_staff_id');
     }
 
-    // Referencias donde es el Personal que recibe 
+    // Referencias donde es el Personal que recibe
     public function referralsAsReceiver(): HasMany
     {
         return $this->hasMany(Referral::class, 'receiving_staff_id');

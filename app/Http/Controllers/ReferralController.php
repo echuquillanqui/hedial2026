@@ -10,6 +10,15 @@ use Carbon\Carbon;
 
 class ReferralController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:referrals.view')->only(['index', 'show']);
+        $this->middleware('permission:referrals.create')->only(['create', 'store']);
+        $this->middleware('permission:referrals.edit')->only(['edit', 'update']);
+        $this->middleware('permission:referrals.delete')->only(['destroy']);
+        $this->middleware('permission:referrals.print')->only(['downloadPdf', 'downloadPdfEssalud']);
+    }
+
     public function index(Request $request)
     {
         $query = Referral::with(['patient', 'referralResponsible']);
@@ -36,10 +45,13 @@ class ReferralController extends Controller
             ]);
         }
 
-        $referrals = $query->latest()->get();
+        $referrals = $query->latest()->paginate(12)->withQueryString();
 
         if ($request->ajax()) {
-            return view('referrals.partials.table_rows', compact('referrals'))->render();
+            return response()->json([
+                'rows' => view('referrals.partials.table_rows', compact('referrals'))->render(),
+                'pagination' => view('referrals.partials.pagination', compact('referrals'))->render(),
+            ]);
         }
 
         return view('referrals.index', compact('referrals'));

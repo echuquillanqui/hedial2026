@@ -1,5 +1,5 @@
 <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark text-white p-4">
                 <h5 class="modal-title fw-bold">
@@ -8,7 +8,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            
+
             <form :action="currentUser.id ? `/users/${currentUser.id}` : '/users'" method="POST">
                 @csrf
                 <template x-if="currentUser.id">
@@ -30,7 +30,7 @@
                             <input type="email" name="email" x-model="currentUser.email" class="form-control rounded-3" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">Profesión / Rol</label>
+                            <label class="form-label small fw-bold">Profesión / Rol Interno</label>
                             <select name="profession" x-model="currentUser.profession" class="form-select rounded-3">
                                 <option value="">Seleccionar...</option>
                                 <option value="MEDICO">MEDICO</option>
@@ -46,6 +46,22 @@
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">RNE (Especialidad)</label>
                             <input type="text" name="specialty_number" x-model="currentUser.specialty_number" class="form-control rounded-3">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-primary">Roles</label>
+                            <select name="roles[]" class="form-select rounded-3" multiple size="6" x-model="currentUser.roles_selected">
+                                <template x-for="roleName in rolesCatalog" :key="`role-${roleName}`">
+                                    <option :value="roleName" x-text="roleName"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-success">Permisos directos</label>
+                            <select name="permissions[]" class="form-select rounded-3" multiple size="6" x-model="currentUser.permissions_selected">
+                                <template x-for="permissionName in permissionsCatalog" :key="`permission-${permissionName}`">
+                                    <option :value="permissionName" x-text="permissionName"></option>
+                                </template>
+                            </select>
                         </div>
                         <div class="col-12">
                             <label class="form-label small fw-bold text-primary">Contraseña</label>

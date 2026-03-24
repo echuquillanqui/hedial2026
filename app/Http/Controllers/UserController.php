@@ -6,29 +6,37 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct()
     {
-        $users = User::orderBy('name', 'asc')->get(); 
-        return view('users.index', compact('users'));
+        $this->middleware('permission:users.view')->only(['index']);
+        $this->middleware('permission:users.create')->only(['store']);
+        $this->middleware('permission:users.edit')->only(['update']);
+        $this->middleware('permission:users.delete')->only(['destroy']);
+        $this->middleware('permission:roles.create')->only(['storeRole']);
+        $this->middleware('permission:permissions.create')->only(['storePermission']);
+        $this->middleware('permission:users.assign.massive')->only(['bulkAssignPermissions']);
+        $this->middleware('permission:users.assign.individual')->only(['store', 'update']);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
+    public function index()
+    {
+        $users = User::with(['roles', 'permissions'])->orderBy('name', 'asc')->get();
+        $roles = Role::with('permissions')->orderBy('name')->get();
+        $permissions = Permission::orderBy('name')->get();
+
+        return view('users.index', compact('users', 'roles', 'permissions'));
+    }
+
     public function create()
     {
         //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -39,9 +47,13 @@ class UserController extends Controller
             'profession'       => ['nullable', Rule::in(['MEDICO', 'ENFERMERA', 'ADMINISTRATIVO', 'SUPERADMIN'])],
             'license_number'   => 'nullable|string|unique:users,license_number',
             'specialty_number' => 'nullable|string|unique:users,specialty_number',
+            'roles'            => 'nullable|array',
+            'roles.*'          => 'exists:roles,name',
+            'permissions'      => 'nullable|array',
+            'permissions.*'    => 'exists:permissions,name',
         ]);
 
-        User::create([
+        $user = User::create([
             'name'             => $request->name,
             'username'         => $request->username,
             'email'            => $request->email,
@@ -51,28 +63,22 @@ class UserController extends Controller
             'specialty_number' => $request->specialty_number,
         ]);
 
+        $user->syncRoles($request->input('roles', []));
+        $user->syncPermissions($request->input('permissions', []));
+
         return redirect()->route('users.index')->with('success', 'Personal registrado correctamente.');
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(string $id)
     {
         //
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, User $user)
     {
         $request->validate([
@@ -83,33 +89,34 @@ class UserController extends Controller
             'profession'       => ['nullable', Rule::in(['MEDICO', 'ENFERMERA', 'ADMINISTRATIVO', 'SUPERADMIN'])],
             'license_number'   => ['nullable', 'string', Rule::unique('users')->ignore($user->id)],
             'specialty_number' => ['nullable', 'string', Rule::unique('users')->ignore($user->id)],
+            'roles'            => 'nullable|array',
+            'roles.*'          => 'exists:roles,name',
+            'permissions'      => 'nullable|array',
+            'permissions.*'    => 'exists:permissions,name',
         ]);
 
         $data = $request->only([
-            'name', 
-            'username', 
-            'email', 
-            'profession', 
-            'license_number', 
+            'name',
+            'username',
+            'email',
+            'profession',
+            'license_number',
             'specialty_number'
         ]);
 
-        // Solo actualiza la contraseña si el usuario ingresó una nueva
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
 
         $user->update($data);
+        $user->syncRoles($request->input('roles', []));
+        $user->syncPermissions($request->input('permissions', []));
 
         return redirect()->route('users.index')->with('success', 'Datos del personal actualizados.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(User $user)
     {
-        // Evita que el usuario actual se elimine a sí mismo
         if (auth()->id() === $user->id) {
             return redirect()->route('users.index')->with('error', 'No puedes eliminar tu propia cuenta.');
         }
@@ -117,5 +124,61 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->route('users.index')->with('success', 'Usuario eliminado con éxito.');
+    }
+
+    public function storeRole(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150|unique:roles,name',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'exists:permissions,name',
+        ]);
+
+        $role = Role::create(['name' => $request->name, 'guard_name' => 'web']);
+        $role->syncPermissions($request->input('permissions', []));
+
+        return redirect()->route('users.index')->with('success', 'Rol creado correctamente.');
+    }
+
+    public function storePermission(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150|unique:permissions,name',
+        ]);
+
+        Permission::create(['name' => $request->name, 'guard_name' => 'web']);
+
+        return redirect()->route('users.index')->with('success', 'Permiso creado correctamente.');
+    }
+
+    public function bulkAssignPermissions(Request $request)
+    {
+        $request->validate([
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'exists:users,id',
+            'mode' => 'required|in:replace,add',
+            'roles' => 'nullable|array',
+            'roles.*' => 'exists:roles,name',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'exists:permissions,name',
+        ]);
+
+        $users = User::whereIn('id', $request->user_ids)->get();
+
+        foreach ($users as $user) {
+            if ($request->mode === 'replace') {
+                $user->syncRoles($request->input('roles', []));
+                $user->syncPermissions($request->input('permissions', []));
+            } else {
+                if ($request->filled('roles')) {
+                    $user->assignRole($request->input('roles', []));
+                }
+                if ($request->filled('permissions')) {
+                    $user->givePermissionTo($request->input('permissions', []));
+                }
+            }
+        }
+
+        return redirect()->route('users.index')->with('success', 'Asignación masiva completada.');
     }
 }

@@ -9,7 +9,7 @@
             </h2>
             <p class="text-muted small mb-0">Busque, filtre y gestione las hojas de referencia SIS y EsSalud.</p>
         </div>
-        
+
         <div class="col-12 col-md-6 text-md-end">
             <div class="btn-group shadow-sm">
                 <button class="btn btn-primary btn-lg dropdown-toggle px-4" data-bs-toggle="dropdown">
@@ -71,6 +71,9 @@
             <div class="spinner-border text-primary" role="status"></div>
             <p class="mt-2 text-muted">Buscando registros...</p>
         </div>
+        <div id="paginationContainer" class="bg-white border-top">
+            @include('referrals.partials.pagination')
+        </div>
     </div>
 </div>
 
@@ -80,41 +83,56 @@
         const filterForm = document.getElementById('filterForm');
         const tableBody = document.getElementById('tableBody');
         const loader = document.getElementById('tableLoader');
+        const paginationContainer = document.getElementById('paginationContainer');
 
-        const fetchReferrals = () => {
+        const fetchReferrals = (page = 1) => {
             const formData = new FormData(filterForm);
-            const params = new URLSearchParams(formData).toString();
-            
+            const params = new URLSearchParams(formData);
+            params.set('page', page);
+
             tableBody.classList.add('opacity-25');
             loader.classList.remove('d-none');
 
-            fetch(`{{ route('referrals.index') }}?${params}`, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            fetch(`{{ route('referrals.index') }}?${params.toString()}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
             })
-            .then(response => response.text())
-            .then(html => {
-                tableBody.innerHTML = html;
+            .then(response => response.json())
+            .then(payload => {
+                tableBody.innerHTML = payload.rows;
+                paginationContainer.innerHTML = payload.pagination;
+            })
+            .catch(error => console.error('Error:', error))
+            .finally(() => {
                 tableBody.classList.remove('opacity-25');
                 loader.classList.add('d-none');
-            })
-            .catch(error => console.error('Error:', error));
+            });
         };
 
-        // Escuchar cambios en búsqueda (con debounce de 300ms)
         let timeout = null;
         document.getElementById('searchInput').addEventListener('keyup', () => {
             clearTimeout(timeout);
-            timeout = setTimeout(fetchReferrals, 300);
+            timeout = setTimeout(() => fetchReferrals(1), 300);
         });
 
-        // Escuchar cambios en fechas
-        document.getElementById('fromDate').addEventListener('change', fetchReferrals);
-        document.getElementById('toDate').addEventListener('change', fetchReferrals);
+        document.getElementById('fromDate').addEventListener('change', () => fetchReferrals(1));
+        document.getElementById('toDate').addEventListener('change', () => fetchReferrals(1));
 
-        // Resetear filtros
         document.getElementById('resetFilters').addEventListener('click', () => {
             filterForm.reset();
-            fetchReferrals();
+            fetchReferrals(1);
+        });
+
+        document.addEventListener('click', (event) => {
+            const link = event.target.closest('#paginationContainer .pagination a');
+            if (!link) return;
+
+            event.preventDefault();
+            const url = new URL(link.href);
+            const page = url.searchParams.get('page') || 1;
+            fetchReferrals(page);
         });
     });
 </script>

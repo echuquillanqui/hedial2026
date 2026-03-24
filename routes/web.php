@@ -31,6 +31,10 @@ Route::get('/home/export/excel', [App\Http\Controllers\HomeController::class, 'e
 
 Route::middleware(['auth'])->group(function () {
     Route::resource('users', UserController::class);
+    Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');
+    Route::post('/users/permissions', [UserController::class, 'storePermission'])->name('users.permissions.store');
+    Route::post('/users/bulk-permissions', [UserController::class, 'bulkAssignPermissions'])->name('users.bulk-permissions');
+
     Route::resource('patients', App\Http\Controllers\PatientController::class);
     Route::get('/patients-search', [App\Http\Controllers\PatientController::class, 'search'])->name('patients.search');
     Route::resource('referrals', App\Http\Controllers\ReferralController::class);
