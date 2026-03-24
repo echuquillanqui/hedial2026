@@ -23,7 +23,7 @@ class UserSeeder extends Seeder
             'profession' => 'Ingeniero de Sistemas',
         ]);
         // Usuario Médico de Prueba
-        User::create([
+        /*User::create([
             'name' => 'Dr. César Valverde Cupe',
             'username' => 'cvalverde',
             'dni' => '12345678',
@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
             'license_number' => 'CMP 12345',
             'specialty_number' => 'RNE 6789',
             'profession' => 'MEDICO',
-        ]);
+        ]);*/
 
         // Usuario Enfermería
         User::create([
