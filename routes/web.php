@@ -34,6 +34,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');
     Route::post('/users/permissions', [UserController::class, 'storePermission'])->name('users.permissions.store');
     Route::post('/users/bulk-permissions', [UserController::class, 'bulkAssignPermissions'])->name('users.bulk-permissions');
+    Route::get('/users/permisos/gestion', [UserController::class, 'permissionsManager'])->name('users.permissions-manager');
+    Route::post('/users/permisos/usuario', [UserController::class, 'updateUserPermissions'])->name('users.permissions-manager.update-user');
+    Route::post('/users/permisos/masivo', [UserController::class, 'bulkUpdatePermissions'])->name('users.permissions-manager.bulk-update');
 
     Route::resource('patients', App\Http\Controllers\PatientController::class);
     Route::get('/patients-search', [App\Http\Controllers\PatientController::class, 'search'])->name('patients.search');

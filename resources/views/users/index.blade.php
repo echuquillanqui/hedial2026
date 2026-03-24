@@ -13,9 +13,14 @@
             <h2 class="fw-bold text-dark mb-0">Personal del Centro</h2>
             <p class="text-muted mb-0">Gestión de usuarios, roles y permisos en HEMODIAL.</p>
         </div>
-        <button class="btn btn-primary rounded-pill px-4 shadow-sm" @click="openModal()">
-            <i class="bi bi-person-plus-fill me-2"></i> Registrar Personal
-        </button>
+        <div class="d-flex gap-2">
+            <a href="{{ route('users.permissions-manager') }}" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm">
+                <i class="bi bi-sliders me-2"></i>Gestor de permisos
+            </a>
+            <button class="btn btn-primary rounded-pill px-4 shadow-sm" @click="openModal()">
+                <i class="bi bi-person-plus-fill me-2"></i> Registrar Personal
+            </button>
+        </div>
     </div>
 
     <div class="card border-0 shadow-sm mb-4">

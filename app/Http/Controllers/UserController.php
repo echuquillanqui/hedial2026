@@ -19,8 +19,8 @@ class UserController extends Controller
         $this->middleware('permission:users.delete')->only(['destroy']);
         $this->middleware('permission:roles.create')->only(['storeRole']);
         $this->middleware('permission:permissions.create')->only(['storePermission']);
-        $this->middleware('permission:users.assign.massive')->only(['bulkAssignPermissions']);
-        $this->middleware('permission:users.assign.individual')->only(['store', 'update']);
+        $this->middleware('permission:users.assign.massive')->only(['bulkAssignPermissions', 'bulkUpdatePermissions']);
+        $this->middleware('permission:users.assign.individual')->only(['store', 'update', 'permissionsManager', 'updateUserPermissions']);
     }
 
     public function index()
@@ -30,6 +30,14 @@ class UserController extends Controller
         $permissions = Permission::orderBy('name')->get();
 
         return view('users.index', compact('users', 'roles', 'permissions'));
+    }
+
+    public function permissionsManager()
+    {
+        $users = User::with('permissions')->orderBy('name', 'asc')->get();
+        $permissions = Permission::orderBy('name')->get();
+
+        return view('users.permissions-manager', compact('users', 'permissions'));
     }
 
     public function create()
@@ -113,6 +121,50 @@ class UserController extends Controller
         $user->syncPermissions($request->input('permissions', []));
 
         return redirect()->route('users.index')->with('success', 'Datos del personal actualizados.');
+    }
+
+    public function updateUserPermissions(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'exists:permissions,name',
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+        $user->syncPermissions($request->input('permissions', []));
+
+        return redirect()->route('users.permissions-manager')->with('success', 'Permisos actualizados correctamente para el usuario seleccionado.');
+    }
+
+    public function bulkUpdatePermissions(Request $request)
+    {
+        $request->validate([
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'exists:users,id',
+            'mode' => 'required|in:add,replace,remove',
+            'permissions' => 'required|array|min:1',
+            'permissions.*' => 'exists:permissions,name',
+        ]);
+
+        $users = User::whereIn('id', $request->user_ids)->get();
+        $permissions = $request->input('permissions', []);
+
+        foreach ($users as $user) {
+            if ($request->mode === 'replace') {
+                $user->syncPermissions($permissions);
+                continue;
+            }
+
+            if ($request->mode === 'add') {
+                $user->givePermissionTo($permissions);
+                continue;
+            }
+
+            $user->revokePermissionTo($permissions);
+        }
+
+        return redirect()->route('users.permissions-manager')->with('success', 'Asignación masiva de permisos completada.');
     }
 
     public function destroy(User $user)
