@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        @page { margin: 0.45cm 0.45cm 1cm 1.8cm; size: A4 portrait; }
+        @page { margin: 0.45cm 0.78cm 0.45cm 1.8cm; size: A4 portrait; }
         body { font-family: 'Helvetica', sans-serif; font-size: 7px; line-height: 1.0; color: #000; }
         .table { width: 100%; border-collapse: collapse; margin-bottom: 7px; table-layout: fixed; }
         .table th, .table td { border: 1px solid #000; padding: 4px; vertical-align: top; word-wrap: break-word; }
@@ -73,7 +73,7 @@
             <td><span class="label">PA(mmHg)</span><span class="data-text">{{ $referral->blood_pressure }}</span></td>
             <td><span class="label">FC(Ixmin)</span><span class="data-text">{{ $referral->heart_rate }}</span></td>
             <td><span class="label">FR(Xmin)</span><span class="data-text">{{ $referral->respiratory_rate }}</span></td>
-            <td><span class="label">T°(°C)</span><span class="data-text">{{ $referral->temperature }}</span></td>
+            <td><span class="label">T°(°C)</span><span class="data-text">{{ $referral->temperature ?? '---' }}</span></td>
             <td><span class="label">SaO2(%)</span><span class="data-text">{{ $referral->oxygen_saturation }}</span></td>
         </tr>
     </table>
@@ -85,7 +85,7 @@
         </tr>
         <tr>
             <td style="width: 50%;"><span class="label">CV (Cardiovascular)</span><span class="data-text">{{ strtoupper($referral->cardiovascular ) }}</span></td>
-            <td style="width: 50%;"><span class="label">Otros</span><span class="data-text">{{ strtoupper($referral->neurological ?? 'SIN HALLAZGOS') }}</span></td>
+            <td style="width: 50%;"><span class="label">Otros</span><span class="data-text">{{ strtoupper($referral->others ?? 'SIN HALLAZGOS') }}</span></td>
         </tr>
     </table>
 

@@ -88,7 +88,7 @@
                     <div class="col-md-3"><label class="data-title">PA</label><input type="text" name="blood_pressure" class="form-control @error('blood_pressure') is-invalid @enderror" required value="{{ old('blood_pressure') }}"></div>
                     <div class="col-md-2"><label class="data-title">FC</label><input type="text" name="heart_rate" class="form-control @error('heart_rate') is-invalid @enderror" required value="{{ old('heart_rate') }}"></div>
                     <div class="col-md-2"><label class="data-title">FR</label><input type="text" name="respiratory_rate" class="form-control @error('respiratory_rate') is-invalid @enderror" required value="{{ old('respiratory_rate') }}"></div>
-                    <div class="col-md-2"><label class="data-title">T°</label><input type="text" name="temperature" class="form-control @error('temperature') is-invalid @enderror" required value="{{ old('temperature') }}"></div>
+                    <div class="col-md-2"><label class="data-title">T°</label><input type="text" name="temperature" class="form-control @error('temperature') is-invalid @enderror" value="{{ old('temperature') }}"></div>
                     <div class="col-md-3"><label class="data-title">SAT</label><input type="text" name="oxygen_saturation" class="form-control @error('oxygen_saturation') is-invalid @enderror" required value="{{ old('oxygen_saturation') }}"></div>
                 </div>
 
@@ -98,7 +98,7 @@
                     <div class="col-md-6"><label class="data-title">Pulmones</label><input type="text" name="lungs" class="form-control @error('lungs') is-invalid @enderror" required value="{{ old('lungs', 'Murmullo vesicular pasa en ambos campos pulmonares, no crépitos. ') }}"></div>
                     <div class="col-md-6"><label class="data-title">Cardiovascular</label><input type="text" name="cardiovascular" class="form-control @error('cardiovascular') is-invalid @enderror" required value="{{ old('cardiovascular', 'Ruidos cardiacos ritmicos, regular intensidad. No frote.
 ') }}"></div>
-                    <div class="col-md-6"><label class="data-title">Neurológico</label><input type="text" name="neurological" class="form-control @error('neurological') is-invalid @enderror" value="{{ old('neurological', 'despierta, lúcida, no signos de focalización. Pupilas isocóricas, fotoreactivas. ') }}"></div>
+                    <div class="col-md-6"><label class="data-title">Otros</label><input type="text" name="others" class="form-control @error('others') is-invalid @enderror" value="{{ old('others', 'despierta, lúcida, no signos de focalización. Pupilas isocóricas, fotoreactivas. ') }}"></div>
                     
                     <div class="col-12 mt-3">
                         <label class="data-title">Otros</label>

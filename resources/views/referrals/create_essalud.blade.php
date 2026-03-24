@@ -92,7 +92,7 @@
                     <div class="col-md-2"><label class="data-title">P.A. (mmHg)</label><input type="text" name="blood_pressure" class="form-control @error('blood_pressure') is-invalid @enderror" required value="{{ old('blood_pressure') }}" placeholder="120/80"></div>
                     <div class="col-md-2"><label class="data-title">F.C. (x')</label><input type="text" name="heart_rate" class="form-control @error('heart_rate') is-invalid @enderror" required value="{{ old('heart_rate') }}"></div>
                     <div class="col-md-2"><label class="data-title">F.R. (x')</label><input type="text" name="respiratory_rate" class="form-control @error('respiratory_rate') is-invalid @enderror" required value="{{ old('respiratory_rate') }}"></div>
-                    <div class="col-md-2"><label class="data-title">T° (°C)</label><input type="text" name="temperature" class="form-control @error('temperature') is-invalid @enderror" required value="{{ old('temperature') }}"></div>
+                    <div class="col-md-2"><label class="data-title">T° (°C)</label><input type="text" name="temperature" class="form-control @error('temperature') is-invalid @enderror" value="{{ old('temperature') }}"></div>
                     <div class="col-md-2"><label class="data-title">Sat.O2 (%)</label><input type="text" name="oxygen_saturation" class="form-control @error('oxygen_saturation') is-invalid @enderror" required value="{{ old('oxygen_saturation') }}"></div>
                 </div>
 

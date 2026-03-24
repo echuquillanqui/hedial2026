@@ -212,7 +212,7 @@ class ReferralController extends Controller
             'destination_specialty' => 'required|string|max:255',
             'anamnesis' => 'required|string',
             'general_state' => 'nullable|string|max:255',
-            'temperature' => 'required|string|max:255',
+            'temperature' => 'nullable|string|max:255',
             'blood_pressure' => 'required|string|max:255',
             'respiratory_rate' => 'required|string|max:255',
             'heart_rate' => 'required|string|max:255',
