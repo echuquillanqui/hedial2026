@@ -56,6 +56,8 @@ class OrderController extends Controller
     public function create(Request $request)
     {
         $patients = null;
+        $manualPatients = collect();
+
         // Agregamos la validación del campo 'modulo'
         if ($request->filled('secuencia') && $request->filled('turno') && $request->filled('modulo')) {
             $patients = Patient::where('secuencia', $request->secuencia)
@@ -64,7 +66,22 @@ class OrderController extends Controller
                                 ->get();
         }
 
-        return view('atenciones.ordenes.create_bulk', compact('patients'));
+        if ($request->filled('patient_search')) {
+            $search = trim($request->patient_search);
+
+            $manualPatients = Patient::query()
+                ->where(function ($query) use ($search) {
+                    $query->where('dni', 'like', "%{$search}%")
+                        ->orWhere('medical_history_number', 'like', "%{$search}%")
+                        ->orWhereRaw("CONCAT_WS(' ', surname, last_name, first_name, other_names) LIKE ?", ["%{$search}%"]);
+                })
+                ->orderBy('surname')
+                ->orderBy('last_name')
+                ->limit(20)
+                ->get();
+        }
+
+        return view('atenciones.ordenes.create_bulk', compact('patients', 'manualPatients'));
     }
 
     /**

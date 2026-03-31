@@ -56,6 +56,102 @@
         </div>
     </div>
 
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header py-2">
+            BÚSQUEDA INDIVIDUAL (SIN FILTRO DE MÓDULO/TURNO/SECUENCIA)
+        </div>
+        <div class="card-body">
+            <form action="{{ route('orders.create') }}" method="GET" class="row g-2 align-items-end">
+                <div class="col-md-10">
+                    <label class="data-title text-success">Paciente (DNI / H.C. / Apellidos y Nombres)</label>
+                    <input type="text" name="patient_search" class="form-control border-success shadow-sm"
+                           value="{{ request('patient_search') }}" placeholder="Ej: 45879632 o Pérez Juana">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-outline-success w-100 fw-bold shadow-sm">
+                        <i class="bi bi-search me-1"></i> BUSCAR
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if(isset($manualPatients) && $manualPatients->count() > 0)
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header py-2">RESULTADOS DE BÚSQUEDA INDIVIDUAL</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>PACIENTE</th>
+                                <th class="text-center">DNI</th>
+                                <th class="text-center">H.C.</th>
+                                <th class="text-center">SECUENCIA</th>
+                                <th class="text-center">TURNO</th>
+                                <th class="text-center">MÓDULO</th>
+                                <th class="text-center">FECHA</th>
+                                <th class="text-center">HORAS HD</th>
+                                <th class="text-center">ACCIÓN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($manualPatients as $patient)
+                                <tr>
+                                    <td class="small fw-bold text-uppercase">{{ $patient->surname }} {{ $patient->last_name }}, {{ $patient->first_name }} {{ $patient->other_names }}</td>
+                                    <td class="text-center small">{{ $patient->dni }}</td>
+                                    <td class="text-center small">{{ $patient->medical_history_number ?? 'N/A' }}</td>
+                                    <td class="text-center small">{{ $patient->secuencia ?? 'SIN ASIGNAR' }}</td>
+                                    <td class="text-center small">{{ $patient->turno ?? 'SIN ASIGNAR' }}</td>
+                                    <td class="text-center small">{{ $patient->modulo ?? 'SIN ASIGNAR' }}</td>
+                                    <td colspan="4">
+                                        <form action="{{ route('orders.store') }}" method="POST" class="row g-2 align-items-center manual-order-form">
+                                            @csrf
+                                            <input type="hidden" name="patient_id" value="{{ $patient->id }}">
+                                            <div class="col-md-3">
+                                                <input type="date" name="fecha_orden" class="form-control form-control-sm border-success" value="{{ date('Y-m-d') }}" required>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <input type="number" name="horas_dialisis" class="form-control form-control-sm border-success text-center" value="3.5" step="0.5" min="0.5" required>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <select name="turno" class="form-select form-select-sm border-success" required>
+                                                    <option value="">Turno</option>
+                                                    @foreach(['1', '2', '3', '4'] as $t)
+                                                        <option value="{{ $t }}" {{ (string) $patient->turno === $t ? 'selected' : '' }}>{{ $t }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <select name="modulo_selector" class="form-select form-select-sm border-success manual-module" required>
+                                                    <option value="">Módulo</option>
+                                                    @foreach(['1', '2', '3', '4'] as $m)
+                                                        <option value="{{ $m }}" {{ (string) $patient->modulo === $m ? 'selected' : '' }}>{{ $m }}</option>
+                                                    @endforeach
+                                                </select>
+                                                <input type="hidden" name="sala" class="manual-sala" value="{{ $patient->modulo ? 'MODULO ' . $patient->modulo : '' }}">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button type="submit" class="btn btn-sm btn-primary fw-bold w-100"
+                                                        onclick="return confirm('¿Generar orden individual para este paciente?')">
+                                                    GENERAR INDIVIDUAL
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @elseif(request()->filled('patient_search'))
+        <div class="alert alert-warning border-0 shadow-sm text-center py-3 mt-2 rounded-3">
+            No se encontraron pacientes con el criterio de búsqueda ingresado.
+        </div>
+    @endif
+
     @if(isset($patients) && $patients->count() > 0)
     <form action="{{ route('orders.store_bulk') }}" method="POST" x-data="{ selected: [] }">
         @csrf
@@ -213,6 +309,18 @@ document.addEventListener('DOMContentLoaded', function () {
     globalDateInput?.addEventListener('change', syncSingleForms);
     document.querySelectorAll('[data-horas-input]').forEach(input => {
         input.addEventListener('input', syncSingleForms);
+    });
+
+    document.querySelectorAll('.manual-order-form').forEach(form => {
+        const moduloSelect = form.querySelector('.manual-module');
+        const salaInput = form.querySelector('.manual-sala');
+
+        const syncSala = () => {
+            salaInput.value = moduloSelect.value ? `MODULO ${moduloSelect.value}` : '';
+        };
+
+        syncSala();
+        moduloSelect.addEventListener('change', syncSala);
     });
 });
 </script>
