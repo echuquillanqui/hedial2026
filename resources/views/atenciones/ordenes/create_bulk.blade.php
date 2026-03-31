@@ -76,7 +76,7 @@
 
                             <div class="mb-4">
                                 <label class="data-title text-success">Fecha Programada</label>
-                                <input type="date" name="fecha_orden" class="form-control border-success shadow-sm" value="{{ date('Y-m-d') }}" required>
+                                <input type="date" id="fecha_orden_global" name="fecha_orden" class="form-control border-success shadow-sm" value="{{ date('Y-m-d') }}" required>
                             </div>
 
                             <div x-show="selected.length > 0" x-transition>
@@ -117,11 +117,12 @@
                                         <th class="text-center">H.C.</th>
                                         <th class="text-center" style="width: 140px;">HORAS HD</th>
                                         <th class="text-center">COVID</th>
+                                        <th class="text-center">ACCIÓN</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($patients as $patient)
-                                    <tr>
+                                    <tr data-patient-id="{{ $patient->id }}" data-turno="{{ $patient->turno }}">
                                         <td class="text-center">
                                             <input type="checkbox" name="patient_ids[]" value="{{ $patient->id }}" 
                                                    x-model="selected" class="form-check-input border-success shadow-sm">
@@ -136,6 +137,7 @@
                                         <td>
                                             <div class="input-group input-group-sm">
                                                 <input type="number" name="horas_individual[{{ $patient->id }}]" 
+                                                       data-horas-input="{{ $patient->id }}"
                                                        class="form-control text-center border-success fw-bold" 
                                                        value="3.5" step="0.5" min="0.5">
                                                 <span class="input-group-text bg-light text-success border-success fw-bold small">hrs</span>
@@ -145,6 +147,20 @@
                                             <div class="form-check form-switch d-inline-block">
                                                 <input type="checkbox" name="covid_flags[{{ $patient->id }}]" class="form-check-input cursor-pointer shadow-sm">
                                             </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <form action="{{ route('orders.store') }}" method="POST" class="d-inline-block order-single-form" data-patient-id="{{ $patient->id }}">
+                                                @csrf
+                                                <input type="hidden" name="patient_id" value="{{ $patient->id }}">
+                                                <input type="hidden" name="turno" value="{{ $patient->turno }}">
+                                                <input type="hidden" name="sala" value="MODULO {{ request('modulo') }}">
+                                                <input type="hidden" name="fecha_orden" data-single-date value="{{ date('Y-m-d') }}">
+                                                <input type="hidden" name="horas_dialisis" data-single-hours value="3.5">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary fw-bold"
+                                                        onclick="return confirm('¿Generar orden individual para este paciente?')">
+                                                    GENERAR
+                                                </button>
+                                            </form>
                                         </td>
                                     </tr>
                                     @endforeach
@@ -166,4 +182,39 @@
         @endif
     @endif
 </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const globalDateInput = document.getElementById('fecha_orden_global');
+
+    const syncSingleForms = () => {
+        const selectedDate = globalDateInput?.value || '{{ date('Y-m-d') }}';
+
+        document.querySelectorAll('.order-single-form').forEach(form => {
+            const patientId = form.getAttribute('data-patient-id');
+            const hoursInput = document.querySelector(`[data-horas-input="${patientId}"]`);
+
+            const hoursField = form.querySelector('[data-single-hours]');
+            const dateField = form.querySelector('[data-single-date]');
+
+            if (hoursField && hoursInput) {
+                hoursField.value = hoursInput.value || '3.5';
+            }
+
+            if (dateField) {
+                dateField.value = selectedDate;
+            }
+        });
+    };
+
+    syncSingleForms();
+
+    globalDateInput?.addEventListener('change', syncSingleForms);
+    document.querySelectorAll('[data-horas-input]').forEach(input => {
+        input.addEventListener('input', syncSingleForms);
+    });
+});
+</script>
+@endpush
 @endsection

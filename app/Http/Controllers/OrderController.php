@@ -76,18 +76,20 @@ class OrderController extends Controller
             'patient_id'     => 'required|exists:patients,id',
             'sala'           => 'required|string',
             'turno'          => 'required|string',
-            'horas_dialisis' => 'required|integer|min:1',
+            'horas_dialisis' => 'required|numeric|min:0.5',
             'fecha_orden'    => 'required|date',
         ]);
 
         try {
             DB::beginTransaction();
 
+            $patient = Patient::findOrFail($validated['patient_id']);
+
             $order = Order::create(array_merge($validated, [
                 'codigo_unico' => $this->generateCode()
             ]));
 
-            $this->createRelatedRecords($order);
+            $this->createRelatedRecords($order, $patient);
 
             DB::commit();
             return redirect()->route('orders.index')->with('toastr', [
