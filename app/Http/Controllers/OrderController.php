@@ -56,8 +56,6 @@ class OrderController extends Controller
     public function create(Request $request)
     {
         $patients = null;
-        $manualPatients = collect();
-
         // Agregamos la validación del campo 'modulo'
         if ($request->filled('secuencia') && $request->filled('turno') && $request->filled('modulo')) {
             $patients = Patient::where('secuencia', $request->secuencia)
@@ -66,22 +64,7 @@ class OrderController extends Controller
                                 ->get();
         }
 
-        if ($request->filled('patient_search')) {
-            $search = trim($request->patient_search);
-
-            $manualPatients = Patient::query()
-                ->where(function ($query) use ($search) {
-                    $query->where('dni', 'like', "%{$search}%")
-                        ->orWhere('medical_history_number', 'like', "%{$search}%")
-                        ->orWhereRaw("CONCAT_WS(' ', surname, last_name, first_name, other_names) LIKE ?", ["%{$search}%"]);
-                })
-                ->orderBy('surname')
-                ->orderBy('last_name')
-                ->limit(20)
-                ->get();
-        }
-
-        return view('atenciones.ordenes.create_bulk', compact('patients', 'manualPatients'));
+        return view('atenciones.ordenes.create_bulk', compact('patients'));
     }
 
     /**
@@ -93,20 +76,18 @@ class OrderController extends Controller
             'patient_id'     => 'required|exists:patients,id',
             'sala'           => 'required|string',
             'turno'          => 'required|string',
-            'horas_dialisis' => 'required|numeric|min:0.5',
+            'horas_dialisis' => 'required|integer|min:1',
             'fecha_orden'    => 'required|date',
         ]);
 
         try {
             DB::beginTransaction();
 
-            $patient = Patient::findOrFail($validated['patient_id']);
-
             $order = Order::create(array_merge($validated, [
                 'codigo_unico' => $this->generateCode()
             ]));
 
-            $this->createRelatedRecords($order, $patient);
+            $this->createRelatedRecords($order);
 
             DB::commit();
             return redirect()->route('orders.index')->with('toastr', [
