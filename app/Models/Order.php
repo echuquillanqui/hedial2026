@@ -8,6 +8,7 @@ use App\Models\Medical;
 use App\Models\Patient;
 use App\Models\Nurse;
 use App\Models\Treatment;
+use App\Models\ExtraMaterial;
 
 class Order extends Model
 {
@@ -43,5 +44,10 @@ class Order extends Model
     {
         // Asegúrate de que sea hasMany (una orden tiene muchos tratamientos)
         return $this->hasMany(Treatment::class, 'order_id');
+    }
+
+    public function extraMaterials()
+    {
+        return $this->hasMany(ExtraMaterial::class, 'order_id');
     }
 }

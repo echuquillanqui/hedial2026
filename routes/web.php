@@ -7,6 +7,7 @@ use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\MedicalController;
 use App\Http\Controllers\NurseController;
+use App\Http\Controllers\ExtraMaterialController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,5 +53,10 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('medicals', App\Http\Controllers\MedicalController::class);
     Route::resource('nurses', NurseController::class);
     Route::get('/enfermeria/imprimir/{id}', [NurseController::class, 'printSingle'])->name('enfermeria.print.single');
+
+    Route::get('extra-materials', [ExtraMaterialController::class, 'index'])->name('extra-materials.index');
+    Route::post('extra-materials', [ExtraMaterialController::class, 'store'])->name('extra-materials.store');
+    Route::delete('extra-materials/{extraMaterial}', [ExtraMaterialController::class, 'destroy'])->name('extra-materials.destroy');
+    Route::get('extra-materials/report/monthly', [ExtraMaterialController::class, 'monthlyReport'])->name('extra-materials.report.monthly');
 
 });

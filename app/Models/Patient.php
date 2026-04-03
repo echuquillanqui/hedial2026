@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\ExtraMaterial;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Patient extends Model
@@ -36,5 +37,10 @@ class Patient extends Model
             'id',         // Llave local en patients
             'id'          // Llave local en orders
         );
+    }
+
+    public function extraMaterials()
+    {
+        return $this->hasMany(ExtraMaterial::class);
     }
 }
