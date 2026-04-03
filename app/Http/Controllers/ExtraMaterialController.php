@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ExtraMaterialController extends Controller
 {
@@ -16,6 +17,8 @@ class ExtraMaterialController extends Controller
     {
         $month = $request->input('month', now()->format('Y-m'));
         [$year, $monthNumber] = explode('-', $month);
+
+        $this->syncFinalizedConsumptions((int) $year, (int) $monthNumber);
 
         $materials = ExtraMaterial::with(['patient', 'order'])
             ->whereYear('usage_date', (int) $year)
@@ -105,6 +108,30 @@ class ExtraMaterialController extends Controller
         ]);
     }
 
+    public function storeBaseMaterial(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:hemodialysis_materials,name',
+            'unit' => 'required|string|max:30',
+            'stock' => 'required|numeric|min:0',
+            'quantity_per_order' => 'required|numeric|min:0.01',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        HemodialysisMaterial::create([
+            'name' => $validated['name'],
+            'unit' => $validated['unit'],
+            'stock' => $validated['stock'],
+            'quantity_per_order' => $validated['quantity_per_order'],
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+
+        return back()->with('toastr', [
+            'type' => 'success',
+            'message' => 'Material base registrado correctamente.',
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -145,6 +172,7 @@ class ExtraMaterialController extends Controller
     {
         $month = $request->input('month', now()->format('Y-m'));
         [$year, $monthNumber] = explode('-', $month);
+        $this->syncFinalizedConsumptions((int) $year, (int) $monthNumber);
 
         $materials = ExtraMaterial::with('patient')
             ->whereYear('usage_date', (int) $year)
@@ -152,10 +180,10 @@ class ExtraMaterialController extends Controller
             ->orderBy('usage_date')
             ->get();
 
-        $fileName = 'reporte_materiales_extra_' . $month . '.csv';
+        $fileName = 'reporte_materiales_extra_' . $month . '.xls';
 
         $headers = [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename=' . $fileName,
         ];
 
@@ -198,5 +226,62 @@ class ExtraMaterialController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    private function syncFinalizedConsumptions(int $year, int $monthNumber): void
+    {
+        $finalizedOrders = Order::query()
+            ->with([
+                'medical:id,order_id,hora_final',
+                'nurse:id,order_id,enfermero_que_finaliza_id',
+            ])
+            ->whereYear('fecha_orden', $year)
+            ->whereMonth('fecha_orden', $monthNumber)
+            ->whereHas('medical', function ($query) {
+                $query->whereNotNull('hora_final');
+            })
+            ->whereHas('nurse', function ($query) {
+                $query->whereNotNull('enfermero_que_finaliza_id');
+            })
+            ->get(['id', 'patient_id', 'fecha_orden']);
+
+        if ($finalizedOrders->isEmpty()) {
+            return;
+        }
+
+        DB::transaction(function () use ($finalizedOrders) {
+            $materials = HemodialysisMaterial::query()
+                ->where('is_active', true)
+                ->where('quantity_per_order', '>', 0)
+                ->lockForUpdate()
+                ->get();
+
+            if ($materials->isEmpty()) {
+                return;
+            }
+
+            foreach ($finalizedOrders as $order) {
+                foreach ($materials as $material) {
+                    $quantity = (float) $material->quantity_per_order;
+
+                    $consumption = HemodialysisMaterialConsumption::firstOrCreate(
+                        [
+                            'hemodialysis_material_id' => $material->id,
+                            'order_id' => $order->id,
+                        ],
+                        [
+                            'patient_id' => $order->patient_id,
+                            'consumed_at' => $order->fecha_orden,
+                            'quantity' => $quantity,
+                            'notes' => 'Consumo automático por sesión finalizada',
+                        ]
+                    );
+
+                    if ($consumption->wasRecentlyCreated) {
+                        $material->decrement('stock', $quantity);
+                    }
+                }
+            }
+        });
     }
 }

@@ -24,16 +24,22 @@ return new class extends Migration
 
         Schema::create('hemodialysis_material_consumptions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('hemodialysis_material_id')->constrained('hemodialysis_materials')->cascadeOnDelete();
-            $table->foreignId('order_id')->constrained('orders')->cascadeOnDelete();
-            $table->foreignId('patient_id')->constrained('patients')->cascadeOnDelete();
+            $table->foreignId('hemodialysis_material_id')
+                ->constrained('hemodialysis_materials', 'id', 'hmc_material_fk')
+                ->cascadeOnDelete();
+            $table->foreignId('order_id')
+                ->constrained('orders', 'id', 'hmc_order_fk')
+                ->cascadeOnDelete();
+            $table->foreignId('patient_id')
+                ->constrained('patients', 'id', 'hmc_patient_fk')
+                ->cascadeOnDelete();
             $table->date('consumed_at');
             $table->decimal('quantity', 10, 2);
             $table->string('notes')->nullable();
             $table->timestamps();
 
-            $table->index(['consumed_at', 'patient_id']);
-            $table->unique(['hemodialysis_material_id', 'order_id']);
+            $table->index(['consumed_at', 'patient_id'], 'hmc_consumed_patient_idx');
+            $table->unique(['hemodialysis_material_id', 'order_id'], 'hmc_material_order_unq');
         });
 
         DB::table('hemodialysis_materials')->insert([

@@ -8,89 +8,147 @@
 </style>
 
 <div class="container px-0">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
             <h4 class="m-0 fw-bold text-primary text-uppercase"><i class="bi bi-box-seam me-2"></i>Materiales Extra por Hemodiálisis</h4>
             <small class="text-muted">Registro por paciente y consolidado mensual de gasto.</small>
         </div>
-        <a href="{{ route('extra-materials.report.monthly', ['month' => request('month', $month)]) }}" class="btn btn-success fw-bold">
-            <i class="bi bi-filetype-csv me-1"></i> Descargar Reporte Mensual
-        </a>
+        <div class="dropdown">
+            <button class="btn btn-primary fw-bold dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-sliders me-1"></i> Cinta de opciones
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                <li>
+                    <button class="dropdown-item" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRegisterExtra">
+                        <i class="bi bi-plus-circle me-2"></i>Registrar material extra
+                    </button>
+                </li>
+                <li>
+                    <button class="dropdown-item" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRegisterBase">
+                        <i class="bi bi-plus-square me-2"></i>Registrar material base
+                    </button>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item text-success" href="{{ route('extra-materials.report.monthly', ['month' => request('month', $month)]) }}">
+                        <i class="bi bi-file-earmark-excel me-2"></i>Exportar mensual (Excel)
+                    </a>
+                </li>
+            </ul>
+        </div>
     </div>
 
     <div class="row g-3">
-        <div class="col-lg-4">
-            <div class="card module-card shadow-sm border-0">
-                <div class="card-header bg-primary text-white fw-bold">Registrar material</div>
-                <div class="card-body">
-                    <form action="{{ route('extra-materials.store') }}" method="POST" class="row g-2">
-                        @csrf
-                        <div class="col-12">
-                            <label class="label-mini">Paciente</label>
-                            <select name="patient_id" class="form-select form-select-sm @error('patient_id') is-invalid @enderror" required>
-                                <option value="">-- Seleccionar --</option>
-                                @foreach($patients as $patient)
-                                    <option value="{{ $patient->id }}" {{ old('patient_id') == $patient->id ? 'selected' : '' }}>
-                                        {{ $patient->surname }} {{ $patient->last_name }}, {{ $patient->first_name }} {{ $patient->other_names }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('patient_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
+        <div class="col-12">
+            <div class="collapse mb-3" id="collapseRegisterExtra">
+                <div class="card module-card shadow-sm border-0">
+                    <div class="card-header bg-primary text-white fw-bold">Registrar material extra</div>
+                    <div class="card-body">
+                        <form action="{{ route('extra-materials.store') }}" method="POST" class="row g-2">
+                            @csrf
+                            <div class="col-md-6">
+                                <label class="label-mini">Paciente</label>
+                                <select name="patient_id" class="form-select form-select-sm js-patient-select @error('patient_id') is-invalid @enderror" required>
+                                    <option value="">-- Seleccionar --</option>
+                                    @foreach($patients as $patient)
+                                        <option value="{{ $patient->id }}" {{ old('patient_id') == $patient->id ? 'selected' : '' }}>
+                                            {{ $patient->surname }} {{ $patient->last_name }}, {{ $patient->first_name }} {{ $patient->other_names }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('patient_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
 
-                        <div class="col-12">
-                            <label class="label-mini">Orden (Opcional)</label>
-                            <select name="order_id" class="form-select form-select-sm @error('order_id') is-invalid @enderror">
-                                <option value="">-- Sin orden específica --</option>
-                                @foreach($orders as $order)
-                                    <option value="{{ $order->id }}" {{ old('order_id') == $order->id ? 'selected' : '' }}>
-                                        {{ $order->codigo_unico }} - {{ $order->fecha_orden }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('order_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
+                            <div class="col-md-6">
+                                <label class="label-mini">Orden (Opcional)</label>
+                                <select name="order_id" class="form-select form-select-sm @error('order_id') is-invalid @enderror">
+                                    <option value="">-- Sin orden específica --</option>
+                                    @foreach($orders as $order)
+                                        <option value="{{ $order->id }}" {{ old('order_id') == $order->id ? 'selected' : '' }}>
+                                            {{ $order->codigo_unico }} - {{ $order->fecha_orden }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('order_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
 
-                        <div class="col-12">
-                            <label class="label-mini">Fecha de uso</label>
-                            <input type="date" name="usage_date" class="form-control form-control-sm @error('usage_date') is-invalid @enderror" value="{{ old('usage_date', now()->format('Y-m-d')) }}" required>
-                            @error('usage_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
+                            <div class="col-md-3">
+                                <label class="label-mini">Fecha de uso</label>
+                                <input type="date" name="usage_date" class="form-control form-control-sm @error('usage_date') is-invalid @enderror" value="{{ old('usage_date', now()->format('Y-m-d')) }}" required>
+                                @error('usage_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
 
-                        <div class="col-12">
-                            <label class="label-mini">Material</label>
-                            <input type="text" name="material_name" class="form-control form-control-sm @error('material_name') is-invalid @enderror" value="{{ old('material_name') }}" placeholder="Ej. Dializador extra" required>
-                            @error('material_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
+                            <div class="col-md-5">
+                                <label class="label-mini">Material</label>
+                                <input type="text" name="material_name" class="form-control form-control-sm @error('material_name') is-invalid @enderror" value="{{ old('material_name') }}" placeholder="Ej. Dializador extra" required>
+                                @error('material_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
 
-                        <div class="col-6">
-                            <label class="label-mini">Cantidad</label>
-                            <input type="number" min="0.01" step="0.01" name="quantity" class="form-control form-control-sm @error('quantity') is-invalid @enderror" value="{{ old('quantity', 1) }}" required>
-                            @error('quantity') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
+                            <div class="col-md-2">
+                                <label class="label-mini">Cantidad</label>
+                                <input type="number" min="0.01" step="0.01" name="quantity" class="form-control form-control-sm @error('quantity') is-invalid @enderror" value="{{ old('quantity', 1) }}" required>
+                                @error('quantity') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
 
-                        <div class="col-6">
-                            <label class="label-mini">Costo unitario</label>
-                            <input type="number" min="0" step="0.01" name="unit_cost" class="form-control form-control-sm @error('unit_cost') is-invalid @enderror" value="{{ old('unit_cost', 0) }}" required>
-                            @error('unit_cost') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
+                            <div class="col-md-2">
+                                <label class="label-mini">Costo unitario</label>
+                                <input type="number" min="0" step="0.01" name="unit_cost" class="form-control form-control-sm @error('unit_cost') is-invalid @enderror" value="{{ old('unit_cost', 0) }}" required>
+                                @error('unit_cost') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
 
-                        <div class="col-12">
-                            <label class="label-mini">Observación</label>
-                            <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="Opcional">{{ old('notes') }}</textarea>
-                        </div>
+                            <div class="col-12">
+                                <label class="label-mini">Observación</label>
+                                <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="Opcional">{{ old('notes') }}</textarea>
+                            </div>
 
-                        <div class="col-12 mt-2">
-                            <button class="btn btn-primary btn-sm fw-bold w-100" type="submit">
-                                <i class="bi bi-plus-circle me-1"></i> Guardar material
-                            </button>
-                        </div>
-                    </form>
+                            <div class="col-12 mt-2">
+                                <button class="btn btn-primary btn-sm fw-bold" type="submit">
+                                    <i class="bi bi-plus-circle me-1"></i> Guardar material
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-lg-8">
+            <div class="collapse mb-3" id="collapseRegisterBase">
+                <div class="card module-card shadow-sm border-0">
+                    <div class="card-header bg-secondary text-white fw-bold">Registrar nuevo material base</div>
+                    <div class="card-body">
+                        <form action="{{ route('extra-materials.base.store') }}" method="POST" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-md-5">
+                                <label class="label-mini">Nombre del material</label>
+                                <input type="text" name="name" class="form-control form-control-sm" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="label-mini">Unidad</label>
+                                <input type="text" name="unit" class="form-control form-control-sm" value="unidad" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="label-mini">Stock inicial</label>
+                                <input type="number" min="0" step="0.01" name="stock" class="form-control form-control-sm" value="0" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="label-mini">Consumo por orden</label>
+                                <input type="number" min="0.01" step="0.01" name="quantity_per_order" class="form-control form-control-sm" value="1" required>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="is_active" value="1" checked id="is_active_base">
+                                    <label class="form-check-label small" for="is_active_base">Activo</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <button class="btn btn-secondary btn-sm fw-bold" type="submit">
+                                    <i class="bi bi-save me-1"></i> Guardar base
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <div class="card module-card shadow-sm border-0 mb-3">
                 <div class="card-body bg-light py-3">
                     <form action="{{ route('extra-materials.index') }}" method="GET" class="row g-2 align-items-end">
@@ -100,7 +158,7 @@
                         </div>
                         <div class="col-md-5">
                             <label class="label-mini">Paciente</label>
-                            <select name="patient_id" class="form-select form-select-sm">
+                            <select name="patient_id" class="form-select form-select-sm js-patient-select">
                                 <option value="">-- Todos --</option>
                                 @foreach($patients as $patient)
                                     <option value="{{ $patient->id }}" {{ request('patient_id') == $patient->id ? 'selected' : '' }}>
@@ -150,7 +208,7 @@
             </div>
 
             <div class="card module-card shadow-sm border-0 mb-3">
-                <div class="card-header bg-white"><span class="section-title">Materiales base por hemodiálisis (consumo automático)</span></div>
+                <div class="card-header bg-white"><span class="section-title">Materiales base por hemodiálisis (consumo automático al finalizar sesión)</span></div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-sm mb-0 align-middle">
@@ -202,7 +260,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th class="ps-3">Paciente</th>
-                                    <th class="text-center">Órdenes</th>
+                                    <th class="text-center">Órdenes finalizadas</th>
                                     <th class="text-end pe-3">Total unidades consumidas</th>
                                 </tr>
                             </thead>
@@ -301,3 +359,15 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    $(function () {
+        $('.js-patient-select').select2({
+            width: '100%',
+            placeholder: 'Buscar paciente por nombre o DNI',
+            allowClear: true,
+        });
+    });
+</script>
+@endpush
