@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ExtraMaterial;
+use App\Models\HemodialysisMaterial;
+use App\Models\HemodialysisMaterialConsumption;
 use App\Models\Order;
 use App\Models\Patient;
 use Illuminate\Http\Request;
@@ -45,14 +47,62 @@ class ExtraMaterialController extends Controller
 
         $totalMonth = (float) $summaryByPatient->sum('total_amount');
 
+        $hemodialysisMaterials = HemodialysisMaterial::query()
+            ->orderBy('name')
+            ->get();
+
+        $consumptionSummary = HemodialysisMaterialConsumption::query()
+            ->selectRaw('patient_id, SUM(quantity) as total_quantity, COUNT(*) as records')
+            ->with('patient')
+            ->whereYear('consumed_at', (int) $year)
+            ->whereMonth('consumed_at', (int) $monthNumber)
+            ->groupBy('patient_id')
+            ->orderByDesc('total_quantity')
+            ->get();
+
+        $consumptions = HemodialysisMaterialConsumption::query()
+            ->with(['patient', 'order', 'material'])
+            ->whereYear('consumed_at', (int) $year)
+            ->whereMonth('consumed_at', (int) $monthNumber)
+            ->when($request->filled('patient_id'), function ($query) use ($request) {
+                $query->where('patient_id', $request->patient_id);
+            })
+            ->orderByDesc('consumed_at')
+            ->latest()
+            ->paginate(10, ['*'], 'consumptions_page')
+            ->appends($request->all());
+
         return view('atenciones.materiales.index', compact(
             'materials',
             'patients',
             'orders',
             'summaryByPatient',
             'totalMonth',
-            'month'
+            'month',
+            'hemodialysisMaterials',
+            'consumptionSummary',
+            'consumptions'
         ));
+    }
+
+    public function updateStock(Request $request, HemodialysisMaterial $material)
+    {
+        $validated = $request->validate([
+            'stock' => 'required|numeric|min:0',
+            'quantity_per_order' => 'required|numeric|min:0.01',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $material->update([
+            'stock' => $validated['stock'],
+            'quantity_per_order' => $validated['quantity_per_order'],
+            'is_active' => $request->boolean('is_active'),
+        ]);
+
+        return back()->with('toastr', [
+            'type' => 'success',
+            'message' => 'Material base actualizado.',
+        ]);
     }
 
     public function store(Request $request)

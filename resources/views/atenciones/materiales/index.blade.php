@@ -149,6 +149,79 @@
                 </div>
             </div>
 
+            <div class="card module-card shadow-sm border-0 mb-3">
+                <div class="card-header bg-white"><span class="section-title">Materiales base por hemodiálisis (consumo automático)</span></div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Material</th>
+                                    <th class="text-center">Consumo por orden</th>
+                                    <th class="text-center">Stock actual</th>
+                                    <th class="text-center">Activo</th>
+                                    <th class="text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($hemodialysisMaterials as $baseMaterial)
+                                    <tr>
+                                        <form action="{{ route('extra-materials.base.update', $baseMaterial) }}" method="POST">
+                                            @csrf
+                                            @method('PATCH')
+                                            <td class="ps-3 small">{{ $baseMaterial->name }}</td>
+                                            <td class="text-center" style="max-width: 150px;">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" min="0.01" step="0.01" name="quantity_per_order" class="form-control form-control-sm text-center" value="{{ $baseMaterial->quantity_per_order }}" required>
+                                                    <span class="input-group-text">{{ $baseMaterial->unit }}</span>
+                                                </div>
+                                            </td>
+                                            <td class="text-center" style="max-width: 140px;">
+                                                <input type="number" min="0" step="0.01" name="stock" class="form-control form-control-sm text-center" value="{{ $baseMaterial->stock }}" required>
+                                            </td>
+                                            <td class="text-center">
+                                                <input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $baseMaterial->is_active ? 'checked' : '' }}>
+                                            </td>
+                                            <td class="text-center">
+                                                <button type="submit" class="btn btn-outline-primary btn-sm">Guardar</button>
+                                            </td>
+                                        </form>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card module-card shadow-sm border-0 mb-3">
+                <div class="card-header bg-white"><span class="section-title">Consumo automático mensual por paciente</span></div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Paciente</th>
+                                    <th class="text-center">Órdenes</th>
+                                    <th class="text-end pe-3">Total unidades consumidas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($consumptionSummary as $summary)
+                                    <tr>
+                                        <td class="ps-3 small">{{ $summary->patient->surname }} {{ $summary->patient->last_name }}, {{ $summary->patient->first_name }}</td>
+                                        <td class="text-center">{{ $summary->records }}</td>
+                                        <td class="text-end pe-3 fw-bold">{{ number_format($summary->total_quantity, 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="3" class="text-center py-3 text-muted">Sin consumo automático para el mes.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div class="card module-card shadow-sm border-0">
                 <div class="card-header bg-white"><span class="section-title">Detalle de materiales registrados</span></div>
                 <div class="card-body p-0">
@@ -190,6 +263,39 @@
                     </div>
                 </div>
                 <div class="card-footer bg-white">{{ $materials->links() }}</div>
+            </div>
+
+            <div class="card module-card shadow-sm border-0 mt-3">
+                <div class="card-header bg-white"><span class="section-title">Detalle de consumo automático por orden</span></div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Fecha</th>
+                                    <th>Paciente</th>
+                                    <th>Orden</th>
+                                    <th>Material</th>
+                                    <th class="text-end pe-3">Cantidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($consumptions as $consumption)
+                                    <tr>
+                                        <td class="ps-3">{{ $consumption->consumed_at->format('Y-m-d') }}</td>
+                                        <td class="small">{{ $consumption->patient->surname }} {{ $consumption->patient->last_name }}, {{ $consumption->patient->first_name }}</td>
+                                        <td>{{ $consumption->order->codigo_unico ?? '-' }}</td>
+                                        <td>{{ $consumption->material->name ?? '-' }}</td>
+                                        <td class="text-end pe-3 fw-bold">{{ number_format($consumption->quantity, 2) }} {{ $consumption->material->unit ?? '' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="text-center py-4 text-muted">No hay consumos automáticos en este mes.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-white">{{ $consumptions->links() }}</div>
             </div>
         </div>
     </div>

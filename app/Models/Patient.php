@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ExtraMaterial;
+use App\Models\HemodialysisMaterialConsumption;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Patient extends Model
@@ -42,5 +43,10 @@ class Patient extends Model
     public function extraMaterials()
     {
         return $this->hasMany(ExtraMaterial::class);
+    }
+
+    public function hemodialysisMaterialConsumptions()
+    {
+        return $this->hasMany(HemodialysisMaterialConsumption::class);
     }
 }

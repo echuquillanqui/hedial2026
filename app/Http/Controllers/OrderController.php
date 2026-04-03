@@ -7,6 +7,8 @@ use App\Models\Patient;
 use App\Models\Medical;
 use App\Models\Nurse;
 use App\Models\Treatment;
+use App\Models\HemodialysisMaterial;
+use App\Models\HemodialysisMaterialConsumption;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -88,6 +90,7 @@ class OrderController extends Controller
             ]));
 
             $this->createRelatedRecords($order);
+            $this->consumeHemodialysisMaterials($order);
 
             DB::commit();
             return redirect()->route('orders.index')->with('toastr', [
@@ -158,6 +161,8 @@ class OrderController extends Controller
                 $order->treatments()->create([
                     'pa' => '', // Insertamos una hora referencial o nula
                 ]);
+
+                $this->consumeHemodialysisMaterials($order);
             }
 
             DB::commit();
@@ -260,5 +265,33 @@ class OrderController extends Controller
     private function generateCode()
     {
         return 'ORD-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
+    }
+
+    private function consumeHemodialysisMaterials(Order $order): void
+    {
+        $materials = HemodialysisMaterial::query()
+            ->where('is_active', true)
+            ->where('quantity_per_order', '>', 0)
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($materials as $material) {
+            $quantity = (float) $material->quantity_per_order;
+
+            $material->decrement('stock', $quantity);
+
+            HemodialysisMaterialConsumption::firstOrCreate(
+                [
+                    'hemodialysis_material_id' => $material->id,
+                    'order_id' => $order->id,
+                ],
+                [
+                    'patient_id' => $order->patient_id,
+                    'consumed_at' => $order->fecha_orden,
+                    'quantity' => $quantity,
+                    'notes' => 'Consumo automático al generar orden',
+                ]
+            );
+        }
     }
 }

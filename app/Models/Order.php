@@ -9,6 +9,7 @@ use App\Models\Patient;
 use App\Models\Nurse;
 use App\Models\Treatment;
 use App\Models\ExtraMaterial;
+use App\Models\HemodialysisMaterialConsumption;
 
 class Order extends Model
 {
@@ -49,5 +50,10 @@ class Order extends Model
     public function extraMaterials()
     {
         return $this->hasMany(ExtraMaterial::class, 'order_id');
+    }
+
+    public function hemodialysisMaterialConsumptions()
+    {
+        return $this->hasMany(HemodialysisMaterialConsumption::class, 'order_id');
     }
 }
