@@ -105,6 +105,11 @@
                     <i class="bi bi-box-seam me-2"></i> Materiales extra
                 </a>
             </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('warehouse.requests.*') ? 'active' : '' }}" href="{{ route('warehouse.requests.index') }}">
+                    <i class="bi bi-boxes me-2"></i> Almacén
+                </a>
+            </li>
         </ul>
     </li>
 </ul>

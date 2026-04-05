@@ -1,0 +1,398 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Sede;
+use App\Models\Warehouse;
+use App\Models\WarehouseMaterial;
+use App\Models\WarehouseRequest;
+use App\Models\WarehouseRequestStatusLog;
+use App\Models\WarehouseStock;
+use App\Models\WarehouseStockMovement;
+use App\Support\CurrentSede;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+
+class WarehouseRequestController extends Controller
+{
+    private const STATUS_COLORS = [
+        'draft' => 'secondary',
+        'submitted' => 'info',
+        'approved' => 'primary',
+        'rejected' => 'danger',
+        'partially_dispatched' => 'warning',
+        'dispatched' => 'success',
+        'partially_received' => 'warning',
+        'received' => 'success',
+        'cancelled' => 'dark',
+    ];
+
+    public function __construct()
+    {
+        $this->middleware('permission:warehouse.requests.view')->only(['index']);
+        $this->middleware('permission:warehouse.requests.print')->only(['printRequest', 'printDispatch']);
+        $this->middleware('permission:warehouse.requests.create')->only(['store']);
+        $this->middleware('permission:warehouse.requests.update.status')->only(['updateStatus']);
+        $this->middleware('permission:warehouse.requests.dispatch')->only(['dispatch']);
+        $this->middleware('permission:warehouse.requests.receive')->only(['receive']);
+    }
+
+    public function index(Request $request)
+    {
+        $currentSedeId = CurrentSede::id();
+        $this->ensureWarehouseSetup();
+
+        $currentWarehouse = Warehouse::query()->where('sede_id', $currentSedeId)->first();
+        $principalWarehouse = Warehouse::query()->where('is_principal', true)->first();
+
+        abort_unless($currentWarehouse, 403, 'No existe almacén configurado para la sede activa.');
+
+        $query = WarehouseRequest::query()
+            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material', 'requester'])
+            ->where(function ($q) use ($currentWarehouse, $principalWarehouse) {
+                $q->where('from_warehouse_id', $currentWarehouse->id)
+                    ->orWhere('to_warehouse_id', $currentWarehouse->id);
+
+                if ($principalWarehouse && $currentWarehouse->is_principal) {
+                    $q->orWhere('to_warehouse_id', $principalWarehouse->id);
+                }
+            });
+
+        if ($request->filled('search')) {
+            $term = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($term) {
+                $q->where('request_code', 'like', "%{$term}%")
+                    ->orWhereHas('fromWarehouse.sede', fn ($sq) => $sq->where('name', 'like', "%{$term}%"))
+                    ->orWhereHas('toWarehouse.sede', fn ($sq) => $sq->where('name', 'like', "%{$term}%"));
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        $requests = $query->latest()->paginate(12)->withQueryString();
+
+        $materials = WarehouseMaterial::query()->where('is_active', true)->orderBy('name')->get();
+        $warehouses = Warehouse::query()->with('sede')->where('is_active', true)->orderBy('is_principal', 'desc')->get();
+        $statusColors = self::STATUS_COLORS;
+
+        $stocks = WarehouseStock::query()
+            ->with('material')
+            ->where('warehouse_id', $currentWarehouse->id)
+            ->orderByDesc('current_qty')
+            ->get();
+
+        return view('warehouse.requests.index', compact(
+            'requests',
+            'materials',
+            'warehouses',
+            'statusColors',
+            'currentWarehouse',
+            'principalWarehouse',
+            'stocks'
+        ));
+    }
+
+
+    public function storeMaterial(Request $request)
+    {
+        $this->authorizePermission('warehouse.requests.create');
+
+        $validated = $request->validate([
+            'code' => 'required|string|max:50|unique:warehouse_materials,code',
+            'name' => 'required|string|max:255',
+            'unit' => 'required|string|max:50',
+        ]);
+
+        WarehouseMaterial::query()->create($validated + ['is_active' => true]);
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Material registrado.']);
+    }
+
+    public function updateStock(Request $request, WarehouseStock $warehouseStock)
+    {
+        $this->authorizePermission('warehouse.requests.dispatch');
+
+        $validated = $request->validate([
+            'current_qty' => 'required|numeric|min:0',
+            'min_qty' => 'required|numeric|min:0',
+        ]);
+
+        $warehouseStock->update($validated);
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Stock actualizado.']);
+    }
+
+    public function store(Request $request)
+    {
+        $currentSedeId = CurrentSede::id();
+        $fromWarehouse = Warehouse::query()->where('sede_id', $currentSedeId)->firstOrFail();
+        $toWarehouse = Warehouse::query()->where('is_principal', true)->firstOrFail();
+
+        abort_if($fromWarehouse->id === $toWarehouse->id, 422, 'La sede principal no puede solicitarse a sí misma.');
+
+        $validated = $request->validate([
+            'observations' => 'nullable|string|max:1000',
+            'items' => 'required|array|min:1',
+            'items.*.warehouse_material_id' => 'required|exists:warehouse_materials,id',
+            'items.*.qty_requested' => 'required|numeric|min:0.01',
+        ]);
+
+        DB::transaction(function () use ($validated, $fromWarehouse, $toWarehouse) {
+            $nextId = (WarehouseRequest::max('id') ?? 0) + 1;
+            $code = 'SOL-' . now()->format('Ymd') . '-' . str_pad((string) $nextId, 4, '0', STR_PAD_LEFT);
+
+            $requestModel = WarehouseRequest::create([
+                'request_code' => $code,
+                'from_warehouse_id' => $fromWarehouse->id,
+                'to_warehouse_id' => $toWarehouse->id,
+                'status' => 'submitted',
+                'requested_by' => Auth::id(),
+                'observations' => $validated['observations'] ?? null,
+            ]);
+
+            foreach ($validated['items'] as $row) {
+                $requestModel->items()->create([
+                    'warehouse_material_id' => $row['warehouse_material_id'],
+                    'qty_requested' => $row['qty_requested'],
+                    'qty_approved' => $row['qty_requested'],
+                ]);
+            }
+
+            $this->registerStatusLog($requestModel, null, 'submitted', 'Solicitud creada y enviada');
+        });
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Solicitud registrada correctamente.']);
+    }
+
+    public function updateStatus(Request $request, WarehouseRequest $warehouseRequest)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:draft,submitted,approved,rejected,cancelled',
+            'comment' => 'nullable|string|max:500',
+        ]);
+
+        $old = $warehouseRequest->status;
+
+        DB::transaction(function () use ($warehouseRequest, $validated, $old) {
+            $payload = ['status' => $validated['status']];
+
+            if ($validated['status'] === 'approved') {
+                $payload['approved_by'] = Auth::id();
+                $payload['approved_at'] = now();
+            }
+
+            $warehouseRequest->update($payload);
+            $this->registerStatusLog($warehouseRequest, $old, $validated['status'], $validated['comment'] ?? null);
+        });
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Estado actualizado.']);
+    }
+
+    public function dispatch(Request $request, WarehouseRequest $warehouseRequest)
+    {
+        abort_unless(in_array($warehouseRequest->status, ['approved', 'partially_dispatched'], true), 422, 'Solo se puede despachar solicitudes aprobadas.');
+
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|exists:warehouse_request_items,id',
+            'items.*.qty_sent' => 'required|numeric|min:0',
+            'items.*.not_sent_reason' => 'nullable|string|max:255',
+        ]);
+
+        DB::transaction(function () use ($warehouseRequest, $validated) {
+            $allComplete = true;
+
+            foreach ($validated['items'] as $line) {
+                $item = $warehouseRequest->items()->with('material')->findOrFail($line['id']);
+                $qtySent = (float) $line['qty_sent'];
+                $qtyApproved = (float) $item->qty_approved;
+                $qtyRequested = (float) $item->qty_requested;
+
+                $status = 'pending';
+                if ($qtySent <= 0) {
+                    $status = 'not_sent';
+                    $allComplete = false;
+                } elseif ($qtySent < $qtyApproved || $qtySent < $qtyRequested) {
+                    $status = 'partial';
+                    $allComplete = false;
+                } else {
+                    $status = 'complete';
+                }
+
+                $item->update([
+                    'qty_sent' => $qtySent,
+                    'dispatch_status' => $status,
+                    'not_sent_reason' => $line['not_sent_reason'] ?? null,
+                ]);
+
+                if ($qtySent > 0) {
+                    $this->applyStockMovement(
+                        $warehouseRequest->to_warehouse_id,
+                        $item->warehouse_material_id,
+                        'out',
+                        $qtySent,
+                        $warehouseRequest->id,
+                        'Despacho de solicitud ' . $warehouseRequest->request_code
+                    );
+                }
+            }
+
+            $newStatus = $allComplete ? 'dispatched' : 'partially_dispatched';
+            $old = $warehouseRequest->status;
+            $warehouseRequest->update([
+                'status' => $newStatus,
+                'dispatched_by' => Auth::id(),
+                'dispatched_at' => now(),
+            ]);
+
+            $this->registerStatusLog($warehouseRequest, $old, $newStatus, 'Despacho registrado');
+        });
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Despacho actualizado.']);
+    }
+
+    public function receive(Request $request, WarehouseRequest $warehouseRequest)
+    {
+        abort_unless(in_array($warehouseRequest->status, ['dispatched', 'partially_dispatched', 'partially_received'], true), 422, 'Solo se puede recepcionar solicitudes despachadas.');
+
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|exists:warehouse_request_items,id',
+            'items.*.qty_received' => 'required|numeric|min:0',
+        ]);
+
+        DB::transaction(function () use ($warehouseRequest, $validated) {
+            $allReceived = true;
+
+            foreach ($validated['items'] as $line) {
+                $item = $warehouseRequest->items()->findOrFail($line['id']);
+                $qtyReceived = (float) $line['qty_received'];
+                $qtySent = (float) $item->qty_sent;
+
+                $item->update(['qty_received' => $qtyReceived]);
+
+                if ($qtyReceived > 0) {
+                    $this->applyStockMovement(
+                        $warehouseRequest->from_warehouse_id,
+                        $item->warehouse_material_id,
+                        'in',
+                        $qtyReceived,
+                        $warehouseRequest->id,
+                        'Recepción de solicitud ' . $warehouseRequest->request_code
+                    );
+                }
+
+                if ($qtyReceived < $qtySent) {
+                    $allReceived = false;
+                }
+            }
+
+            $newStatus = $allReceived ? 'received' : 'partially_received';
+            $old = $warehouseRequest->status;
+
+            $warehouseRequest->update([
+                'status' => $newStatus,
+                'received_by' => Auth::id(),
+                'received_at' => now(),
+            ]);
+
+            $this->registerStatusLog($warehouseRequest, $old, $newStatus, 'Recepción registrada');
+        });
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Recepción registrada.']);
+    }
+
+    public function printRequest(WarehouseRequest $warehouseRequest)
+    {
+        $warehouseRequest->load(['items.material', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
+
+        $pdf = Pdf::loadView('warehouse.requests.print_request', [
+            'requestModel' => $warehouseRequest,
+            'statusColors' => self::STATUS_COLORS,
+        ]);
+
+        return $pdf->stream('Solicitud_' . $warehouseRequest->request_code . '.pdf');
+    }
+
+    public function printDispatch(WarehouseRequest $warehouseRequest)
+    {
+        abort_unless(in_array($warehouseRequest->status, ['approved', 'partially_dispatched', 'dispatched', 'partially_received', 'received'], true), 422, 'El pedido debe estar aprobado para imprimir despacho.');
+
+        $warehouseRequest->load(['items.material', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
+
+        $pdf = Pdf::loadView('warehouse.requests.print_dispatch', [
+            'requestModel' => $warehouseRequest,
+            'statusColors' => self::STATUS_COLORS,
+        ]);
+
+        return $pdf->stream('Despacho_' . $warehouseRequest->request_code . '.pdf');
+    }
+
+
+    private function authorizePermission(string $permission): void
+    {
+        abort_unless(Auth::user()?->can($permission), 403);
+    }
+
+    private function applyStockMovement(int $warehouseId, int $materialId, string $type, float $qty, int $requestId, string $notes): void
+    {
+        $stock = WarehouseStock::query()->firstOrCreate([
+            'warehouse_id' => $warehouseId,
+            'warehouse_material_id' => $materialId,
+        ], [
+            'current_qty' => 0,
+            'min_qty' => 0,
+        ]);
+
+        $newQty = $type === 'out'
+            ? max(0, (float) $stock->current_qty - $qty)
+            : (float) $stock->current_qty + $qty;
+
+        $stock->update(['current_qty' => $newQty]);
+
+        WarehouseStockMovement::query()->create([
+            'warehouse_id' => $warehouseId,
+            'warehouse_material_id' => $materialId,
+            'movement_type' => $type,
+            'qty' => $qty,
+            'reference_type' => WarehouseRequest::class,
+            'reference_id' => $requestId,
+            'performed_by' => Auth::id(),
+            'notes' => $notes,
+        ]);
+    }
+
+    private function registerStatusLog(WarehouseRequest $warehouseRequest, ?string $from, string $to, ?string $comment = null): void
+    {
+        WarehouseRequestStatusLog::query()->create([
+            'warehouse_request_id' => $warehouseRequest->id,
+            'from_status' => $from,
+            'to_status' => $to,
+            'changed_by' => Auth::id(),
+            'comment' => $comment,
+        ]);
+    }
+
+    private function ensureWarehouseSetup(): void
+    {
+        $sedes = Sede::query()->orderBy('id')->get();
+
+        foreach ($sedes as $sede) {
+            Warehouse::query()->firstOrCreate(
+                ['sede_id' => $sede->id],
+                ['name' => 'Almacén ' . $sede->name, 'is_principal' => false, 'is_active' => true]
+            );
+        }
+
+        if (!Warehouse::query()->where('is_principal', true)->exists()) {
+            $first = Warehouse::query()->orderBy('id')->first();
+            if ($first) {
+                $first->update(['is_principal' => true]);
+            }
+        }
+    }
+}

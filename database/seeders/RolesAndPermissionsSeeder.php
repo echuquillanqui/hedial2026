@@ -30,6 +30,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'nurses.view', 'nurses.create', 'nurses.edit', 'nurses.delete',
 
             'reports.export.pdf', 'reports.export.excel',
+
+            'warehouse.requests.view',
+            'warehouse.requests.create',
+            'warehouse.requests.update.status',
+            'warehouse.requests.dispatch',
+            'warehouse.requests.receive',
+            'warehouse.requests.print',
         ];
 
         foreach ($permissions as $permission) {
@@ -50,6 +57,13 @@ class RolesAndPermissionsSeeder extends Seeder
                 'medicals.view', 'medicals.create', 'medicals.edit',
                 'nurses.view', 'nurses.create', 'nurses.edit',
                 'reports.export.pdf', 'reports.export.excel',
+
+            'warehouse.requests.view',
+            'warehouse.requests.create',
+            'warehouse.requests.update.status',
+            'warehouse.requests.dispatch',
+            'warehouse.requests.receive',
+            'warehouse.requests.print',
             ],
             'medico' => [
                 'dashboard.view',
@@ -67,6 +81,12 @@ class RolesAndPermissionsSeeder extends Seeder
                 'dashboard.view',
                 'patients.view', 'patients.create', 'patients.edit',
                 'referrals.view', 'referrals.create',
+            ],
+
+            'almacen' => [
+                'dashboard.view',
+                'warehouse.requests.view', 'warehouse.requests.create', 'warehouse.requests.update.status',
+                'warehouse.requests.dispatch', 'warehouse.requests.receive', 'warehouse.requests.print',
             ],
         ];
 
