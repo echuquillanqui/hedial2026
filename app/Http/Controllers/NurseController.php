@@ -140,9 +140,17 @@ class NurseController extends Controller
         });
 
         if ($validator->fails()) {
+            $flatErrors = collect($validator->errors()->toArray())
+                ->flatten()
+                ->filter()
+                ->unique()
+                ->values();
+
             return response()->json([
                 'status' => 'error',
-                'message' => $validator->errors()->first(),
+                'message' => $flatErrors->isNotEmpty()
+                    ? 'Revise los siguientes campos: ' . $flatErrors->implode(' | ')
+                    : 'Existen campos pendientes por completar.',
                 'errors' => $validator->errors(),
             ], 422);
         }

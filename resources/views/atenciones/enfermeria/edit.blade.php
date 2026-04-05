@@ -225,6 +225,49 @@
         return value !== null && value !== undefined && String(value).trim() !== '';
     }
 
+    function getFieldLabel(input) {
+        if (!input) return null;
+
+        if (input.name?.startsWith('t_')) {
+            const th = input.closest('td')?.cellIndex;
+            const header = th !== undefined
+                ? document.querySelector(`#tableTreatments thead th:nth-child(${th + 1})`)?.innerText?.trim()
+                : null;
+            return header ? `${header} (Monitoreo)` : 'Campo de monitoreo';
+        }
+
+        const col = input.closest('[class*="col-"]');
+        const label = col?.querySelector('label');
+        const text = label?.dataset?.label || label?.innerText || input.getAttribute('aria-label') || input.name;
+
+        return text ? text.replace('*', '').trim() : input.name;
+    }
+
+    function obtenerCamposFaltantes(form) {
+        const invalidFields = Array.from(form.querySelectorAll(':invalid'));
+        const missing = [];
+
+        invalidFields.forEach((field) => {
+            // Ignoramos campos de cierre si no están activos como obligatorios
+            if (field.classList.contains('closure-field') && !field.hasAttribute('required')) return;
+
+            const value = field.value ?? '';
+            if (!isFilled(value) || field.validity.valueMissing) {
+                const label = getFieldLabel(field);
+                if (label && !missing.includes(label)) {
+                    missing.push(label);
+                }
+            } else if (!field.checkValidity()) {
+                const label = getFieldLabel(field);
+                if (label && !missing.includes(label)) {
+                    missing.push(`${label} (formato inválido)`);
+                }
+            }
+        });
+
+        return missing;
+    }
+
     function validarFilasMonitoreo() {
         const rows = document.querySelectorAll('#tableTreatments tbody tr');
 
@@ -273,7 +316,11 @@
 
         if (!this.checkValidity()) {
             this.classList.add('was-validated');
-            return Swal.fire({ icon: 'warning', title: 'Atención', text: 'Complete los campos obligatorios marcados en rojo.' });
+            const faltantes = obtenerCamposFaltantes(this);
+            const detalle = faltantes.length
+                ? `Faltan o son inválidos: ${faltantes.join(', ')}.`
+                : 'Complete los campos obligatorios marcados en rojo.';
+            return Swal.fire({ icon: 'warning', title: 'Atención', text: detalle });
         }
 
         Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -286,7 +333,11 @@
         .then(res => res.json())
         .then(data => {
             if(data.status === 'success') Swal.fire({ icon: 'success', title: '¡Éxito!', text: data.message, timer: 1500, showConfirmButton: false });
-            else Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+            else {
+                const serverErrors = data.errors ? Object.values(data.errors).flat().join(' | ') : '';
+                const text = serverErrors || data.message || 'No se pudo guardar el registro.';
+                Swal.fire({ icon: 'error', title: 'Error', text });
+            }
         });
     });
 </script>
