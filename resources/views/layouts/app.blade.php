@@ -49,7 +49,7 @@
                 <div class="collapse navbar-collapse" id="navMain">
                     <ul class="navbar-nav me-auto">
     <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('users.*', 'patients.*') ? 'active fw-bold' : '' }}" 
+        <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('users.*', 'patients.*', 'sedes.*') ? 'active fw-bold' : '' }}" 
            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-people-fill me-1"></i> Gestión
         </a>
@@ -62,6 +62,11 @@
             <li>
                 <a class="dropdown-item {{ request()->routeIs('patients.*') ? 'active' : '' }}" href="{{ route('patients.index') }}">
                     <i class="bi bi-people me-2"></i> Pacientes
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('sedes.*') ? 'active' : '' }}" href="{{ route('sedes.index') }}">
+                    <i class="bi bi-building me-2"></i> Sedes
                 </a>
             </li>
         </ul>
