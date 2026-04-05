@@ -117,7 +117,12 @@
                         @foreach($meds as $key => $label)
                         <div class="col">
                             <label class="text-dark">{{ $label }}</label>
-                            <input type="text" name="{{ $key }}" class="form-control form-control-sm" value="{{ $nurse->$key }}">
+                            <input
+                                type="text"
+                                name="{{ $key }}"
+                                class="form-control form-control-sm"
+                                value="{{ old($key, $nurse->$key ?? $order->medical->$key) }}"
+                            >
                         </div>
                         @endforeach
                         <div class="col-md-3"><label>Otros Medicamentos</label><input type="text" name="otros_medicamentos" class="form-control form-control-sm" value="{{ $nurse->otros_medicamentos }}"></div>

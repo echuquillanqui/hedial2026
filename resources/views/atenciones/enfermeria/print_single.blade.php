@@ -215,37 +215,44 @@
 </table>
 
 <div class="bg-black" style="margin-top: -1px;">II.2.ADMINISTRACION: DE MEDICAMENTOS</div>
+@php
+    $hierro = $order->nurse->hierro ?? $order->medical->hierro;
+    $epo2000 = $order->nurse->epo2000 ?? $order->medical->epo2000;
+    $epo4000 = $order->nurse->epo4000 ?? $order->medical->epo4000;
+    $vitaminaB12 = $order->nurse->vitamina_b12 ?? $order->medical->vitamina_b12;
+    $calcitriol = $order->nurse->calcitriol ?? $order->medical->calcitriol;
+@endphp
 <table class="border-full" style="border-top: none; table-layout: fixed; width: 100%; border-collapse: collapse;">
     <tr>
         <td width="30%" style="border: 1px solid #000; font-size: 8px;">Hierro 20 mg Fe/mL INY 5 mL</td>
         <td width="10%" style="border: 1px solid #000; text-align: center; font-size: 10px; font-weight: bold;">
-            {{ $order->nurse->hierro }}
+            {{ $hierro }}
         </td>
         
         <td width="22%" style="border: 1px solid #000; font-size: 8px;">Epoetina alfa 2000 UI/mL </td>
         <td width="8%" style="border: 1px solid #000; text-align: center; font-size: 10px; font-weight: bold;">
-            {{ $order->nurse->epo2000 }} 
+            {{ $epo2000 }} 
         </td>
         
         <td width="22%" style="border: 1px solid #000; font-size: 8px;">Epoetina alfa 4000 UI/mL </td>
         <td width="8%" style="border: 1px solid #000; text-align: center; font-size: 10px; font-weight: bold;">
-            {{ $order->nurse->epo4000 }} 
+            {{ $epo4000 }} 
         </td>
     </tr>
     <tr>
         <td style="border: 1px solid #000; font-size: 8px;">Hidroxicobalamina 1mg/mL INY 1mL </td>
         <td style="border: 1px solid #000; text-align: center; font-size: 10px; font-weight: bold;">
-            {{ $order->nurse->vitamina_b12 }}
+            {{ $vitaminaB12 }}
         </td>
         
         <td style="border: 1px solid #000; font-size: 8px;">Calcitriol 1 mcg/mL INY </td>
         <td style="border: 1px solid #000; text-align: center; font-size: 10px; font-weight: bold;">
-            {{ $order->nurse->calcitriol }} 
+            {{ $calcitriol }} 
         </td>
         
         <td style="border: 1px solid #000; font-size: 8px;">Otros </td>
         <td style="border: 1px solid #000; text-align: center; font-size: 10px; font-weight: bold;">
-            {{ $order->nurse->otros_med }} 
+            {{ $order->nurse->otros_medicamentos }} 
         </td>
     </tr>
 </table>
