@@ -25,8 +25,17 @@
         <tr>
             <td><div class="kpi-title">Sesiones</div><div class="kpi-value">{{ $kpis['totalSesiones'] }}</div></td>
             <td><div class="kpi-title">Completas</div><div class="kpi-value">{{ $kpis['sesionesCompletas'] }}</div></td>
-            <td><div class="kpi-title">Pendientes</div><div class="kpi-value">{{ $kpis['sesionesPendientes'] }}</div></td>
-            <td><div class="kpi-title">No registrado estimado</div><div class="kpi-value">{{ $kpis['noRegistradosEstimados'] }}</div></td>
+            <td><div class="kpi-title">Atenciones pendientes</div><div class="kpi-value">{{ $kpis['sesionesPendientes'] }}</div></td>
+            <td><div class="kpi-title">Materiales base consumidos</div><div class="kpi-value">{{ $kpis['materialesDialisisConsumidos'] }}</div></td>
+        </tr>
+    </table>
+
+    <table class="kpi-grid">
+        <tr>
+            <td><div class="kpi-title">Materiales indirectos consumidos</div><div class="kpi-value">{{ $kpis['materialesIndirectosConsumidos'] }}</div></td>
+            <td></td>
+            <td></td>
+            <td></td>
         </tr>
     </table>
 
@@ -74,17 +83,38 @@
     <table>
         <thead>
             <tr>
-                <th>Material crítico no registrado automáticamente</th>
-                <th>Cantidad estimada</th>
+                <th>Material base de diálisis consumido</th>
+                <th>Cantidad</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($materialesNoRegistrados as $material)
+            @forelse($materialesDialisis as $material)
             <tr>
                 <td>{{ $material['nombre'] }}</td>
                 <td style="text-align:center;">{{ $material['cantidad'] }}</td>
             </tr>
-            @endforeach
+            @empty
+            <tr><td colspan="2" style="text-align:center;">Sin consumos base para esta fecha.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Material indirecto consumido</th>
+                <th>Cantidad</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($materialesIndirectos as $material)
+            <tr>
+                <td>{{ $material['nombre'] }}</td>
+                <td style="text-align:center;">{{ $material['cantidad'] }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="2" style="text-align:center;">Sin materiales indirectos para esta fecha.</td></tr>
+            @endforelse
         </tbody>
     </table>
 </body>

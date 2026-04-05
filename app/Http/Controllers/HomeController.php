@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ExtraMaterial;
+use App\Models\HemodialysisMaterial;
+use App\Models\HemodialysisMaterialConsumption;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -42,10 +45,11 @@ class HomeController extends Controller
             echo '<tr><th colspan="3">Totales</th></tr>';
             echo '<tr><td>Total sesiones</td><td>'.$escape($dashboard['kpis']['totalSesiones']).'</td></tr>';
             echo '<tr><td>Sesiones completas</td><td>'.$escape($dashboard['kpis']['sesionesCompletas']).'</td></tr>';
-            echo '<tr><td>Sesiones pendientes</td><td>'.$escape($dashboard['kpis']['sesionesPendientes']).'</td></tr>';
+            echo '<tr><td>Atenciones pendientes</td><td>'.$escape($dashboard['kpis']['sesionesPendientes']).'</td></tr>';
             echo '<tr><td>Total heparina aplicada</td><td>'.$escape($dashboard['kpis']['totalHeparina']).'</td></tr>';
             echo '<tr><td>Total dializadores registrados</td><td>'.$escape($dashboard['kpis']['totalDializadoresRegistrados']).'</td></tr>';
-            echo '<tr><td>Materiales no registrados (estimado por sesión)</td><td>'.$escape($dashboard['kpis']['noRegistradosEstimados']).'</td></tr>';
+            echo '<tr><td>Materiales de diálisis consumidos</td><td>'.$escape($dashboard['kpis']['materialesDialisisConsumidos']).'</td></tr>';
+            echo '<tr><td>Materiales indirectos consumidos</td><td>'.$escape($dashboard['kpis']['materialesIndirectosConsumidos']).'</td></tr>';
             echo '</table><br>';
 
             echo '<table border="1">';
@@ -80,9 +84,17 @@ class HomeController extends Controller
             echo '</table><br>';
 
             echo '<table border="1">';
-            echo '<tr><th colspan="2">Materiales críticos no registrados automáticamente</th></tr>';
-            echo '<tr><th>Material</th><th>Cantidad estimada</th></tr>';
-            foreach ($dashboard['materialesNoRegistrados'] as $material) {
+            echo '<tr><th colspan="2">Materiales base de diálisis consumidos</th></tr>';
+            echo '<tr><th>Material</th><th>Cantidad</th></tr>';
+            foreach ($dashboard['materialesDialisis'] as $material) {
+                echo '<tr><td>'.$escape($material['nombre']).'</td><td>'.$escape($material['cantidad']).'</td></tr>';
+            }
+            echo '</table><br>';
+
+            echo '<table border="1">';
+            echo '<tr><th colspan="2">Materiales indirectos consumidos</th></tr>';
+            echo '<tr><th>Material</th><th>Cantidad</th></tr>';
+            foreach ($dashboard['materialesIndirectos'] as $material) {
                 echo '<tr><td>'.$escape($material['nombre']).'</td><td>'.$escape($material['cantidad']).'</td></tr>';
             }
             echo '</table>';
@@ -139,22 +151,48 @@ class HomeController extends Controller
             ];
         });
 
-        $materialesBase = [
-            'Líneas de sangre (circuito extracorpóreo)',
-            'Líquido de diálisis (ácido + bicarbonato)',
-            'Agujas de fístula o kit de conexión para catéter',
-            'Suero fisiológico (purgado y retorno)',
-            'Jeringas y agujas de varios tamaños',
-            'Gasas estériles y apósitos adhesivos',
-            'Desinfectante (alcohol, clorhexidina o povidona)',
-            'Guantes estériles y mascarillas',
-            'Esparadrapo (cinta médica)',
-        ];
+        $materialesDialisis = HemodialysisMaterialConsumption::query()
+            ->with('material:id,name,unit')
+            ->whereDate('consumed_at', $fecha)
+            ->get()
+            ->groupBy('hemodialysis_material_id')
+            ->map(function ($consumos) {
+                $material = $consumos->first()->material;
+                $cantidad = round((float) $consumos->sum('quantity'), 2);
+                $unidad = $material?->unit ? ' '.$material->unit : '';
 
-        $materialesNoRegistrados = collect($materialesBase)->map(fn ($nombre) => [
-            'nombre' => $nombre,
-            'cantidad' => $ordenes->count(),
-        ]);
+                return [
+                    'nombre' => $material?->name ?? 'Material base',
+                    'cantidad' => rtrim(rtrim(number_format($cantidad, 2, '.', ''), '0'), '.').$unidad,
+                    'cantidad_numerica' => $cantidad,
+                ];
+            })
+            ->values();
+
+        $nombresMaterialesBase = HemodialysisMaterial::query()
+            ->pluck('name')
+            ->map(fn ($name) => mb_strtolower(trim((string) $name)))
+            ->flip();
+
+        $materialesIndirectos = ExtraMaterial::query()
+            ->whereDate('usage_date', $fecha)
+            ->get(['material_name', 'quantity'])
+            ->filter(function ($material) use ($nombresMaterialesBase) {
+                $nombreNormalizado = mb_strtolower(trim((string) $material->material_name));
+
+                return ! $nombresMaterialesBase->has($nombreNormalizado);
+            })
+            ->groupBy('material_name')
+            ->map(function ($materiales, $nombre) {
+                $cantidad = round((float) $materiales->sum('quantity'), 2);
+
+                return [
+                    'nombre' => $nombre,
+                    'cantidad' => rtrim(rtrim(number_format($cantidad, 2, '.', ''), '0'), '.'),
+                    'cantidad_numerica' => $cantidad,
+                ];
+            })
+            ->values();
 
         $completas = $resumenInsumos->where('completa', true)->count();
 
@@ -165,14 +203,16 @@ class HomeController extends Controller
             'total' => $ordenes->count(),
             'completos' => $completas,
             'resumenInsumos' => $resumenInsumos,
-            'materialesNoRegistrados' => $materialesNoRegistrados,
+            'materialesDialisis' => $materialesDialisis,
+            'materialesIndirectos' => $materialesIndirectos,
             'kpis' => [
                 'totalSesiones' => $ordenes->count(),
                 'sesionesCompletas' => $completas,
                 'sesionesPendientes' => $resumenInsumos->where('completa', false)->count(),
                 'totalHeparina' => $resumenInsumos->sum('heparina'),
                 'totalDializadoresRegistrados' => $resumenInsumos->sum('dializador'),
-                'noRegistradosEstimados' => $materialesNoRegistrados->sum('cantidad'),
+                'materialesDialisisConsumidos' => $materialesDialisis->sum('cantidad_numerica'),
+                'materialesIndirectosConsumidos' => $materialesIndirectos->sum('cantidad_numerica'),
             ],
         ];
     }

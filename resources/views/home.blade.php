@@ -27,28 +27,34 @@
         </div>
 
         <div class="row g-3 mb-4">
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-12 col-md-6 col-xl-2">
                 <div class="kpi-card kpi-primary">
                     <small>Sesiones del día</small>
                     <h2>{{ $kpis['totalSesiones'] }}</h2>
                 </div>
             </div>
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-12 col-md-6 col-xl-2">
                 <div class="kpi-card kpi-success">
                     <small>Sesiones completas</small>
                     <h2>{{ $kpis['sesionesCompletas'] }}</h2>
                 </div>
             </div>
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-12 col-md-6 col-xl-2">
                 <div class="kpi-card kpi-warning">
-                    <small>Sesiones pendientes</small>
+                    <small>Atenciones pendientes</small>
                     <h2>{{ $kpis['sesionesPendientes'] }}</h2>
                 </div>
             </div>
             <div class="col-12 col-md-6 col-xl-3">
                 <div class="kpi-card kpi-dark">
-                    <small>Material no registrado (estimado)</small>
-                    <h2>{{ $kpis['noRegistradosEstimados'] }}</h2>
+                    <small>Materiales de diálisis consumidos</small>
+                    <h2>{{ $kpis['materialesDialisisConsumidos'] }}</h2>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="kpi-card kpi-dark">
+                    <small>Materiales indirectos consumidos</small>
+                    <h2>{{ $kpis['materialesIndirectosConsumidos'] }}</h2>
                 </div>
             </div>
         </div>
@@ -115,17 +121,38 @@
             <div class="col-12 col-xxl-4">
                 <div class="card border-0 shadow-sm rounded-4 mb-4">
                     <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-                        <h5 class="fw-bold mb-1">Materiales críticos no registrados</h5>
-                        <p class="small text-muted mb-0">Estimado de salida por cantidad de sesiones del día.</p>
+                        <h5 class="fw-bold mb-1">Materiales base consumidos en diálisis</h5>
+                        <p class="small text-muted mb-0">Cantidades registradas automáticamente por sesión finalizada.</p>
                     </div>
                     <div class="card-body pt-2">
                         <ul class="list-group list-group-flush">
-                            @foreach($materialesNoRegistrados as $material)
+                            @forelse($materialesDialisis as $material)
                             <li class="list-group-item d-flex justify-content-between align-items-start px-0">
                                 <span class="small pe-2">{{ $material['nombre'] }}</span>
                                 <span class="badge rounded-pill text-bg-primary">{{ $material['cantidad'] }}</span>
                             </li>
-                            @endforeach
+                            @empty
+                            <li class="list-group-item px-0 small text-muted">No hay consumo base registrado para esta fecha.</li>
+                            @endforelse
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
+                        <h5 class="fw-bold mb-1">Materiales indirectos consumidos</h5>
+                        <p class="small text-muted mb-0">Insumos extra no presentes en los productos base de diálisis.</p>
+                    </div>
+                    <div class="card-body pt-2">
+                        <ul class="list-group list-group-flush">
+                            @forelse($materialesIndirectos as $material)
+                            <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+                                <span class="small pe-2">{{ $material['nombre'] }}</span>
+                                <span class="badge rounded-pill text-bg-secondary">{{ $material['cantidad'] }}</span>
+                            </li>
+                            @empty
+                            <li class="list-group-item px-0 small text-muted">No hay materiales indirectos registrados para esta fecha.</li>
+                            @endforelse
                         </ul>
                     </div>
                 </div>
