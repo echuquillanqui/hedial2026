@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Medical;
+use App\Models\Nurse;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -127,6 +128,7 @@ class MedicalController extends Controller
         }
 
         $medical->update($validated);
+        $this->syncMedicationToNurseWhenDefault($medical);
 
         return redirect()->route('medicals.index')
             ->with('success', 'Ficha médica actualizada correctamente.');
@@ -171,5 +173,35 @@ class MedicalController extends Controller
         }
 
         return redirect()->route('medicals.index');
+    }
+
+    /**
+     * Sincroniza medicación hacia Nurse solo cuando Nurse aún está con valor por defecto ("0"/vacío).
+     */
+    private function syncMedicationToNurseWhenDefault(Medical $medical): void
+    {
+        $nurse = Nurse::where('order_id', $medical->order_id)->first();
+        if (!$nurse) {
+            return;
+        }
+
+        $medicationFields = ['epo2000', 'epo4000', 'hierro', 'vitamina_b12', 'calcitriol'];
+        $changes = [];
+
+        foreach ($medicationFields as $field) {
+            $nurseValue = (string) ($nurse->$field ?? '');
+            $medicalValue = (string) ($medical->$field ?? '');
+
+            $nurseHasDefaultValue = in_array($nurseValue, ['', '0'], true);
+            $medicalHasMeaningfulValue = !in_array($medicalValue, ['', '0'], true);
+
+            if ($nurseHasDefaultValue && $medicalHasMeaningfulValue) {
+                $changes[$field] = $medical->$field;
+            }
+        }
+
+        if (!empty($changes)) {
+            $nurse->update($changes);
+        }
     }
 }

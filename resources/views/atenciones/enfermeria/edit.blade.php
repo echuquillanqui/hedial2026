@@ -115,13 +115,20 @@
                     <div class="row g-2">
                         @php $meds = ['epo2000'=>'EPO 2000','epo4000'=>'EPO 4000','hierro'=>'HIERRO SAC.','vitamina_b12'=>'VIT. B12','calcitriol'=>'CALCITRIOL']; @endphp
                         @foreach($meds as $key => $label)
+                        @php
+                            $nurseValue = $nurse->$key;
+                            $medicalValue = optional($order->medical)->$key;
+                            $showMedicalValue = in_array((string) $nurseValue, ['', '0'], true)
+                                && !in_array((string) $medicalValue, ['', '0'], true);
+                            $initialValue = $showMedicalValue ? $medicalValue : $nurseValue;
+                        @endphp
                         <div class="col">
                             <label class="text-dark">{{ $label }}</label>
                             <input
                                 type="text"
                                 name="{{ $key }}"
                                 class="form-control form-control-sm"
-                                value="{{ old($key, $nurse->$key ?? $order->medical->$key) }}"
+                                value="{{ old($key, $initialValue) }}"
                             >
                         </div>
                         @endforeach
