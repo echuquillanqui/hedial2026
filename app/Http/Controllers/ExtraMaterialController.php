@@ -16,6 +16,13 @@ class ExtraMaterialController extends Controller
     public function index(Request $request)
     {
         $month = $request->input('month', now()->format('Y-m'));
+        $view = $request->input('view', 'resumen');
+        $allowedViews = ['resumen', 'extras', 'base', 'consumo'];
+
+        if (!in_array($view, $allowedViews, true)) {
+            $view = 'resumen';
+        }
+
         [$year, $monthNumber] = explode('-', $month);
 
         $this->syncFinalizedConsumptions((int) $year, (int) $monthNumber);
@@ -76,6 +83,7 @@ class ExtraMaterialController extends Controller
             ->appends($request->all());
 
         return view('atenciones.materiales.index', compact(
+            'view',
             'materials',
             'patients',
             'orders',
@@ -242,6 +250,9 @@ class ExtraMaterialController extends Controller
             })
             ->whereHas('nurse', function ($query) {
                 $query->whereNotNull('enfermero_que_finaliza_id');
+            })
+            ->whereHas('treatments', function ($query) {
+                $query->whereNotNull('hora');
             })
             ->get(['id', 'patient_id', 'fecha_orden']);
 
