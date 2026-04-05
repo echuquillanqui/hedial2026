@@ -42,35 +42,46 @@
                 <thead class="table-light">
                     <tr>
                         <th class="ps-3">Material</th>
+                        <th class="text-center">Historial</th>
                         <th class="text-center">Consumo por orden</th>
                         <th class="text-center">Stock actual</th>
                         <th class="text-center">Activo</th>
-                        <th class="text-center">Acción</th>
+                        <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($hemodialysisMaterials as $baseMaterial)
                         <tr>
-                            <form action="{{ route('extra-materials.base.update', $baseMaterial) }}" method="POST">
-                                @csrf
-                                @method('PATCH')
-                                <td class="ps-3 small">{{ $baseMaterial->name }}</td>
-                                <td class="text-center" style="max-width: 150px;">
-                                    <div class="input-group input-group-sm">
-                                        <input type="number" min="0.01" step="0.01" name="quantity_per_order" class="form-control form-control-sm text-center" value="{{ $baseMaterial->quantity_per_order }}" required>
-                                        <span class="input-group-text">{{ $baseMaterial->unit }}</span>
-                                    </div>
-                                </td>
-                                <td class="text-center" style="max-width: 140px;">
-                                    <input type="number" min="0" step="0.01" name="stock" class="form-control form-control-sm text-center" value="{{ $baseMaterial->stock }}" required>
-                                </td>
-                                <td class="text-center">
-                                    <input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $baseMaterial->is_active ? 'checked' : '' }}>
-                                </td>
-                                <td class="text-center">
+                            <td class="ps-3 small">{{ $baseMaterial->name }}</td>
+                            <td class="text-center small text-muted">
+                                {{ $baseMaterial->consumptions_count }} atenciones
+                            </td>
+                            <td class="text-center" style="max-width: 150px;">
+                                <div class="input-group input-group-sm">
+                                    <input type="number" min="0.01" step="0.01" name="quantity_per_order" class="form-control form-control-sm text-center" value="{{ $baseMaterial->quantity_per_order }}" form="update-base-{{ $baseMaterial->id }}" required>
+                                    <span class="input-group-text">{{ $baseMaterial->unit }}</span>
+                                </div>
+                            </td>
+                            <td class="text-center" style="max-width: 140px;">
+                                <input type="number" min="0" step="0.01" name="stock" class="form-control form-control-sm text-center" value="{{ $baseMaterial->stock }}" form="update-base-{{ $baseMaterial->id }}" required>
+                            </td>
+                            <td class="text-center">
+                                <input type="checkbox" name="is_active" value="1" class="form-check-input" form="update-base-{{ $baseMaterial->id }}" {{ $baseMaterial->is_active ? 'checked' : '' }}>
+                            </td>
+                            <td class="text-center">
+                                <form id="update-base-{{ $baseMaterial->id }}" action="{{ route('extra-materials.base.update', $baseMaterial) }}" method="POST" class="d-inline-flex gap-1">
+                                    @csrf
+                                    @method('PATCH')
                                     <button type="submit" class="btn btn-outline-primary btn-sm">Guardar</button>
-                                </td>
-                            </form>
+                                </form>
+                                <form action="{{ route('extra-materials.base.destroy', $baseMaterial) }}" method="POST" class="d-inline-flex">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Si el material tiene atenciones previas solo se desactivará para no afectar el historial. ¿Desea continuar?')">
+                                        Eliminar
+                                    </button>
+                                </form>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -78,3 +89,6 @@
         </div>
     </div>
 </div>
+<p class="small text-muted mt-2 mb-0">
+    Los cambios en consumo/estado se aplican a sesiones futuras. Las atenciones ya registradas mantienen su historial.
+</p>

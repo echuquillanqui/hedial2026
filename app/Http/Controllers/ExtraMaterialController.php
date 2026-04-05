@@ -58,6 +58,7 @@ class ExtraMaterialController extends Controller
         $totalMonth = (float) $summaryByPatient->sum('total_amount');
 
         $hemodialysisMaterials = HemodialysisMaterial::query()
+            ->withCount('consumptions')
             ->orderBy('name')
             ->get();
 
@@ -137,6 +138,29 @@ class ExtraMaterialController extends Controller
         return back()->with('toastr', [
             'type' => 'success',
             'message' => 'Material base registrado correctamente.',
+        ]);
+    }
+
+    public function destroyBaseMaterial(HemodialysisMaterial $material)
+    {
+        $hasConsumptions = $material->consumptions()->exists();
+
+        if ($hasConsumptions) {
+            $material->update([
+                'is_active' => false,
+            ]);
+
+            return back()->with('toastr', [
+                'type' => 'warning',
+                'message' => 'El material tiene atenciones previas. Se desactivó para futuras sesiones y no se eliminó el historial.',
+            ]);
+        }
+
+        $material->delete();
+
+        return back()->with('toastr', [
+            'type' => 'success',
+            'message' => 'Material base eliminado correctamente.',
         ]);
     }
 

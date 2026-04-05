@@ -58,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('extra-materials', [ExtraMaterialController::class, 'store'])->name('extra-materials.store');
     Route::delete('extra-materials/{extraMaterial}', [ExtraMaterialController::class, 'destroy'])->name('extra-materials.destroy');
     Route::patch('extra-materials/base/{material}', [ExtraMaterialController::class, 'updateStock'])->name('extra-materials.base.update');
+    Route::delete('extra-materials/base/{material}', [ExtraMaterialController::class, 'destroyBaseMaterial'])->name('extra-materials.base.destroy');
     Route::post('extra-materials/base', [ExtraMaterialController::class, 'storeBaseMaterial'])->name('extra-materials.base.store');
     Route::get('extra-materials/report/monthly', [ExtraMaterialController::class, 'monthlyReport'])->name('extra-materials.report.monthly');
 
