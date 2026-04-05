@@ -10,6 +10,7 @@ use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Support\CurrentSede;
 
 class ExtraMaterialController extends Controller
 {
@@ -27,7 +28,10 @@ class ExtraMaterialController extends Controller
 
         $this->syncFinalizedConsumptions((int) $year, (int) $monthNumber);
 
+        $currentSedeId = CurrentSede::id();
+
         $materials = ExtraMaterial::with(['patient', 'order'])
+            ->when($currentSedeId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('sede_id', $currentSedeId)))
             ->whereYear('usage_date', (int) $year)
             ->whereMonth('usage_date', (int) $monthNumber)
             ->when($request->filled('patient_id'), function ($query) use ($request) {
@@ -38,15 +42,17 @@ class ExtraMaterialController extends Controller
             ->paginate(15)
             ->appends($request->all());
 
-        $patients = Patient::orderBy('surname')->orderBy('last_name')->get();
+        $patients = Patient::query()->when($currentSedeId, fn ($q) => $q->where('sede_id', $currentSedeId))->orderBy('surname')->orderBy('last_name')->get();
 
         $orders = Order::with('patient')
+            ->when($currentSedeId, fn ($q) => $q->where('sede_id', $currentSedeId))
             ->whereYear('fecha_orden', (int) $year)
             ->whereMonth('fecha_orden', (int) $monthNumber)
             ->orderByDesc('fecha_orden')
             ->get();
 
         $summaryByPatient = ExtraMaterial::query()
+            ->when($currentSedeId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('sede_id', $currentSedeId)))
             ->selectRaw('patient_id, SUM(total_cost) as total_amount, COUNT(*) as records')
             ->with('patient')
             ->whereYear('usage_date', (int) $year)
@@ -63,6 +69,7 @@ class ExtraMaterialController extends Controller
             ->get();
 
         $consumptionSummary = HemodialysisMaterialConsumption::query()
+            ->when($currentSedeId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('sede_id', $currentSedeId)))
             ->selectRaw('patient_id, SUM(quantity) as total_quantity, COUNT(*) as records')
             ->with('patient')
             ->whereYear('consumed_at', (int) $year)
@@ -72,6 +79,7 @@ class ExtraMaterialController extends Controller
             ->get();
 
         $consumptions = HemodialysisMaterialConsumption::query()
+            ->when($currentSedeId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('sede_id', $currentSedeId)))
             ->with(['patient', 'order', 'material'])
             ->whereYear('consumed_at', (int) $year)
             ->whereMonth('consumed_at', (int) $monthNumber)
@@ -99,6 +107,8 @@ class ExtraMaterialController extends Controller
 
     public function updateStock(Request $request, HemodialysisMaterial $material)
     {
+        $currentSedeId = CurrentSede::id();
+
         $validated = $request->validate([
             'stock' => 'required|numeric|min:0',
             'quantity_per_order' => 'required|numeric|min:0.01',
@@ -119,6 +129,8 @@ class ExtraMaterialController extends Controller
 
     public function storeBaseMaterial(Request $request)
     {
+        $currentSedeId = CurrentSede::id();
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:hemodialysis_materials,name',
             'unit' => 'required|string|max:30',
@@ -166,6 +178,8 @@ class ExtraMaterialController extends Controller
 
     public function store(Request $request)
     {
+        $currentSedeId = CurrentSede::id();
+
         $validated = $request->validate([
             'patient_id' => 'required|exists:patients,id',
             'order_id' => 'nullable|exists:orders,id',
@@ -175,6 +189,13 @@ class ExtraMaterialController extends Controller
             'unit_cost' => 'required|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
+
+        if ($currentSedeId) {
+            $order = Order::find($validated['order_id'] ?? null);
+            if ($order && (int) $order->sede_id !== (int) $currentSedeId) {
+                abort(403, 'Orden fuera de la sede activa.');
+            }
+        }
 
         $validated['total_cost'] = round($validated['quantity'] * $validated['unit_cost'], 2);
 
@@ -263,6 +284,7 @@ class ExtraMaterialController extends Controller
     private function syncFinalizedConsumptions(int $year, int $monthNumber): void
     {
         $finalizedOrders = Order::query()
+            ->when(CurrentSede::id(), fn ($q) => $q->where('sede_id', CurrentSede::id()))
             ->with([
                 'medical:id,order_id,hora_final',
                 'nurse:id,order_id,enfermero_que_finaliza_id',

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Support\CurrentSede;
 
 class NurseController extends Controller
 {
@@ -18,6 +19,9 @@ class NurseController extends Controller
     $dateFilter = $request->get('date', date('Y-m-d'));
 
     $nurses = Nurse::with(['order.patient', 'enfermeroInicia', 'enfermeroFinaliza'])
+        ->when(CurrentSede::id(), function ($query) {
+            $query->whereHas('order', fn ($q) => $q->where('sede_id', CurrentSede::id()));
+        })
         ->when($request->search, function ($query, $search) {
             $query->whereHas('order.patient', function($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
@@ -64,6 +68,9 @@ class NurseController extends Controller
 
     public function edit(Nurse $nurse)
     {
+        if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Atención fuera de la sede activa.');
+        }
         $nurse->load(['order.patient', 'order.medical', 'order.treatments']);
         $order = $nurse->order;
 
@@ -90,6 +97,9 @@ class NurseController extends Controller
 
     public function update(Request $request, Nurse $nurse)
     {
+        if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Atención fuera de la sede activa.');
+        }
         $validator = Validator::make($request->all(), [
             't_hora.*' => ['nullable', 'date_format:H:i'],
         ]);
@@ -189,6 +199,9 @@ class NurseController extends Controller
     public function printSingle($id)
     {
         $order = Order::with(['patient', 'medical', 'nurse', 'treatments'])->findOrFail($id);
+        if (CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Atención fuera de la sede activa.');
+        }
         
         $date = \Carbon\Carbon::parse($order->fecha_orden)->format('d/m/Y');
 

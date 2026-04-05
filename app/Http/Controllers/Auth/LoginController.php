@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
+use App\Support\CurrentSede;
 
 class LoginController extends Controller
 {
@@ -44,4 +45,28 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
     }
+
+    protected function loggedOut(Request $request)
+    {
+        CurrentSede::clear();
+    }
+
+    protected function authenticated(Request $request, $user)
+    {
+        $sedes = $user->sedes()->where('is_active', true)->orderBy('name')->get();
+
+        if ($sedes->count() === 1) {
+            CurrentSede::set($sedes->first());
+            return redirect()->route('home');
+        }
+
+        CurrentSede::clear();
+
+        if ($sedes->count() > 1) {
+            return redirect()->route('sede.select');
+        }
+
+        return redirect()->route('home');
+    }
+
 }

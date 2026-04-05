@@ -10,6 +10,7 @@ use App\Models\Treatment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Support\CurrentSede;
 
 class OrderController extends Controller
 {
@@ -22,7 +23,10 @@ class OrderController extends Controller
         // Si no viene fecha en el request, usamos la de hoy por defecto
         $dateFilter = $request->get('date', date('Y-m-d'));
 
-        $orders = Order::with(['patient', 'medical'])
+        $currentSedeId = CurrentSede::id();
+
+        $orders = Order::with(['patient', 'medical', 'sede'])
+            ->when($currentSedeId, fn ($query) => $query->where('sede_id', $currentSedeId))
             ->when($request->search, function ($query, $search) {
                 $query->where(function($q) use ($search) {
                     $q->where('codigo_unico', 'like', "%{$search}%")
@@ -60,7 +64,9 @@ class OrderController extends Controller
 
         // Flujo de generación en bloque por secuencia/turno/módulo.
         if ($request->filled('secuencia') && $request->filled('turno') && $request->filled('modulo')) {
-            $patients = Patient::where('secuencia', $request->secuencia)
+            $patients = Patient::query()
+                ->when(CurrentSede::id(), fn ($q) => $q->where('sede_id', CurrentSede::id()))
+                ->where('secuencia', $request->secuencia)
                 ->where('turno', $request->turno)
                 ->where('modulo', $request->modulo)
                 ->orderBy('surname')
@@ -73,6 +79,7 @@ class OrderController extends Controller
             $search = trim((string) $request->patient_search);
 
             $searchedPatients = Patient::query()
+                ->when(CurrentSede::id(), fn ($q) => $q->where('sede_id', CurrentSede::id()))
                 ->where(function ($query) use ($search) {
                     $query->where('dni', 'like', "%{$search}%")
                         ->orWhere('medical_history_number', 'like', "%{$search}%")
@@ -105,8 +112,15 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
+            $patient = Patient::findOrFail($validated['patient_id']);
+            $currentSedeId = CurrentSede::id();
+            if ($currentSedeId && (int) $patient->sede_id !== (int) $currentSedeId) {
+                abort(403, 'Paciente fuera de la sede activa.');
+            }
+
             $order = Order::create(array_merge($validated, [
-                'codigo_unico' => $this->generateCode()
+                'codigo_unico' => $this->generateCode(),
+                'sede_id' => $patient->sede_id,
             ]));
 
             $this->createRelatedRecords($order, $order->patient);
@@ -139,6 +153,10 @@ class OrderController extends Controller
 
             foreach ($request->patient_ids as $id) {
                 $patient = Patient::findOrFail($id);
+                $currentSedeId = CurrentSede::id();
+                if ($currentSedeId && (int) $patient->sede_id !== (int) $currentSedeId) {
+                    abort(403, 'Paciente fuera de la sede activa.');
+                }
                 
                 // 1. Capturar la hora individual (ej: 3.5)
                 $horasHD = $request->horas_individual[$id] ?? 3.5;
@@ -152,6 +170,7 @@ class OrderController extends Controller
                     'es_covid'       => isset($request->covid_flags[$id]),
                     'horas_dialisis' => $horasHD, // Se guarda como decimal
                     'fecha_orden'    => $request->fecha_orden,
+                    'sede_id'        => $patient->sede_id,
                 ]);
 
                 // 3. Crear registros clínicos relacionados (medicals, nurses y treatments)
@@ -182,6 +201,9 @@ class OrderController extends Controller
      */
     public function update(Request $request, Order $order)
     {
+        if (CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Orden fuera de la sede activa.');
+        }
         $validated = $request->validate([
             'sala'           => 'required|string',
             'turno'          => 'required|string',
@@ -214,6 +236,9 @@ class OrderController extends Controller
      */
     public function destroy(Order $order)
     {
+        if (CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Orden fuera de la sede activa.');
+        }
         if ($order->medical && $order->medical->hora_final) {
             return back()->with('toastr', ['type' => 'warning', 'message' => 'No se puede eliminar una atención finalizada.']);
         }

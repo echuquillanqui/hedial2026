@@ -10,12 +10,14 @@ use App\Models\Nurse;
 use App\Models\Treatment;
 use App\Models\ExtraMaterial;
 use App\Models\HemodialysisMaterialConsumption;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Order extends Model
 {
     use HasFactory;
 
     protected $fillable = [
+        'sede_id',
         'patient_id',
         'codigo_unico',
         'sala',
@@ -24,6 +26,11 @@ class Order extends Model
         'horas_dialisis',
         'fecha_orden'
     ];
+
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Sede::class);
+    }
 
     // Relación con el paciente (BelongsTo)
     public function patient() 

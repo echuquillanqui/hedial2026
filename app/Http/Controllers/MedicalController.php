@@ -7,6 +7,7 @@ use App\Models\Nurse;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Support\CurrentSede;
 
 class MedicalController extends Controller
 {
@@ -18,6 +19,9 @@ class MedicalController extends Controller
         $dateFilter = $request->get('date', date('Y-m-d'));
 
         $medicals = Medical::with(['order.patient', 'usuarioInicia', 'usuarioFinaliza'])
+            ->when(CurrentSede::id(), function ($query) {
+                $query->whereHas('order', fn ($q) => $q->where('sede_id', CurrentSede::id()));
+            })
             ->when($request->search, function ($query, $search) {
                 $query->whereHas('order.patient', function($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
@@ -61,6 +65,9 @@ class MedicalController extends Controller
      */
     public function edit(Medical $medical)
     {
+        if (CurrentSede::id() && (int) optional($medical->order)->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Atención fuera de la sede activa.');
+        }
         $order = $medical->order;
         
         // Obtenemos solo los usuarios cuya profesión sea MEDICO
@@ -74,6 +81,9 @@ class MedicalController extends Controller
      */
     public function update(Request $request, Medical $medical)
     {
+        if (CurrentSede::id() && (int) optional($medical->order)->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Atención fuera de la sede activa.');
+        }
 
         $validated = $request->validate([
             // Signos Vitales e Iniciales (Migración)

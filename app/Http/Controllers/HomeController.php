@@ -9,6 +9,7 @@ use App\Models\Order;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Support\CurrentSede;
 
 class HomeController extends Controller
 {
@@ -107,6 +108,7 @@ class HomeController extends Controller
     private function buildDashboardData(string $fecha): array
     {
         $ordenes = Order::with(['patient', 'medical', 'nurse', 'treatments'])
+            ->when(CurrentSede::id(), fn ($q) => $q->where('sede_id', CurrentSede::id()))
             ->whereDate('fecha_orden', $fecha)
             ->orderBy('turno')
             ->orderBy('sala')
@@ -152,6 +154,7 @@ class HomeController extends Controller
         });
 
         $materialesDialisis = HemodialysisMaterialConsumption::query()
+            ->when(CurrentSede::id(), fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('sede_id', CurrentSede::id())))
             ->with('material:id,name,unit')
             ->whereDate('consumed_at', $fecha)
             ->get()
@@ -175,6 +178,7 @@ class HomeController extends Controller
             ->flip();
 
         $materialesIndirectos = ExtraMaterial::query()
+            ->when(CurrentSede::id(), fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('sede_id', CurrentSede::id())))
             ->whereDate('usage_date', $fecha)
             ->get(['material_name', 'quantity'])
             ->filter(function ($material) use ($nombresMaterialesBase) {

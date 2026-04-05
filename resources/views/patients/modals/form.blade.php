@@ -87,6 +87,16 @@
                             <input type="text" name="address" x-model="currentPatient.address" class="form-control rounded-3 border-0 shadow-sm">
                         </div>
 
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Sede</label>
+                            <select name="sede_id" x-model="currentPatient.sede_id" class="form-select border-0 shadow-sm" required>
+                                <option value="">Seleccionar sede...</option>
+                                <template x-for="sede in sedesCatalog" :key="`ps-${sede.id}`">
+                                    <option :value="sede.id" x-text="sede.name"></option>
+                                </template>
+                            </select>
+                        </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Seecuencia</label>
                             <select name="secuencia" x-model="currentPatient.secuencia" class="form-select border-0 shadow-sm">

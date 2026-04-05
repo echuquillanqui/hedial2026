@@ -103,7 +103,15 @@
         </ul>
     </li>
 </ul>
-                    <ul class="navbar-nav ms-auto">
+                    <ul class="navbar-nav ms-auto align-items-center">
+                        <li class="nav-item me-3 d-none d-md-block">
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-geo-alt-fill me-1"></i>{{ session('current_sede_name', 'Sin sede') }}
+                            </span>
+                        </li>
+                        <li class="nav-item me-2">
+                            <a class="btn btn-sm btn-outline-light" href="{{ route('sede.select') }}">Cambiar sede</a>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
                                 <div class="text-end me-2 d-none d-sm-block">

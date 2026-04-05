@@ -5,6 +5,7 @@
     window.usersData = @json($users);
     window.rolesData = @json($roles->pluck('name'));
     window.permissionsData = @json($permissions->pluck('name'));
+    window.sedesData = @json($sedes);
 </script>
 
 <div class="container-fluid py-4" x-data="userManagement">
@@ -42,6 +43,7 @@
                         <th class="ps-4">PERSONAL</th>
                         <th>COLEGIATURA / RNE</th>
                         <th>ROLES Y PERMISOS</th>
+                        <th>SEDES</th>
                         <th class="text-end pe-4">ACCIONES</th>
                     </tr>
                 </thead>
@@ -77,6 +79,11 @@
                                     <span class="small text-muted" x-show="(user.permissions || []).length > 3" x-text="`+${(user.permissions || []).length - 3} más`"></span>
                                 </div>
                             </td>
+                            <td>
+                                <template x-for="sede in (user.sedes || [])" :key="`s-${user.id}-${sede.id}`">
+                                    <span class="badge rounded-pill bg-warning-subtle text-dark me-1" x-text="sede.name"></span>
+                                </template>
+                            </td>
                             <td class="text-end pe-4">
                                 <button class="btn btn-sm btn-outline-primary border-0" @click="openModal(user)">
                                     <i class="bi bi-pencil-square"></i>
@@ -107,6 +114,7 @@
             users: window.usersData || [],
             rolesCatalog: window.rolesData || [],
             permissionsCatalog: window.permissionsData || [],
+            sedesCatalog: window.sedesData || [],
             page: 1,
             perPage: 10,
             currentUser: {},
@@ -140,8 +148,9 @@
                         ...user,
                         roles_selected: (user.roles || []).map(r => r.name),
                         permissions_selected: (user.permissions || []).map(p => p.name),
+                        sedes_selected: (user.sedes || []).map(s => String(s.id)),
                     }
-                    : { id: null, name: '', username: '', email: '', profession: '', license_number: '', specialty_number: '', roles_selected: [], permissions_selected: [] };
+                    : { id: null, name: '', username: '', email: '', profession: '', license_number: '', specialty_number: '', roles_selected: [], permissions_selected: [], sedes_selected: [] };
 
                 const modal = window.bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal'));
                 modal.show();

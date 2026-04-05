@@ -8,6 +8,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\MedicalController;
 use App\Http\Controllers\NurseController;
 use App\Http\Controllers\ExtraMaterialController;
+use App\Http\Controllers\SedeSessionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,11 +27,18 @@ Route::get('/', function () {
 
 Auth::routes();
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
-Route::get('/home/export/pdf', [App\Http\Controllers\HomeController::class, 'exportPdf'])->name('home.export.pdf');
-Route::get('/home/export/excel', [App\Http\Controllers\HomeController::class, 'exportExcel'])->name('home.export.excel');
+Route::middleware(['auth', 'ensure.sede'])->group(function () {
+    Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+    Route::get('/home/export/pdf', [App\Http\Controllers\HomeController::class, 'exportPdf'])->name('home.export.pdf');
+    Route::get('/home/export/excel', [App\Http\Controllers\HomeController::class, 'exportExcel'])->name('home.export.excel');
+});
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('/seleccionar-sede', [SedeSessionController::class, 'select'])->name('sede.select');
+    Route::post('/seleccionar-sede', [SedeSessionController::class, 'store'])->name('sede.store');
+});
+
+Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::resource('users', UserController::class);
     Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');
     Route::post('/users/permissions', [UserController::class, 'storePermission'])->name('users.permissions.store');

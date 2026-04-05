@@ -3,33 +3,35 @@
 namespace App\Http\Controllers;
 
 use App\Models\Patient;
+use App\Models\Sede;
+use App\Support\CurrentSede;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class PatientController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        $patients = Patient::orderBy('surname', 'asc')->get();
-        return view('patients.index', compact('patients'));
+        $currentSedeId = CurrentSede::id();
+        $patients = Patient::with('sede')
+            ->when($currentSedeId, fn ($q) => $q->where('sede_id', $currentSedeId))
+            ->orderBy('surname', 'asc')
+            ->get();
+
+        $sedes = Sede::where('is_active', true)->orderBy('name')->get();
+
+        return view('patients.index', compact('patients', 'sedes', 'currentSedeId'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
+        $currentSedeId = CurrentSede::id();
+
         $request->validate([
             'dni'                    => 'nullable|string|size:8|unique:patients,dni',
             'medical_history_number' => 'nullable|string|unique:patients,medical_history_number',
@@ -40,34 +42,36 @@ class PatientController extends Controller
             'insurance_regime'       => ['nullable', Rule::in(['SUBSIDIADO', 'SEMICONTRIBUTIVO'])],
             'gender'                 => ['nullable', Rule::in(['F', 'M'])],
             'birth_date'             => 'nullable|date|before:today',
+            'sede_id'                => ['required', 'exists:sedes,id'],
         ]);
+
+        if ($currentSedeId && (int) $request->sede_id !== (int) $currentSedeId) {
+            return redirect()->back()->withErrors(['sede_id' => 'Solo puede registrar pacientes en la sede activa.'])->withInput();
+        }
 
         Patient::create($request->all());
 
         return redirect()->back()->with('success', 'Paciente registrado exitosamente.');
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(string $id)
     {
         //
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Patient $patient)
     {
+        $currentSedeId = CurrentSede::id();
+
+        if ($currentSedeId && (int) $patient->sede_id !== (int) $currentSedeId) {
+            abort(403, 'No puede editar pacientes de otra sede.');
+        }
+
         $request->validate([
             'dni'                    => ['nullable', 'string', 'size:8', Rule::unique('patients')->ignore($patient->id)],
             'medical_history_number' => ['nullable', 'string', Rule::unique('patients')->ignore($patient->id)],
@@ -75,20 +79,26 @@ class PatientController extends Controller
             'surname'                => 'required|string|max:100',
             'last_name'              => 'required|string|max:100',
             'insurance_type'         => ['nullable', Rule::in(['ESSALUD', 'SIS', 'SALUDPOL'])],
+            'sede_id'                => ['required', 'exists:sedes,id'],
         ]);
+
+        if ($currentSedeId && (int) $request->sede_id !== (int) $currentSedeId) {
+            return redirect()->back()->withErrors(['sede_id' => 'Solo puede mantener pacientes en la sede activa.'])->withInput();
+        }
 
         $patient->update($request->all());
 
         return redirect()->back()->with('success', 'Historial actualizado correctamente.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Patient $patient)
     {
-        // Verificamos si existen registros en la relación 'referrals'
-        // definida en el modelo Patient.php
+        $currentSedeId = CurrentSede::id();
+
+        if ($currentSedeId && (int) $patient->sede_id !== (int) $currentSedeId) {
+            abort(403, 'No puede eliminar pacientes de otra sede.');
+        }
+
         if ($patient->referrals()->exists()) {
             return redirect()->back()->with('error', 'Acción denegada: El paciente tiene hojas de referencia activas en el sistema.');
         }
@@ -98,44 +108,47 @@ class PatientController extends Controller
         return redirect()->back()->with('success', 'Paciente eliminado correctamente.');
     }
 
-    public function search(Request $request) {
-    $q = $request->q;
-    $insuranceType = strtoupper((string) $request->insurance_type);
+    public function search(Request $request)
+    {
+        $q = $request->q;
+        $insuranceType = strtoupper((string) $request->insurance_type);
+        $currentSedeId = CurrentSede::id();
 
-    $patientsQuery = \App\Models\Patient::query()
-        ->where(function ($query) use ($q) {
-            $query->where('dni', 'LIKE', "%$q%")
-                ->orWhere('surname', 'LIKE', "%$q%");
-        });
+        $patientsQuery = \App\Models\Patient::query()
+            ->when($currentSedeId, fn ($query) => $query->where('sede_id', $currentSedeId))
+            ->where(function ($query) use ($q) {
+                $query->where('dni', 'LIKE', "%$q%")
+                    ->orWhere('surname', 'LIKE', "%$q%");
+            });
 
-    if ($insuranceType === 'SIS') {
-        $patientsQuery->where('insurance_type', 'SIS');
-    } elseif ($insuranceType === 'ESSALUD') {
-        $patientsQuery->where('insurance_type', '!=', 'SIS');
+        if ($insuranceType === 'SIS') {
+            $patientsQuery->where('insurance_type', 'SIS');
+        } elseif ($insuranceType === 'ESSALUD') {
+            $patientsQuery->where('insurance_type', '!=', 'SIS');
+        }
+
+        $patients = $patientsQuery->get()
+            ->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'text' => "{$p->surname} {$p->last_name}, {$p->first_name} (DNI: {$p->dni})",
+                    'dni' => $p->dni,
+                    'affiliation_code' => $p->affiliation_code,
+                    'medical_history_number' => $p->medical_history_number,
+                    'first_name' => $p->first_name,
+                    'surname' => $p->surname,
+                    'last_name' => $p->last_name,
+                    'other_names' => $p->other_names,
+                    'is_insured' => (bool) $p->is_insured,
+                    'insurance_regime' => $p->insurance_regime,
+                    'gender' => $p->gender,
+                    'age' => $p->age,
+                    'address' => $p->address,
+                    'district' => $p->district,
+                    'department' => $p->department,
+                    'sede_id' => $p->sede_id,
+                ];
+            });
+        return response()->json(['results' => $patients]);
     }
-
-    $patients = $patientsQuery->get()
-        ->map(function($p) {
-            return [
-                'id' => $p->id,
-                'text' => "{$p->surname} {$p->last_name}, {$p->first_name} (DNI: {$p->dni})",
-                // Datos exactos de tu migración 'patients'
-                'dni' => $p->dni,
-                'affiliation_code' => $p->affiliation_code,
-                'medical_history_number' => $p->medical_history_number,
-                'first_name' => $p->first_name,
-                'surname' => $p->surname,
-                'last_name' => $p->last_name,
-                'other_names' => $p->other_names,
-                'is_insured' => (bool)$p->is_insured,
-                'insurance_regime' => $p->insurance_regime, // SUBSIDIADO / SEMICONTRIBUTIVO
-                'gender' => $p->gender,
-                'age' => $p->age,
-                'address' => $p->address,
-                'district' => $p->district,
-                'department' => $p->department,
-            ];
-        });
-    return response()->json(['results' => $patients]);
-}
 }

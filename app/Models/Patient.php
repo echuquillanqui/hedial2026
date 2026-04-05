@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ExtraMaterial;
 use App\Models\HemodialysisMaterialConsumption;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Patient extends Model
@@ -14,6 +15,12 @@ class Patient extends Model
 
     // Permite asignación masiva de todos los campos definidos como nullables en la migración
     protected $guarded = [];
+
+
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Sede::class);
+    }
 
     /**
      * Un paciente puede tener múltiples hojas de referencia.

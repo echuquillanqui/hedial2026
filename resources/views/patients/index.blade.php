@@ -4,6 +4,8 @@
 <script>
     // Inyectamos los datos para Alpine.js
     window.patientsData = @json($patients);
+    window.sedesData = @json($sedes);
+    window.currentSedeId = @json($currentSedeId);
 </script>
 
 <div class="container-fluid py-4" x-data="patientManagement">
@@ -53,6 +55,7 @@
                         <th>IDENTIFICACIÓN</th>
                         <th>SEGURO / RÉGIMEN</th>
                         <th>EDAD ACTUAL</th>
+                        <th>SEDE</th>
                         <th class="text-end pe-4">ACCIONES</th>
                     </tr>
                 </thead>
@@ -88,6 +91,9 @@
                             <td>
                                 <div class="small text-dark fw-bold" x-text="getRealAge(p.birth_date) + ' años'"></div>
                                 <div class="extra-small text-muted" x-text="p.birth_date || 'No registra fecha'"></div>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning bg-opacity-10 text-dark" x-text="(p.sede && p.sede.name) ? p.sede.name : 'Sin sede'"></span>
                             </td>
                             <td class="text-end pe-4">
                                 <button class="btn btn-sm btn-outline-primary border-0" @click="openModal(p)">
@@ -125,6 +131,8 @@
             search: '',
             patients: window.patientsData || [],
             page: 1,
+            sedesCatalog: window.sedesData || [],
+            currentSedeId: window.currentSedeId || null,
             perPage: 10,
             currentPatient: {},
 
@@ -177,7 +185,7 @@
                         id: null, dni: '', affiliation_code: '', medical_history_number: '', 
                         first_name: '', other_names: '', surname: '', last_name: '', 
                         is_insured: true, insurance_type: 'ESSALUD', insurance_regime: 'SUBSIDIADO', 
-                        gender: 'M', birth_date: '', age: '', address: '', district: '', department: '', secuencia:'L-M-V', turno: "1", modulo: "1"
+                        gender: 'M', birth_date: '', age: '', address: '', district: '', department: '', secuencia:'L-M-V', turno: "1", modulo: "1", sede_id: this.currentSedeId
                     };
                 }
                 

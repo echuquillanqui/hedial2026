@@ -63,6 +63,15 @@
                                 </template>
                             </select>
                         </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-warning">Sedes asignadas</label>
+                            <select name="sedes[]" class="form-select rounded-3" multiple size="6" x-model="currentUser.sedes_selected">
+                                <template x-for="sede in sedesCatalog" :key="`sede-${sede.id}`">
+                                    <option :value="String(sede.id)" x-text="sede.name"></option>
+                                </template>
+                            </select>
+                        </div>
                         <div class="col-12">
                             <label class="form-label small fw-bold text-primary">Contraseña</label>
                             <input type="password" name="password" class="form-control rounded-3" :required="!currentUser.id">

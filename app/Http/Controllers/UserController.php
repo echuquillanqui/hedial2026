@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use App\Models\Sede;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -25,11 +26,13 @@ class UserController extends Controller
 
     public function index()
     {
-        $users = User::with(['roles', 'permissions'])->orderBy('name', 'asc')->get();
+        $users = User::with(['roles', 'permissions', 'sedes'])->orderBy('name', 'asc')->get();
         $roles = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
 
-        return view('users.index', compact('users', 'roles', 'permissions'));
+        $sedes = Sede::where('is_active', true)->orderBy('name')->get();
+
+        return view('users.index', compact('users', 'roles', 'permissions', 'sedes'));
     }
 
     public function permissionsManager()
@@ -80,6 +83,8 @@ class UserController extends Controller
             'roles.*'          => 'exists:roles,name',
             'permissions'      => 'nullable|array',
             'permissions.*'    => 'exists:permissions,name',
+            'sedes'            => 'nullable|array',
+            'sedes.*'          => 'exists:sedes,id',
         ]);
 
         $user = User::create([
@@ -94,6 +99,7 @@ class UserController extends Controller
 
         $user->syncRoles($request->input('roles', []));
         $user->syncPermissions($request->input('permissions', []));
+        $user->sedes()->sync($request->input('sedes', []));
 
         return redirect()->route('users.index')->with('success', 'Personal registrado correctamente.');
     }
@@ -122,6 +128,8 @@ class UserController extends Controller
             'roles.*'          => 'exists:roles,name',
             'permissions'      => 'nullable|array',
             'permissions.*'    => 'exists:permissions,name',
+            'sedes'            => 'nullable|array',
+            'sedes.*'          => 'exists:sedes,id',
         ]);
 
         $data = $request->only([
@@ -140,6 +148,7 @@ class UserController extends Controller
         $user->update($data);
         $user->syncRoles($request->input('roles', []));
         $user->syncPermissions($request->input('permissions', []));
+        $user->sedes()->sync($request->input('sedes', []));
 
         return redirect()->route('users.index')->with('success', 'Datos del personal actualizados.');
     }
