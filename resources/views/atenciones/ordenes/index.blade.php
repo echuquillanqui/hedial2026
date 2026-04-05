@@ -15,9 +15,14 @@
 <div class="container px-0 py-0">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold text-uppercase m-0 text-success"><i class="bi bi-file-earmark-medical me-2"></i> Control de Órdenes</h4>
-        <a href="{{ route('orders.create') }}" class="btn btn-success shadow-sm fw-bold">
-            <i class="bi bi-plus-circle me-1"></i> GENERAR ÓRDENES
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ route('orders.create', ['mode' => 'individual']) }}" class="btn btn-outline-success shadow-sm fw-bold">
+                <i class="bi bi-person-plus me-1"></i> ORDEN INDIVIDUAL
+            </a>
+            <a href="{{ route('orders.create') }}" class="btn btn-success shadow-sm fw-bold">
+                <i class="bi bi-plus-circle me-1"></i> GENERAR ÓRDENES
+            </a>
+        </div>
     </div>
 
     <div class="card shadow-sm border-0 mb-4">

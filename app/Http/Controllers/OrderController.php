@@ -55,16 +55,38 @@ class OrderController extends Controller
      */
     public function create(Request $request)
     {
-        $patients = null;
-        // Agregamos la validación del campo 'modulo'
+        $patients = collect();
+        $searchedPatients = collect();
+
+        // Flujo de generación en bloque por secuencia/turno/módulo.
         if ($request->filled('secuencia') && $request->filled('turno') && $request->filled('modulo')) {
             $patients = Patient::where('secuencia', $request->secuencia)
-                                ->where('turno', $request->turno)
-                                ->where('modulo', $request->modulo) // Nuevo filtro aplicado
-                                ->get();
+                ->where('turno', $request->turno)
+                ->where('modulo', $request->modulo)
+                ->orderBy('surname')
+                ->orderBy('last_name')
+                ->get();
         }
 
-        return view('atenciones.ordenes.create_bulk', compact('patients'));
+        // Flujo general para buscar cualquier paciente y generar orden individual.
+        if ($request->filled('patient_search')) {
+            $search = trim((string) $request->patient_search);
+
+            $searchedPatients = Patient::query()
+                ->where(function ($query) use ($search) {
+                    $query->where('dni', 'like', "%{$search}%")
+                        ->orWhere('medical_history_number', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('surname', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                })
+                ->orderBy('surname')
+                ->orderBy('last_name')
+                ->limit(25)
+                ->get();
+        }
+
+        return view('atenciones.ordenes.create_bulk', compact('patients', 'searchedPatients'));
     }
 
     /**
@@ -76,7 +98,7 @@ class OrderController extends Controller
             'patient_id'     => 'required|exists:patients,id',
             'sala'           => 'required|string',
             'turno'          => 'required|string',
-            'horas_dialisis' => 'required|integer|min:1',
+            'horas_dialisis' => 'required|numeric|min:0.5',
             'fecha_orden'    => 'required|date',
         ]);
 
@@ -87,7 +109,7 @@ class OrderController extends Controller
                 'codigo_unico' => $this->generateCode()
             ]));
 
-            $this->createRelatedRecords($order);
+            $this->createRelatedRecords($order, $order->patient);
 
             DB::commit();
             return redirect()->route('orders.index')->with('toastr', [
@@ -132,32 +154,8 @@ class OrderController extends Controller
                     'fecha_orden'    => $request->fecha_orden,
                 ]);
 
-                // 3. Crear el registro médico (Tabla: medicals)
-                // Se agregan temperatura y na_inicial porque NO son nullables en tu migración
-                $order->medical()->create([
-                    'hora_hd'               => $horasHD, // Guardamos la hora también aquí
-                    'usuario_que_inicia_hd' => auth()->id(),
-                    'epo2000' => '0',
-                    'epo4000' => '0',
-                    'hierro' => '0',
-                    'vitamina_b12' => '0',
-                    'calcitriol' => '0',
-                ]);
-
-                // 4. Crear registros vacíos necesarios para evitar errores de relación
-                $order->nurse()->create(
-                    [
-                        'frecuencia_hd' => $order->patient->secuencia,
-                        'epo2000' => '0',
-                        'epo4000' => '0',
-                        'hierro' => '0',
-                        'vitamina_b12' => '0',
-                        'calcitriol' => '0',
-                    ]
-                );
-                $order->treatments()->create([
-                    'pa' => '', // Insertamos una hora referencial o nula
-                ]);
+                // 3. Crear registros clínicos relacionados (medicals, nurses y treatments)
+                $this->createRelatedRecords($order, $patient, $horasHD);
 
             }
 
@@ -231,30 +229,37 @@ class OrderController extends Controller
     /**
      * Lógica compartida para crear Medical, Nurse y Treatment.
      */
-    private function createRelatedRecords($order, $patient = null)
+    private function createRelatedRecords($order, $patient = null, $horasHD = null)
     {
         // 1. Crear Medical
         Medical::create([
             'order_id' => $order->id,
             'hora_inicial' => now()->format('H:i'),
+            'hora_hd' => $horasHD ?? $order->horas_dialisis,
             'peso_seco' => $patient->peso_seco ?? 0,
             'usuario_que_inicia_hd' => auth()->id(),
+            'epo2000' => '0',
+            'epo4000' => '0',
+            'hierro' => '0',
+            'vitamina_b12' => '0',
+            'calcitriol' => '0',
         ]);
 
         // 2. Crear Nurse (Hoja de medicación y signos)
         Nurse::create([
             'order_id' => $order->id,
-            'epo2000' => 'NO',
-            'epo4000' => 'NO',
-            'hierro' => 'NO',
-            'vitamina_b12' => 'NO',
-            'calcitriol' => 'NO',
+            'frecuencia_hd' => $patient->secuencia ?? null,
+            'epo2000' => '0',
+            'epo4000' => '0',
+            'hierro' => '0',
+            'vitamina_b12' => '0',
+            'calcitriol' => '0',
         ]);
 
         // 3. Crear Treatment
         Treatment::create([
             'order_id' => $order->id,
-            'name' => 'Hemodiálisis',
+            'pa' => '',
         ]);
     }
 
