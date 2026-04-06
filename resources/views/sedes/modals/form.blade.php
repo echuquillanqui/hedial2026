@@ -27,11 +27,19 @@
                             <input type="text" name="code" x-model="currentSede.code" class="form-control rounded-3" maxlength="30">
                         </div>
 
-                        <div class="col-12">
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold">Estado</label>
                             <select name="is_active" x-model="currentSede.is_active" class="form-select rounded-3" required>
                                 <option :value="1">Activo</option>
                                 <option :value="0">Inactivo</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Sede principal</label>
+                            <select name="is_principal" x-model="currentSede.is_principal" class="form-select rounded-3" required>
+                                <option :value="1">Sí, principal</option>
+                                <option :value="0">No</option>
                             </select>
                         </div>
                     </div>

@@ -13,6 +13,12 @@ class Sede extends Model
         'name',
         'code',
         'is_active',
+        'is_principal',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'is_principal' => 'boolean',
     ];
 
     public function users()
@@ -28,5 +34,10 @@ class Sede extends Model
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function warehouse()
+    {
+        return $this->hasOne(Warehouse::class);
     }
 }

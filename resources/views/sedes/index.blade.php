@@ -35,6 +35,7 @@
                         <th class="ps-4">SEDE</th>
                         <th>CÓDIGO</th>
                         <th>ESTADO</th>
+                        <th>PRINCIPAL</th>
                         <th class="text-end pe-4">ACCIONES</th>
                     </tr>
                 </thead>
@@ -50,6 +51,11 @@
                                       :class="sede.is_active ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'"
                                       x-text="sede.is_active ? 'Activo' : 'Inactivo'"></span>
                             </td>
+                            <td>
+                                <span class="badge rounded-pill"
+                                      :class="sede.is_principal ? 'bg-primary-subtle text-primary' : 'bg-light text-muted'"
+                                      x-text="sede.is_principal ? 'Principal' : 'Secundaria'"></span>
+                            </td>
                             <td class="text-end pe-4">
                                 <button class="btn btn-sm btn-outline-primary border-0" @click="openModal(sede)">
                                     <i class="bi bi-pencil-square"></i>
@@ -58,7 +64,7 @@
                         </tr>
                     </template>
                     <tr x-show="filteredSedes.length === 0">
-                        <td colspan="4" class="text-center text-muted py-4">No hay sedes para mostrar.</td>
+                        <td colspan="5" class="text-center text-muted py-4">No hay sedes para mostrar.</td>
                     </tr>
                 </tbody>
             </table>
@@ -83,7 +89,7 @@
             search: '',
             page: 1,
             perPage: 10,
-            currentSede: { id: null, name: '', code: '', is_active: 1 },
+            currentSede: { id: null, name: '', code: '', is_active: 1, is_principal: 0 },
 
             normalize(text) {
                 return text ? text.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : '';
@@ -115,8 +121,9 @@
                         name: sede.name || '',
                         code: sede.code || '',
                         is_active: sede.is_active ? 1 : 0,
+                        is_principal: sede.is_principal ? 1 : 0,
                     }
-                    : { id: null, name: '', code: '', is_active: 1 };
+                    : { id: null, name: '', code: '', is_active: 1, is_principal: 0 };
 
                 const modal = window.bootstrap.Modal.getOrCreateInstance(document.getElementById('sedeModal'));
                 modal.show();

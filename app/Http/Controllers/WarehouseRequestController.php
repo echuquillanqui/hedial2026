@@ -467,16 +467,22 @@ class WarehouseRequestController extends Controller
         $sedes = Sede::query()->orderBy('id')->get();
 
         foreach ($sedes as $sede) {
-            Warehouse::query()->firstOrCreate(
+            Warehouse::query()->updateOrCreate(
                 ['sede_id' => $sede->id],
-                ['name' => 'Almacén ' . $sede->name, 'is_principal' => false, 'is_active' => true]
+                ['name' => 'Almacén ' . $sede->name, 'is_principal' => (bool) $sede->is_principal, 'is_active' => true]
             );
         }
 
         if (!Warehouse::query()->where('is_principal', true)->exists()) {
-            $first = Warehouse::query()->orderBy('id')->first();
-            if ($first) {
-                $first->update(['is_principal' => true]);
+            $principalSede = Sede::query()->where('is_principal', true)->first();
+
+            if ($principalSede) {
+                Warehouse::query()->where('sede_id', $principalSede->id)->update(['is_principal' => true]);
+            } else {
+                $first = Warehouse::query()->orderBy('id')->first();
+                if ($first) {
+                    $first->update(['is_principal' => true]);
+                }
             }
         }
     }
