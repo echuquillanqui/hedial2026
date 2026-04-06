@@ -115,6 +115,12 @@
         </a>
         <ul class="dropdown-menu shadow border-0">
             <li>
+                <a class="dropdown-item {{ request()->routeIs('warehouse.dashboard') ? 'active' : '' }}" href="{{ route('warehouse.dashboard') }}">
+                    <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
                 <a class="dropdown-item {{ request()->routeIs('warehouse.categories.*') ? 'active' : '' }}" href="{{ route('warehouse.categories.index') }}">
                     <i class="bi bi-tags me-2"></i> Categorías
                 </a>

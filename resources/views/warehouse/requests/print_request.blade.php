@@ -16,7 +16,7 @@
     <p><strong>Sede solicitante:</strong> {{ $requestModel->fromWarehouse->sede->name ?? $requestModel->fromWarehouse->name }}</p>
     <p><strong>Almacén principal:</strong> {{ $requestModel->toWarehouse->sede->name ?? $requestModel->toWarehouse->name }}</p>
     <p><strong>Solicitante:</strong> {{ $requestModel->requester->name ?? '-' }}</p>
-    <p><strong>Estado:</strong> {{ strtoupper(str_replace('_', ' ', $requestModel->status)) }}</p>
+    <p><strong>Estado:</strong> {{ \App\Http\Controllers\WarehouseRequestController::statusLabel($requestModel->status) }}</p>
 
     <table>
         <thead>

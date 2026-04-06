@@ -73,6 +73,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('extra-materials/report/monthly', [ExtraMaterialController::class, 'monthlyReport'])->name('extra-materials.report.monthly');
 
 
+    Route::get('almacen/dashboard', [App\Http\Controllers\WarehouseRequestController::class, 'dashboard'])->name('warehouse.dashboard');
     Route::get('almacen/solicitudes', [App\Http\Controllers\WarehouseRequestController::class, 'index'])->name('warehouse.requests.index');
     Route::get('almacen/categorias', [App\Http\Controllers\WarehouseRequestController::class, 'categories'])->name('warehouse.categories.index');
     Route::post('almacen/categorias', [App\Http\Controllers\WarehouseRequestController::class, 'storeCategory'])->name('warehouse.categories.store');
@@ -80,6 +81,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('almacen/materiales', [App\Http\Controllers\WarehouseRequestController::class, 'storeMaterial'])->name('warehouse.materials.store');
     Route::get('almacen/stocks', [App\Http\Controllers\WarehouseRequestController::class, 'stocks'])->name('warehouse.stocks.index');
     Route::patch('almacen/stocks/{warehouseStock}', [App\Http\Controllers\WarehouseRequestController::class, 'updateStock'])->name('warehouse.stocks.update');
+    Route::get('almacen/alertas/descargar', [App\Http\Controllers\WarehouseRequestController::class, 'downloadAlerts'])->name('warehouse.alerts.download');
     Route::post('almacen/solicitudes', [App\Http\Controllers\WarehouseRequestController::class, 'store'])->name('warehouse.requests.store');
     Route::patch('almacen/solicitudes/{warehouseRequest}/estado', [App\Http\Controllers\WarehouseRequestController::class, 'updateStatus'])->name('warehouse.requests.update-status');
     Route::post('almacen/solicitudes/{warehouseRequest}/despacho', [App\Http\Controllers\WarehouseRequestController::class, 'dispatch'])->name('warehouse.requests.dispatch');

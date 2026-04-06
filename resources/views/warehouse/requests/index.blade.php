@@ -27,7 +27,7 @@
                 <select name="status" class="form-select">
                     <option value="">Todos los estados</option>
                     @foreach(array_keys($statusColors) as $status)
-                        <option value="{{ $status }}" @selected(request('status') === $status)>{{ strtoupper(str_replace('_', ' ', $status)) }}</option>
+                        <option value="{{ $status }}" @selected(request('status') === $status)>{{ $statusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status)) }}</option>
                     @endforeach
                 </select>
             </div>
@@ -58,7 +58,7 @@
                         <td>{{ $req->fromWarehouse->sede->name ?? $req->fromWarehouse->name }}</td>
                         <td>{{ $req->toWarehouse->sede->name ?? $req->toWarehouse->name }}</td>
                         <td>{{ $req->requester->name ?? '-' }}</td>
-                        <td><span class="badge bg-{{ $statusColors[$req->status] ?? 'secondary' }}">{{ strtoupper(str_replace('_', ' ', $req->status)) }}</span></td>
+                        <td><span class="badge bg-{{ $statusColors[$req->status] ?? 'secondary' }}">{{ $statusLabels[$req->status] ?? ucfirst(str_replace('_', ' ', $req->status)) }}</span></td>
                         <td>{{ $req->created_at->format('d/m/Y H:i') }}</td>
                         <td class="text-end">
                             <div class="btn-group btn-group-sm">
@@ -97,7 +97,7 @@
                                             <strong>{{ $item->material->name }}</strong>
                                             <small class="d-block text-muted">{{ $item->material?->category?->name ?? 'Sin categoría' }}</small>
                                             Sol: {{ number_format($item->qty_requested,2) }} | Aprob: {{ number_format($item->qty_approved,2) }} | Env: {{ number_format($item->qty_sent,2) }} | Rec: {{ number_format($item->qty_received,2) }}
-                                            <br><span class="badge bg-{{ $item->dispatch_status === 'complete' ? 'success' : ($item->dispatch_status === 'partial' ? 'warning text-dark' : ($item->dispatch_status === 'not_sent' ? 'danger' : 'secondary')) }}">{{ strtoupper($item->dispatch_status) }}</span>
+                                            <br><span class="badge bg-{{ $item->dispatch_status === 'complete' ? 'success' : ($item->dispatch_status === 'partial' ? 'warning text-dark' : ($item->dispatch_status === 'not_sent' ? 'danger' : 'secondary')) }}">{{ $dispatchStatusLabels[$item->dispatch_status] ?? ucfirst(str_replace('_', ' ', $item->dispatch_status)) }}</span>
                                         </div>
                                     </div>
                                 @endforeach

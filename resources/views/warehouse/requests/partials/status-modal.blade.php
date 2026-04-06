@@ -11,11 +11,11 @@
         <div class="mb-3">
           <label class="form-label">Estado</label>
           <select name="status" class="form-select" x-model="statusValue" required>
-            <option value="draft">BORRADOR</option>
-            <option value="submitted">ENVIADO</option>
-            <option value="approved">APROBADO</option>
-            <option value="rejected">RECHAZADO</option>
-            <option value="cancelled">CANCELADO</option>
+            <option value="draft">Borrador</option>
+            <option value="submitted">Enviada</option>
+            <option value="approved">Aprobada</option>
+            <option value="rejected">Rechazada</option>
+            <option value="cancelled">Cancelada</option>
           </select>
         </div>
         <div>

@@ -29,10 +29,27 @@ class WarehouseRequestController extends Controller
         'received' => 'success',
         'cancelled' => 'dark',
     ];
+    private const STATUS_LABELS = [
+        'draft' => 'Borrador',
+        'submitted' => 'Enviada',
+        'approved' => 'Aprobada',
+        'rejected' => 'Rechazada',
+        'partially_dispatched' => 'Despachada parcialmente',
+        'dispatched' => 'Despachada',
+        'partially_received' => 'Recepcionada parcialmente',
+        'received' => 'Recepcionada',
+        'cancelled' => 'Cancelada',
+    ];
+    private const DISPATCH_STATUS_LABELS = [
+        'pending' => 'Pendiente',
+        'not_sent' => 'No enviado',
+        'partial' => 'Parcial',
+        'complete' => 'Completo',
+    ];
 
     public function __construct()
     {
-        $this->middleware('permission:warehouse.requests.view')->only(['index', 'categories', 'materials', 'stocks']);
+        $this->middleware('permission:warehouse.requests.view')->only(['dashboard', 'index', 'categories', 'materials', 'stocks', 'downloadAlerts']);
         $this->middleware('permission:warehouse.requests.print')->only(['printRequest', 'printDispatch']);
         $this->middleware('permission:warehouse.requests.create')->only(['store']);
         $this->middleware('permission:warehouse.requests.update.status')->only(['updateStatus']);
@@ -83,13 +100,46 @@ class WarehouseRequestController extends Controller
             ->get();
 
         $statusColors = self::STATUS_COLORS;
+        $statusLabels = self::STATUS_LABELS;
+        $dispatchStatusLabels = self::DISPATCH_STATUS_LABELS;
 
         return view('warehouse.requests.index', compact(
             'requests',
             'materials',
             'statusColors',
+            'statusLabels',
+            'dispatchStatusLabels',
             'currentWarehouse',
             'principalWarehouse'
+        ));
+    }
+
+    public function dashboard()
+    {
+        $this->ensureWarehouseSetup();
+        $currentWarehouse = $this->currentWarehouseOrFail();
+
+        $alerts = WarehouseStock::query()
+            ->with(['material.category'])
+            ->where('warehouse_id', $currentWarehouse->id)
+            ->whereColumn('current_qty', '<=', 'min_qty')
+            ->orderByRaw('CASE WHEN min_qty = 0 THEN 999999 ELSE (current_qty / min_qty) END ASC')
+            ->orderBy('current_qty')
+            ->get();
+
+        $totalStocks = WarehouseStock::query()->where('warehouse_id', $currentWarehouse->id)->count();
+        $totalAlerts = $alerts->count();
+        $pendingRequests = WarehouseRequest::query()
+            ->where('from_warehouse_id', $currentWarehouse->id)
+            ->whereIn('status', ['submitted', 'approved', 'partially_dispatched', 'dispatched', 'partially_received'])
+            ->count();
+
+        return view('warehouse.dashboard', compact(
+            'currentWarehouse',
+            'alerts',
+            'totalStocks',
+            'totalAlerts',
+            'pendingRequests'
         ));
     }
 
@@ -431,6 +481,58 @@ class WarehouseRequestController extends Controller
         ]);
 
         return $pdf->stream('Despacho_' . $warehouseRequest->request_code . '.pdf');
+    }
+
+    public function downloadAlerts()
+    {
+        $this->ensureWarehouseSetup();
+        $currentWarehouse = $this->currentWarehouseOrFail();
+
+        $alerts = WarehouseStock::query()
+            ->with(['material.category'])
+            ->where('warehouse_id', $currentWarehouse->id)
+            ->whereColumn('current_qty', '<=', 'min_qty')
+            ->orderBy('current_qty')
+            ->get();
+
+        $filename = 'alertas_stock_' . now()->format('Ymd_His') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename={$filename}",
+        ];
+
+        $callback = function () use ($alerts, $currentWarehouse) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            fputcsv($handle, ['Sede', 'Almacén', 'Código', 'Material', 'Categoría', 'Stock actual', 'Stock mínimo', 'Unidad']);
+            foreach ($alerts as $alert) {
+                fputcsv($handle, [
+                    session('current_sede_name'),
+                    $currentWarehouse->name,
+                    $alert->material->code,
+                    $alert->material->name,
+                    $alert->material->category?->name ?? 'Sin categoría',
+                    number_format((float) $alert->current_qty, 2, '.', ''),
+                    number_format((float) $alert->min_qty, 2, '.', ''),
+                    $alert->material->unit,
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public static function statusLabel(string $status): string
+    {
+        return self::STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status));
+    }
+
+    public static function dispatchStatusLabel(string $status): string
+    {
+        return self::DISPATCH_STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status));
     }
 
 

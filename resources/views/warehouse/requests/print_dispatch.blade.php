@@ -15,7 +15,7 @@
     <p><strong>Código:</strong> {{ $requestModel->request_code }}</p>
     <p><strong>Origen:</strong> {{ $requestModel->toWarehouse->sede->name ?? $requestModel->toWarehouse->name }}</p>
     <p><strong>Destino:</strong> {{ $requestModel->fromWarehouse->sede->name ?? $requestModel->fromWarehouse->name }}</p>
-    <p><strong>Estado:</strong> {{ strtoupper(str_replace('_', ' ', $requestModel->status)) }}</p>
+    <p><strong>Estado:</strong> {{ \App\Http\Controllers\WarehouseRequestController::statusLabel($requestModel->status) }}</p>
 
     <table>
         <thead>
