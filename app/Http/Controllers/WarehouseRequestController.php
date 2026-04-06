@@ -46,6 +46,12 @@ class WarehouseRequestController extends Controller
         'partial' => 'Parcial',
         'complete' => 'Completo',
     ];
+    private const RECEIVE_STATUS_LABELS = [
+        'pending' => 'Pendiente',
+        'not_received' => 'No recepcionado',
+        'partial' => 'Recepción parcial',
+        'complete' => 'Recepcionado completo',
+    ];
 
     public function __construct()
     {
@@ -98,17 +104,27 @@ class WarehouseRequestController extends Controller
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
+        $availableWarehouses = Warehouse::query()
+            ->with('sede')
+            ->where('id', '!=', $currentWarehouse->id)
+            ->where('is_active', true)
+            ->orderBy('is_principal', 'desc')
+            ->orderBy('name')
+            ->get();
 
         $statusColors = self::STATUS_COLORS;
         $statusLabels = self::STATUS_LABELS;
         $dispatchStatusLabels = self::DISPATCH_STATUS_LABELS;
+        $receiveStatusLabels = self::RECEIVE_STATUS_LABELS;
 
         return view('warehouse.requests.index', compact(
             'requests',
             'materials',
+            'availableWarehouses',
             'statusColors',
             'statusLabels',
             'dispatchStatusLabels',
+            'receiveStatusLabels',
             'currentWarehouse',
             'principalWarehouse'
         ));
@@ -281,16 +297,17 @@ class WarehouseRequestController extends Controller
     {
         $currentSedeId = CurrentSede::id();
         $fromWarehouse = Warehouse::query()->where('sede_id', $currentSedeId)->firstOrFail();
-        $toWarehouse = Warehouse::query()->where('is_principal', true)->firstOrFail();
-
-        abort_if($fromWarehouse->id === $toWarehouse->id, 422, 'La sede principal no puede solicitarse a sí misma.');
 
         $validated = $request->validate([
+            'to_warehouse_id' => 'required|exists:warehouses,id',
             'observations' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.warehouse_material_id' => 'required|exists:warehouse_materials,id',
             'items.*.qty_requested' => 'required|numeric|min:0.01',
         ]);
+
+        $toWarehouse = Warehouse::query()->findOrFail($validated['to_warehouse_id']);
+        abort_if($fromWarehouse->id === $toWarehouse->id, 422, 'Debe seleccionar una sede destino distinta a la sede activa.');
 
         DB::transaction(function () use ($validated, $fromWarehouse, $toWarehouse) {
             $nextId = (WarehouseRequest::max('id') ?? 0) + 1;
@@ -413,7 +430,9 @@ class WarehouseRequestController extends Controller
         $validated = $request->validate([
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|exists:warehouse_request_items,id',
-            'items.*.qty_received' => 'required|numeric|min:0',
+            'items.*.receive_status' => 'required|in:pending,not_received,partial,complete',
+            'items.*.qty_received' => 'nullable|numeric|min:0',
+            'items.*.not_received_reason' => 'nullable|string|max:255',
         ]);
 
         DB::transaction(function () use ($warehouseRequest, $validated) {
@@ -421,10 +440,21 @@ class WarehouseRequestController extends Controller
 
             foreach ($validated['items'] as $line) {
                 $item = $warehouseRequest->items()->findOrFail($line['id']);
-                $qtyReceived = (float) $line['qty_received'];
                 $qtySent = (float) $item->qty_sent;
+                $receiveStatus = $line['receive_status'];
+                $rawQtyReceived = (float) ($line['qty_received'] ?? 0);
+                $qtyReceived = match ($receiveStatus) {
+                    'complete' => $qtySent,
+                    'not_received' => 0.0,
+                    default => $rawQtyReceived,
+                };
+                $qtyReceived = min($qtySent, max(0, $qtyReceived));
 
-                $item->update(['qty_received' => $qtyReceived]);
+                $item->update([
+                    'qty_received' => $qtyReceived,
+                    'receive_status' => $receiveStatus,
+                    'not_received_reason' => $line['not_received_reason'] ?? null,
+                ]);
 
                 if ($qtyReceived > 0) {
                     $this->applyStockMovement(
@@ -438,6 +468,9 @@ class WarehouseRequestController extends Controller
                 }
 
                 if ($qtyReceived < $qtySent) {
+                    $allReceived = false;
+                }
+                if ($receiveStatus === 'not_received' || $receiveStatus === 'pending') {
                     $allReceived = false;
                 }
             }
@@ -533,6 +566,11 @@ class WarehouseRequestController extends Controller
     public static function dispatchStatusLabel(string $status): string
     {
         return self::DISPATCH_STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status));
+    }
+
+    public static function receiveStatusLabel(string $status): string
+    {
+        return self::RECEIVE_STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status));
     }
 
 

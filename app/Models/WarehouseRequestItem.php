@@ -17,7 +17,9 @@ class WarehouseRequestItem extends Model
         'qty_sent',
         'qty_received',
         'dispatch_status',
+        'receive_status',
         'not_sent_reason',
+        'not_received_reason',
         'notes',
     ];
 

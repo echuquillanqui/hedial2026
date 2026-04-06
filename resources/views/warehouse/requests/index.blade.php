@@ -9,11 +9,9 @@
         </div>
         <div class="d-flex gap-2">
             @can('warehouse.requests.create')
-            @if(!$currentWarehouse->is_principal)
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRequestModal">
                 <i class="bi bi-plus-circle"></i> Nueva solicitud
             </button>
-            @endif
             @endcan
         </div>
     </div>
@@ -98,6 +96,7 @@
                                             <small class="d-block text-muted">{{ $item->material?->category?->name ?? 'Sin categoría' }}</small>
                                             Sol: {{ number_format($item->qty_requested,2) }} | Aprob: {{ number_format($item->qty_approved,2) }} | Env: {{ number_format($item->qty_sent,2) }} | Rec: {{ number_format($item->qty_received,2) }}
                                             <br><span class="badge bg-{{ $item->dispatch_status === 'complete' ? 'success' : ($item->dispatch_status === 'partial' ? 'warning text-dark' : ($item->dispatch_status === 'not_sent' ? 'danger' : 'secondary')) }}">{{ $dispatchStatusLabels[$item->dispatch_status] ?? ucfirst(str_replace('_', ' ', $item->dispatch_status)) }}</span>
+                                            <span class="badge bg-{{ $item->receive_status === 'complete' ? 'success' : ($item->receive_status === 'partial' ? 'warning text-dark' : ($item->receive_status === 'not_received' ? 'danger' : 'secondary')) }}">{{ $receiveStatusLabels[$item->receive_status ?? 'pending'] ?? ucfirst(str_replace('_', ' ', $item->receive_status ?? 'pending')) }}</span>
                                         </div>
                                     </div>
                                 @endforeach
@@ -113,9 +112,7 @@
         <div class="p-3">{{ $requests->links() }}</div>
     </div>
 
-    @if(!$currentWarehouse->is_principal)
     @include('warehouse.requests.partials.create-modal')
-    @endif
     @include('warehouse.requests.partials.status-modal')
     @include('warehouse.requests.partials.dispatch-modal')
     @include('warehouse.requests.partials.receive-modal')

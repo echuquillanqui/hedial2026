@@ -3,10 +3,21 @@
     <form class="modal-content" method="POST" action="{{ route('warehouse.requests.store') }}">
       @csrf
       <div class="modal-header">
-        <h5 class="modal-title">Nueva solicitud al almacén principal</h5>
+        <h5 class="modal-title">Nueva solicitud entre sedes</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">Sede destino</label>
+            <select name="to_warehouse_id" class="form-select" required>
+              <option value="">Seleccione una sede...</option>
+              @foreach($availableWarehouses as $warehouseOption)
+                <option value="{{ $warehouseOption->id }}" @selected($warehouseOption->is_principal)>
+                  {{ $warehouseOption->sede?->name ?? $warehouseOption->name }} {{ $warehouseOption->is_principal ? '(Principal)' : '' }}
+                </option>
+              @endforeach
+            </select>
+        </div>
         <div class="mb-3">
             <label class="form-label">Observaciones</label>
             <textarea name="observations" class="form-control" rows="2"></textarea>
