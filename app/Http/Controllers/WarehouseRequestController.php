@@ -117,6 +117,9 @@ class WarehouseRequestController extends Controller
             ->with('sede')
             ->where('id', '!=', $currentWarehouse->id)
             ->where('is_active', true)
+            ->when(! $currentWarehouse->is_principal, function ($query) {
+                $query->where('is_principal', true);
+            })
             ->orderBy('is_principal', 'desc')
             ->orderBy('name')
             ->get();
@@ -356,6 +359,11 @@ class WarehouseRequestController extends Controller
 
         $toWarehouse = Warehouse::query()->findOrFail($validated['to_warehouse_id']);
         abort_if($fromWarehouse->id === $toWarehouse->id, 422, 'Debe seleccionar una sede destino distinta a la sede activa.');
+        abort_if(
+            ! $fromWarehouse->is_principal && ! $toWarehouse->is_principal,
+            422,
+            'Las sedes secundarias solo pueden enviar solicitudes al almacén principal.'
+        );
         if (!empty($validated['operational_area_id'])) {
             $belongsToCurrentSede = OperationalArea::query()
                 ->whereKey($validated['operational_area_id'])
