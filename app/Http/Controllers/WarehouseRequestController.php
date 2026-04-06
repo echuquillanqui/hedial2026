@@ -269,10 +269,25 @@ class WarehouseRequestController extends Controller
 
         $currentWarehouse = Warehouse::query()->where('sede_id', CurrentSede::id())->firstOrFail();
         $categories = WarehouseMaterialCategory::query()->orderBy('name')->get();
+        $selectedWarehouseId = $request->integer('warehouse_id');
+        $availableWarehouses = collect();
 
         $stocks = WarehouseStock::query()
-            ->with(['material.category'])
-            ->where('warehouse_id', $currentWarehouse->id)
+            ->with(['material.category', 'warehouse.sede'])
+            ->when($currentWarehouse->is_principal, function ($query) use ($selectedWarehouseId, &$availableWarehouses) {
+                $availableWarehouses = Warehouse::query()
+                    ->with('sede')
+                    ->where('is_active', true)
+                    ->orderByDesc('is_principal')
+                    ->orderBy('name')
+                    ->get();
+
+                if ($selectedWarehouseId > 0) {
+                    $query->where('warehouse_id', $selectedWarehouseId);
+                }
+            }, function ($query) use ($currentWarehouse) {
+                $query->where('warehouse_id', $currentWarehouse->id);
+            })
             ->when($request->filled('search'), function ($query) use ($request) {
                 $term = trim((string) $request->input('search'));
                 $query->whereHas('material', function ($q) use ($term) {
@@ -289,7 +304,7 @@ class WarehouseRequestController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('warehouse.stocks.index', compact('stocks', 'currentWarehouse', 'categories'));
+        return view('warehouse.stocks.index', compact('stocks', 'currentWarehouse', 'categories', 'availableWarehouses'));
     }
 
 
@@ -443,6 +458,13 @@ class WarehouseRequestController extends Controller
                 $qtySent = (float) $item->qty_sent;
                 $receiveStatus = $line['receive_status'];
                 $rawQtyReceived = (float) ($line['qty_received'] ?? 0);
+
+                abort_if(
+                    $item->receive_status === 'complete',
+                    422,
+                    'El material "' . ($item->material?->name ?? 'seleccionado') . '" ya fue recepcionado completamente y no se puede editar.'
+                );
+
                 $qtyReceived = match ($receiveStatus) {
                     'complete' => $qtySent,
                     'not_received' => 0.0,
