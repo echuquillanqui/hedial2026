@@ -72,6 +72,14 @@
                                 </template>
                             </select>
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-info">Áreas operativas asignadas</label>
+                            <select name="operational_areas[]" class="form-select rounded-3" multiple size="6" x-model="currentUser.operational_areas_selected">
+                                <template x-for="area in operationalAreasCatalog" :key="`area-${area.id}`">
+                                    <option :value="String(area.id)" x-text="`${area.sede?.name || 'Sin sede'} - ${area.name}`"></option>
+                                </template>
+                            </select>
+                        </div>
                         <div class="col-12">
                             <label class="form-label small fw-bold text-primary">Contraseña</label>
                             <input type="password" name="password" class="form-control rounded-3" :required="!currentUser.id">

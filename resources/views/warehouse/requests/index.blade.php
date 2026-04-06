@@ -43,6 +43,7 @@
                         <th>Código</th>
                         <th>Origen</th>
                         <th>Destino</th>
+                        <th>Área</th>
                         <th>Solicitante</th>
                         <th>Estado</th>
                         <th>Fecha</th>
@@ -55,6 +56,7 @@
                         <td class="fw-semibold">{{ $req->request_code }}</td>
                         <td>{{ $req->fromWarehouse->sede->name ?? $req->fromWarehouse->name }}</td>
                         <td>{{ $req->toWarehouse->sede->name ?? $req->toWarehouse->name }}</td>
+                        <td>{{ $req->operationalArea?->name ?? '-' }}</td>
                         <td>{{ $req->requester->name ?? '-' }}</td>
                         <td><span class="badge bg-{{ $statusColors[$req->status] ?? 'secondary' }}">{{ $statusLabels[$req->status] ?? ucfirst(str_replace('_', ' ', $req->status)) }}</span></td>
                         <td>{{ $req->created_at->format('d/m/Y H:i') }}</td>
@@ -86,7 +88,7 @@
                         </td>
                     </tr>
                     <tr>
-                        <td colspan="7" class="bg-light-subtle">
+                        <td colspan="8" class="bg-light-subtle">
                             <div class="small text-muted mb-1">Detalle:</div>
                             <div class="row g-2">
                                 @foreach($req->items as $item)
@@ -104,7 +106,7 @@
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="7" class="text-center py-4 text-muted">Sin solicitudes.</td></tr>
+                    <tr><td colspan="8" class="text-center py-4 text-muted">Sin solicitudes.</td></tr>
                     @endforelse
                 </tbody>
             </table>

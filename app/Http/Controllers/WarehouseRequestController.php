@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sede;
+use App\Models\OperationalArea;
 use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
 use App\Models\WarehouseMaterialCategory;
@@ -76,7 +77,7 @@ class WarehouseRequestController extends Controller
         abort_unless($currentWarehouse, 403, 'No existe almacén configurado para la sede activa.');
 
         $query = WarehouseRequest::query()
-            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material.category', 'requester'])
+            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material.category', 'requester', 'operationalArea'])
             ->where(function ($q) use ($currentWarehouse, $principalWarehouse) {
                 $q->where('from_warehouse_id', $currentWarehouse->id)
                     ->orWhere('to_warehouse_id', $currentWarehouse->id);
@@ -106,6 +107,12 @@ class WarehouseRequestController extends Controller
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
+        $operationalAreas = OperationalArea::query()
+            ->with('sede')
+            ->where('sede_id', $currentSedeId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
         $availableWarehouses = Warehouse::query()
             ->with('sede')
             ->where('id', '!=', $currentWarehouse->id)
@@ -129,6 +136,8 @@ class WarehouseRequestController extends Controller
             'receiveStatusLabels',
             'currentWarehouse',
             'principalWarehouse'
+            ,
+            'operationalAreas'
         ));
     }
 
@@ -338,6 +347,7 @@ class WarehouseRequestController extends Controller
 
         $validated = $request->validate([
             'to_warehouse_id' => 'required|exists:warehouses,id',
+            'operational_area_id' => 'nullable|exists:operational_areas,id',
             'observations' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.warehouse_material_id' => 'required|exists:warehouse_materials,id',
@@ -346,6 +356,13 @@ class WarehouseRequestController extends Controller
 
         $toWarehouse = Warehouse::query()->findOrFail($validated['to_warehouse_id']);
         abort_if($fromWarehouse->id === $toWarehouse->id, 422, 'Debe seleccionar una sede destino distinta a la sede activa.');
+        if (!empty($validated['operational_area_id'])) {
+            $belongsToCurrentSede = OperationalArea::query()
+                ->whereKey($validated['operational_area_id'])
+                ->where('sede_id', $fromWarehouse->sede_id)
+                ->exists();
+            abort_unless($belongsToCurrentSede, 422, 'El área operativa seleccionada no pertenece a la sede activa.');
+        }
 
         DB::transaction(function () use ($validated, $fromWarehouse, $toWarehouse) {
             $nextId = (WarehouseRequest::max('id') ?? 0) + 1;
@@ -355,6 +372,7 @@ class WarehouseRequestController extends Controller
                 'request_code' => $code,
                 'from_warehouse_id' => $fromWarehouse->id,
                 'to_warehouse_id' => $toWarehouse->id,
+                'operational_area_id' => $validated['operational_area_id'] ?? null,
                 'status' => 'submitted',
                 'requested_by' => Auth::id(),
                 'observations' => $validated['observations'] ?? null,

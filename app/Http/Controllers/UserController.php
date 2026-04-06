@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\OperationalArea;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -26,13 +27,14 @@ class UserController extends Controller
 
     public function index()
     {
-        $users = User::with(['roles', 'permissions', 'sedes'])->orderBy('name', 'asc')->get();
+        $users = User::with(['roles', 'permissions', 'sedes', 'operationalAreas.sede'])->orderBy('name', 'asc')->get();
         $roles = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
 
         $sedes = Sede::where('is_active', true)->orderBy('name')->get();
+        $operationalAreas = OperationalArea::query()->with('sede')->where('is_active', true)->orderBy('name')->get();
 
-        return view('users.index', compact('users', 'roles', 'permissions', 'sedes'));
+        return view('users.index', compact('users', 'roles', 'permissions', 'sedes', 'operationalAreas'));
     }
 
     public function permissionsManager()
@@ -85,6 +87,8 @@ class UserController extends Controller
             'permissions.*'    => 'exists:permissions,name',
             'sedes'            => 'nullable|array',
             'sedes.*'          => 'exists:sedes,id',
+            'operational_areas' => 'nullable|array',
+            'operational_areas.*' => 'exists:operational_areas,id',
         ]);
 
         $user = User::create([
@@ -100,6 +104,7 @@ class UserController extends Controller
         $user->syncRoles($request->input('roles', []));
         $user->syncPermissions($request->input('permissions', []));
         $user->sedes()->sync($request->input('sedes', []));
+        $user->operationalAreas()->sync($request->input('operational_areas', []));
 
         return redirect()->route('users.index')->with('success', 'Personal registrado correctamente.');
     }
@@ -130,6 +135,8 @@ class UserController extends Controller
             'permissions.*'    => 'exists:permissions,name',
             'sedes'            => 'nullable|array',
             'sedes.*'          => 'exists:sedes,id',
+            'operational_areas' => 'nullable|array',
+            'operational_areas.*' => 'exists:operational_areas,id',
         ]);
 
         $data = $request->only([
@@ -149,6 +156,7 @@ class UserController extends Controller
         $user->syncRoles($request->input('roles', []));
         $user->syncPermissions($request->input('permissions', []));
         $user->sedes()->sync($request->input('sedes', []));
+        $user->operationalAreas()->sync($request->input('operational_areas', []));
 
         return redirect()->route('users.index')->with('success', 'Datos del personal actualizados.');
     }

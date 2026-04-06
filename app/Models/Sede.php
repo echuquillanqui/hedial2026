@@ -40,4 +40,9 @@ class Sede extends Model
     {
         return $this->hasOne(Warehouse::class);
     }
+
+    public function operationalAreas()
+    {
+        return $this->hasMany(OperationalArea::class);
+    }
 }

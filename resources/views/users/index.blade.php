@@ -6,6 +6,7 @@
     window.rolesData = @json($roles->pluck('name'));
     window.permissionsData = @json($permissions->pluck('name'));
     window.sedesData = @json($sedes);
+    window.operationalAreasData = @json($operationalAreas);
 </script>
 
 <div class="container-fluid py-4" x-data="userManagement">
@@ -115,6 +116,7 @@
             rolesCatalog: window.rolesData || [],
             permissionsCatalog: window.permissionsData || [],
             sedesCatalog: window.sedesData || [],
+            operationalAreasCatalog: window.operationalAreasData || [],
             page: 1,
             perPage: 10,
             currentUser: {},
@@ -149,8 +151,9 @@
                         roles_selected: (user.roles || []).map(r => r.name),
                         permissions_selected: (user.permissions || []).map(p => p.name),
                         sedes_selected: (user.sedes || []).map(s => String(s.id)),
+                        operational_areas_selected: (user.operational_areas || []).map(a => String(a.id)),
                     }
-                    : { id: null, name: '', username: '', email: '', profession: '', license_number: '', specialty_number: '', roles_selected: [], permissions_selected: [], sedes_selected: [] };
+                    : { id: null, name: '', username: '', email: '', profession: '', license_number: '', specialty_number: '', roles_selected: [], permissions_selected: [], sedes_selected: [], operational_areas_selected: [] };
 
                 const modal = window.bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal'));
                 modal.show();

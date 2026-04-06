@@ -13,6 +13,7 @@ class WarehouseRequest extends Model
         'request_code',
         'from_warehouse_id',
         'to_warehouse_id',
+        'operational_area_id',
         'status',
         'requested_by',
         'approved_by',
@@ -43,6 +44,11 @@ class WarehouseRequest extends Model
     public function items()
     {
         return $this->hasMany(WarehouseRequestItem::class);
+    }
+
+    public function operationalArea()
+    {
+        return $this->belongsTo(OperationalArea::class);
     }
 
     public function statusLogs()

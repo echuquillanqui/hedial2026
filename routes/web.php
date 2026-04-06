@@ -10,6 +10,7 @@ use App\Http\Controllers\NurseController;
 use App\Http\Controllers\ExtraMaterialController;
 use App\Http\Controllers\SedeController;
 use App\Http\Controllers\SedeSessionController;
+use App\Http\Controllers\OperationalAreaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +43,9 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::resource('users', UserController::class);
     Route::resource('sedes', SedeController::class)->only(['index', 'store', 'update']);
+    Route::resource('areas-operativas', OperationalAreaController::class)
+        ->only(['index', 'store', 'update'])
+        ->names('operational-areas');
     Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');
     Route::post('/users/permissions', [UserController::class, 'storePermission'])->name('users.permissions.store');
     Route::post('/users/bulk-permissions', [UserController::class, 'bulkAssignPermissions'])->name('users.bulk-permissions');

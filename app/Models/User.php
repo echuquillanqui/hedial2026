@@ -58,6 +58,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Sede::class)->withTimestamps();
     }
 
+    public function operationalAreas(): BelongsToMany
+    {
+        return $this->belongsToMany(OperationalArea::class, 'operational_area_user')->withTimestamps();
+    }
+
     // Referencias donde es el Responsable de la RF
     public function referralsAsResponsible(): HasMany
     {

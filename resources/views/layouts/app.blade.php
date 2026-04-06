@@ -66,7 +66,7 @@
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
     <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('users.*', 'patients.*', 'sedes.*') ? 'active fw-bold' : '' }}" 
+        <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*') ? 'active fw-bold' : '' }}" 
            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-people-fill me-1"></i> Gestión
         </a>
@@ -89,6 +89,11 @@
             <li>
                 <a class="dropdown-item {{ request()->routeIs('sedes.*') ? 'active' : '' }}" href="{{ route('sedes.index') }}">
                     <i class="bi bi-building me-2"></i> Sedes
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('operational-areas.*') ? 'active' : '' }}" href="{{ route('operational-areas.index') }}">
+                    <i class="bi bi-diagram-3 me-2"></i> Áreas operativas
                 </a>
             </li>
             @endif
