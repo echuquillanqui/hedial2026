@@ -2,8 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Sede;
+use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
 use App\Models\WarehouseMaterialCategory;
+use App\Models\WarehouseStock;
 use Illuminate\Database\Seeder;
 
 class WarehouseMaterialSeeder extends Seeder
@@ -101,6 +104,37 @@ class WarehouseMaterialSeeder extends Seeder
                     'is_active' => true,
                 ]
             );
+        }
+
+        $principalSede = Sede::query()->where('is_principal', true)->first();
+        $principalWarehouse = null;
+
+        if ($principalSede) {
+            $principalWarehouse = Warehouse::query()->updateOrCreate(
+                ['sede_id' => $principalSede->id],
+                [
+                    'name' => 'Almacén '.$principalSede->name,
+                    'is_principal' => true,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        if ($principalWarehouse) {
+            WarehouseMaterial::query()->select(['id'])->chunkById(200, function ($materialsChunk) use ($principalWarehouse) {
+                foreach ($materialsChunk as $material) {
+                    WarehouseStock::query()->updateOrCreate(
+                        [
+                            'warehouse_id' => $principalWarehouse->id,
+                            'warehouse_material_id' => $material->id,
+                        ],
+                        [
+                            'current_qty' => 100,
+                            'min_qty' => 20,
+                        ]
+                    );
+                }
+            });
         }
     }
 }
