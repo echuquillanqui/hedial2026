@@ -34,18 +34,21 @@
     <div class="card shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead class="table-light"><tr><th>Código</th><th>Material</th><th>Categoría</th><th>Unidad</th><th>Estado</th></tr></thead>
+                <thead class="table-light"><tr><th>Código</th><th>Material</th><th>Categoría</th><th>Unidad</th><th>Stock actual</th><th>Stock mínimo</th><th>Estado</th></tr></thead>
                 <tbody>
                     @forelse($materials as $material)
+                        @php($stock = $material->stocks->first())
                         <tr>
                             <td>{{ $material->code }}</td>
                             <td class="fw-semibold">{{ $material->name }}</td>
                             <td>{{ $material->category?->name ?? 'Sin categoría' }}</td>
                             <td>{{ $material->unit }}</td>
+                            <td>{{ number_format((float) ($stock?->current_qty ?? 0), 2) }}</td>
+                            <td>{{ number_format((float) ($stock?->min_qty ?? 0), 2) }}</td>
                             <td><span class="badge bg-{{ $material->is_active ? 'success' : 'secondary' }}">{{ $material->is_active ? 'ACTIVO' : 'INACTIVO' }}</span></td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="text-center py-4 text-muted">Sin materiales registrados.</td></tr>
+                        <tr><td colspan="7" class="text-center py-4 text-muted">Sin materiales registrados.</td></tr>
                     @endforelse
                 </tbody>
             </table>

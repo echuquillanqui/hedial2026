@@ -164,15 +164,33 @@ class WarehouseRequestController extends Controller
     {
         $this->authorizePermission('warehouse.requests.create');
         $this->ensurePrincipalWarehouseContext();
+        $currentWarehouse = $this->currentWarehouseOrFail();
 
         $validated = $request->validate([
             'code' => 'required|string|max:50|unique:warehouse_materials,code',
             'name' => 'required|string|max:255',
             'unit' => 'required|string|max:50',
             'warehouse_material_category_id' => 'required|exists:warehouse_material_categories,id',
+            'current_qty' => 'required|numeric|min:0',
+            'min_qty' => 'required|numeric|min:0',
         ]);
 
-        WarehouseMaterial::query()->create($validated + ['is_active' => true]);
+        DB::transaction(function () use ($validated, $currentWarehouse) {
+            $material = WarehouseMaterial::query()->create([
+                'code' => $validated['code'],
+                'name' => $validated['name'],
+                'unit' => $validated['unit'],
+                'warehouse_material_category_id' => $validated['warehouse_material_category_id'],
+                'is_active' => true,
+            ]);
+
+            WarehouseStock::query()->create([
+                'warehouse_id' => $currentWarehouse->id,
+                'warehouse_material_id' => $material->id,
+                'current_qty' => $validated['current_qty'],
+                'min_qty' => $validated['min_qty'],
+            ]);
+        });
 
         return back()->with('toastr', ['type' => 'success', 'message' => 'Material registrado.']);
     }
@@ -243,7 +261,10 @@ class WarehouseRequestController extends Controller
         $categories = WarehouseMaterialCategory::query()->orderBy('name')->get();
 
         $query = WarehouseMaterial::query()
-            ->with('category')
+            ->with([
+                'category',
+                'stocks' => fn ($q) => $q->where('warehouse_id', $currentWarehouse->id),
+            ])
             ->orderBy('name');
 
         if ($request->filled('search')) {

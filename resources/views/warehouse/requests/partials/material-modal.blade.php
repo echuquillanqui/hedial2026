@@ -28,6 +28,16 @@
           <label class="form-label">Unidad</label>
           <input type="text" name="unit" class="form-control" required placeholder="UND, CAJA, BOLSA...">
         </div>
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label">Stock actual</label>
+            <input type="number" name="current_qty" class="form-control" min="0" step="0.01" value="0" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Stock mínimo</label>
+            <input type="number" name="min_qty" class="form-control" min="0" step="0.01" value="0" required>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
