@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             PatientSeeder::class,
             RolesAndPermissionsSeeder::class,
+            WarehouseMaterialSeeder::class,
         ]);
     }
 }
