@@ -22,6 +22,7 @@ class WarehouseRequestController extends Controller
         'draft' => 'secondary',
         'submitted' => 'info',
         'approved' => 'primary',
+        'received_by_warehouse' => 'secondary',
         'rejected' => 'danger',
         'partially_dispatched' => 'warning',
         'dispatched' => 'success',
@@ -33,6 +34,7 @@ class WarehouseRequestController extends Controller
         'draft' => 'Borrador',
         'submitted' => 'Enviada',
         'approved' => 'Aprobada',
+        'received_by_warehouse' => 'Recibido por almacén',
         'rejected' => 'Rechazada',
         'partially_dispatched' => 'Despachada parcialmente',
         'dispatched' => 'Despachada',
@@ -147,7 +149,7 @@ class WarehouseRequestController extends Controller
         $totalAlerts = $alerts->count();
         $pendingRequests = WarehouseRequest::query()
             ->where('from_warehouse_id', $currentWarehouse->id)
-            ->whereIn('status', ['submitted', 'approved', 'partially_dispatched', 'dispatched', 'partially_received'])
+            ->whereIn('status', ['submitted', 'received_by_warehouse', 'approved', 'partially_dispatched', 'dispatched', 'partially_received'])
             ->count();
 
         return view('warehouse.dashboard', compact(
@@ -375,7 +377,7 @@ class WarehouseRequestController extends Controller
     public function updateStatus(Request $request, WarehouseRequest $warehouseRequest)
     {
         $validated = $request->validate([
-            'status' => 'required|in:draft,submitted,approved,rejected,cancelled',
+            'status' => 'required|in:draft,submitted,received_by_warehouse,approved,rejected,cancelled',
             'comment' => 'nullable|string|max:500',
         ]);
 

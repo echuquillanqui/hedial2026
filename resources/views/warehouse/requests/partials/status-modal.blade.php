@@ -13,6 +13,7 @@
           <select name="status" class="form-select" x-model="statusValue" required>
             <option value="draft">Borrador</option>
             <option value="submitted">Enviada</option>
+            <option value="received_by_warehouse">Recibido por almacén</option>
             <option value="approved">Aprobada</option>
             <option value="rejected">Rechazada</option>
             <option value="cancelled">Cancelada</option>
