@@ -47,67 +47,106 @@
                     <i class="bi bi-heart-pulse-fill me-2"></i> HEMODIAL
                 </a>
                 <div class="collapse navbar-collapse" id="navMain">
+                    @php
+                        $canManageUsers = auth()->user()->can('users.view');
+                        $canManagePatients = auth()->user()->can('patients.view');
+                        $canManageSedes = auth()->user()->can('users.view');
+                        $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSedes;
+
+                        $canViewReferrals = auth()->user()->can('referrals.view');
+
+                        $canViewOrders = auth()->user()->can('orders.view');
+                        $canViewMedicals = auth()->user()->can('medicals.view');
+                        $canViewNurses = auth()->user()->can('nurses.view');
+                        $canViewExtraMaterials = auth()->user()->can('orders.view');
+                        $canSeeClinicalArea = $canViewOrders || $canViewMedicals || $canViewNurses || $canViewExtraMaterials;
+
+                        $canViewWarehouse = auth()->user()->can('warehouse.requests.view');
+                    @endphp
                     <ul class="navbar-nav me-auto">
+    @if($canSeeGestion)
     <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('users.*', 'patients.*', 'sedes.*') ? 'active fw-bold' : '' }}" 
            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-people-fill me-1"></i> Gestión
         </a>
         <ul class="dropdown-menu shadow border-0">
+            @if($canManageUsers)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
                     <i class="bi bi-person-badge me-2"></i> Usuarios
                 </a>
             </li>
+            @endif
+            @if($canManagePatients)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('patients.*') ? 'active' : '' }}" href="{{ route('patients.index') }}">
                     <i class="bi bi-people me-2"></i> Pacientes
                 </a>
             </li>
+            @endif
+            @if($canManageSedes)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('sedes.*') ? 'active' : '' }}" href="{{ route('sedes.index') }}">
                     <i class="bi bi-building me-2"></i> Sedes
                 </a>
             </li>
+            @endif
         </ul>
     </li>
+    @endif
 
+    @if($canViewReferrals)
     <li class="nav-item">
         <a class="nav-link px-3 {{ request()->routeIs('referrals.*') ? 'active fw-bold' : '' }}" href="{{ route('referrals.index') }}">
             <i class="bi bi-file-earmark-plus me-1"></i> Referencias
         </a>
     </li>
+    @endif
 
+    @if($canSeeClinicalArea)
     <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('orders.*', 'medicals.*', 'nurses.*', 'extra-materials.*') ? 'active fw-bold' : '' }}" 
            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-clipboard2-pulse-fill me-1"></i> Área Clínica
         </a>
         <ul class="dropdown-menu shadow border-0">
+            @if($canViewOrders)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">
                     <i class="bi bi-list-check me-2"></i> Ordenes
                 </a>
             </li>
+            @endif
+            @if(($canViewOrders && ($canViewMedicals || $canViewNurses || $canViewExtraMaterials)))
             <li><hr class="dropdown-divider"></li>
+            @endif
+            @if($canViewMedicals)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('medicals.*') ? 'active' : '' }}" href="{{ route('medicals.index') }}">
                     <i class="bi bi-person-vcard me-2"></i> Medicina
                 </a>
             </li>
+            @endif
+            @if($canViewNurses)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('nurses.*') ? 'active' : '' }}" href="{{ route('nurses.index') }}">
                     <i class="bi bi-clipboard-pulse me-2"></i> Enfermería
                 </a>
             </li>
+            @endif
+            @if($canViewExtraMaterials)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('extra-materials.*') ? 'active' : '' }}" href="{{ route('extra-materials.index') }}">
                     <i class="bi bi-box-seam me-2"></i> Materiales extra
                 </a>
             </li>
+            @endif
         </ul>
     </li>
+    @endif
 
+    @if($canViewWarehouse)
     <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('warehouse.*') ? 'active fw-bold' : '' }}"
            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -143,6 +182,7 @@
             </li>
         </ul>
     </li>
+    @endif
 </ul>
                     <ul class="navbar-nav ms-auto align-items-center">
                         <li class="nav-item me-3 d-none d-md-block">
