@@ -74,7 +74,11 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
 
 
     Route::get('almacen/solicitudes', [App\Http\Controllers\WarehouseRequestController::class, 'index'])->name('warehouse.requests.index');
+    Route::get('almacen/categorias', [App\Http\Controllers\WarehouseRequestController::class, 'categories'])->name('warehouse.categories.index');
+    Route::post('almacen/categorias', [App\Http\Controllers\WarehouseRequestController::class, 'storeCategory'])->name('warehouse.categories.store');
+    Route::get('almacen/materiales', [App\Http\Controllers\WarehouseRequestController::class, 'materials'])->name('warehouse.materials.index');
     Route::post('almacen/materiales', [App\Http\Controllers\WarehouseRequestController::class, 'storeMaterial'])->name('warehouse.materials.store');
+    Route::get('almacen/stocks', [App\Http\Controllers\WarehouseRequestController::class, 'stocks'])->name('warehouse.stocks.index');
     Route::patch('almacen/stocks/{warehouseStock}', [App\Http\Controllers\WarehouseRequestController::class, 'updateStock'])->name('warehouse.stocks.update');
     Route::post('almacen/solicitudes', [App\Http\Controllers\WarehouseRequestController::class, 'store'])->name('warehouse.requests.store');
     Route::patch('almacen/solicitudes/{warehouseRequest}/estado', [App\Http\Controllers\WarehouseRequestController::class, 'updateStatus'])->name('warehouse.requests.update-status');

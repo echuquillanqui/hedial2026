@@ -13,6 +13,7 @@ class WarehouseMaterial extends Model
         'code',
         'name',
         'unit',
+        'warehouse_material_category_id',
         'is_active',
     ];
 
@@ -24,4 +25,10 @@ class WarehouseMaterial extends Model
     {
         return $this->hasMany(WarehouseStock::class);
     }
+
+    public function category()
+    {
+        return $this->belongsTo(WarehouseMaterialCategory::class, 'warehouse_material_category_id');
+    }
 }
+

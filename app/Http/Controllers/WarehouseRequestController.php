@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Sede;
 use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
+use App\Models\WarehouseMaterialCategory;
 use App\Models\WarehouseRequest;
 use App\Models\WarehouseRequestStatusLog;
 use App\Models\WarehouseStock;
@@ -31,7 +32,7 @@ class WarehouseRequestController extends Controller
 
     public function __construct()
     {
-        $this->middleware('permission:warehouse.requests.view')->only(['index']);
+        $this->middleware('permission:warehouse.requests.view')->only(['index', 'categories', 'materials', 'stocks']);
         $this->middleware('permission:warehouse.requests.print')->only(['printRequest', 'printDispatch']);
         $this->middleware('permission:warehouse.requests.create')->only(['store']);
         $this->middleware('permission:warehouse.requests.update.status')->only(['updateStatus']);
@@ -50,7 +51,7 @@ class WarehouseRequestController extends Controller
         abort_unless($currentWarehouse, 403, 'No existe almacén configurado para la sede activa.');
 
         $query = WarehouseRequest::query()
-            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material', 'requester'])
+            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material.category', 'requester'])
             ->where(function ($q) use ($currentWarehouse, $principalWarehouse) {
                 $q->where('from_warehouse_id', $currentWarehouse->id)
                     ->orWhere('to_warehouse_id', $currentWarehouse->id);
@@ -75,24 +76,20 @@ class WarehouseRequestController extends Controller
 
         $requests = $query->latest()->paginate(12)->withQueryString();
 
-        $materials = WarehouseMaterial::query()->where('is_active', true)->orderBy('name')->get();
-        $warehouses = Warehouse::query()->with('sede')->where('is_active', true)->orderBy('is_principal', 'desc')->get();
-        $statusColors = self::STATUS_COLORS;
-
-        $stocks = WarehouseStock::query()
-            ->with('material')
-            ->where('warehouse_id', $currentWarehouse->id)
-            ->orderByDesc('current_qty')
+        $materials = WarehouseMaterial::query()
+            ->with('category')
+            ->where('is_active', true)
+            ->orderBy('name')
             ->get();
+
+        $statusColors = self::STATUS_COLORS;
 
         return view('warehouse.requests.index', compact(
             'requests',
             'materials',
-            'warehouses',
             'statusColors',
             'currentWarehouse',
-            'principalWarehouse',
-            'stocks'
+            'principalWarehouse'
         ));
     }
 
@@ -105,6 +102,7 @@ class WarehouseRequestController extends Controller
             'code' => 'required|string|max:50|unique:warehouse_materials,code',
             'name' => 'required|string|max:255',
             'unit' => 'required|string|max:50',
+            'warehouse_material_category_id' => 'required|exists:warehouse_material_categories,id',
         ]);
 
         WarehouseMaterial::query()->create($validated + ['is_active' => true]);
@@ -125,6 +123,93 @@ class WarehouseRequestController extends Controller
 
         return back()->with('toastr', ['type' => 'success', 'message' => 'Stock actualizado.']);
     }
+
+    public function categories(Request $request)
+    {
+        $this->ensureWarehouseSetup();
+
+        $query = WarehouseMaterialCategory::query()->orderBy('name');
+
+        if ($request->filled('search')) {
+            $term = trim((string) $request->input('search'));
+            $query->where('name', 'like', "%{$term}%");
+        }
+
+        $categories = $query->withCount('materials')->paginate(15)->withQueryString();
+
+        return view('warehouse.categories.index', compact('categories'));
+    }
+
+    public function storeCategory(Request $request)
+    {
+        $this->authorizePermission('warehouse.requests.create');
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100|unique:warehouse_material_categories,name',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        WarehouseMaterialCategory::query()->create($validated + ['is_active' => true]);
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Categoría registrada.']);
+    }
+
+    public function materials(Request $request)
+    {
+        $this->ensureWarehouseSetup();
+
+        $categories = WarehouseMaterialCategory::query()->orderBy('name')->get();
+
+        $query = WarehouseMaterial::query()
+            ->with('category')
+            ->orderBy('name');
+
+        if ($request->filled('search')) {
+            $term = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($term) {
+                $q->where('code', 'like', "%{$term}%")
+                    ->orWhere('name', 'like', "%{$term}%");
+            });
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('warehouse_material_category_id', $request->integer('category_id'));
+        }
+
+        $materials = $query->paginate(15)->withQueryString();
+
+        return view('warehouse.materials.index', compact('materials', 'categories'));
+    }
+
+    public function stocks(Request $request)
+    {
+        $this->ensureWarehouseSetup();
+
+        $currentWarehouse = Warehouse::query()->where('sede_id', CurrentSede::id())->firstOrFail();
+        $categories = WarehouseMaterialCategory::query()->orderBy('name')->get();
+
+        $stocks = WarehouseStock::query()
+            ->with(['material.category'])
+            ->where('warehouse_id', $currentWarehouse->id)
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $term = trim((string) $request->input('search'));
+                $query->whereHas('material', function ($q) use ($term) {
+                    $q->where('code', 'like', "%{$term}%")
+                        ->orWhere('name', 'like', "%{$term}%");
+                });
+            })
+            ->when($request->filled('category_id'), function ($query) use ($request) {
+                $query->whereHas('material', function ($q) use ($request) {
+                    $q->where('warehouse_material_category_id', $request->integer('category_id'));
+                });
+            })
+            ->orderByDesc('current_qty')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('warehouse.stocks.index', compact('stocks', 'currentWarehouse', 'categories'));
+    }
+
 
     public function store(Request $request)
     {
@@ -308,7 +393,7 @@ class WarehouseRequestController extends Controller
 
     public function printRequest(WarehouseRequest $warehouseRequest)
     {
-        $warehouseRequest->load(['items.material', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
+        $warehouseRequest->load(['items.material.category', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
 
         $pdf = Pdf::loadView('warehouse.requests.print_request', [
             'requestModel' => $warehouseRequest,
@@ -322,7 +407,7 @@ class WarehouseRequestController extends Controller
     {
         abort_unless(in_array($warehouseRequest->status, ['approved', 'partially_dispatched', 'dispatched', 'partially_received', 'received'], true), 422, 'El pedido debe estar aprobado para imprimir despacho.');
 
-        $warehouseRequest->load(['items.material', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
+        $warehouseRequest->load(['items.material.category', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
 
         $pdf = Pdf::loadView('warehouse.requests.print_dispatch', [
             'requestModel' => $warehouseRequest,

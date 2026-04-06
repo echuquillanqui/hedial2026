@@ -27,7 +27,7 @@
                   <select name="items[0][warehouse_material_id]" class="form-select" required>
                     <option value="">Seleccione...</option>
                     @foreach($materials as $material)
-                      <option value="{{ $material->id }}">{{ $material->name }} ({{ $material->unit }})</option>
+                      <option value="{{ $material->id }}">{{ $material->category?->name ?? 'Sin categoría' }} - {{ $material->name }} ({{ $material->unit }})</option>
                     @endforeach
                   </select>
                 </td>
@@ -51,7 +51,7 @@
 function addRequestRow() {
     const tbody = document.querySelector('#itemsTable tbody');
     const idx = tbody.querySelectorAll('tr').length;
-    const options = `@foreach($materials as $material)<option value="{{ $material->id }}">{{ $material->name }} ({{ $material->unit }})</option>@endforeach`;
+    const options = `@foreach($materials as $material)<option value="{{ $material->id }}">{{ $material->category?->name ?? 'Sin categoría' }} - {{ $material->name }} ({{ $material->unit }})</option>@endforeach`;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `

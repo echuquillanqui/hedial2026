@@ -105,9 +105,34 @@
                     <i class="bi bi-box-seam me-2"></i> Materiales extra
                 </a>
             </li>
+        </ul>
+    </li>
+
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('warehouse.*') ? 'active fw-bold' : '' }}"
+           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-truck me-1"></i> LOGÍSTICA
+        </a>
+        <ul class="dropdown-menu shadow border-0">
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('warehouse.categories.*') ? 'active' : '' }}" href="{{ route('warehouse.categories.index') }}">
+                    <i class="bi bi-tags me-2"></i> Categorías
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('warehouse.materials.*') ? 'active' : '' }}" href="{{ route('warehouse.materials.index') }}">
+                    <i class="bi bi-box-seam me-2"></i> Materiales
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('warehouse.stocks.*') ? 'active' : '' }}" href="{{ route('warehouse.stocks.index') }}">
+                    <i class="bi bi-bar-chart-line me-2"></i> Stock por sede
+                </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
             <li>
                 <a class="dropdown-item {{ request()->routeIs('warehouse.requests.*') ? 'active' : '' }}" href="{{ route('warehouse.requests.index') }}">
-                    <i class="bi bi-boxes me-2"></i> Almacén
+                    <i class="bi bi-file-earmark-text me-2"></i> Solicitudes
                 </a>
             </li>
         </ul>

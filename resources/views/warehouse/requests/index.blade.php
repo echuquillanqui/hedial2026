@@ -4,14 +4,11 @@
 <div class="container-fluid" x-data="warehouseRequests()">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
-            <h4 class="mb-0">Almacén - Solicitudes entre sedes</h4>
+            <h4 class="mb-0">Logística - Solicitudes entre sedes</h4>
             <small class="text-muted">Sede activa: {{ session('current_sede_name') }} | Almacén principal: {{ $principalWarehouse?->sede?->name ?? 'No configurado' }}</small>
         </div>
         <div class="d-flex gap-2">
             @can('warehouse.requests.create')
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#materialModal">
-                <i class="bi bi-box"></i> Nuevo material
-            </button>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRequestModal">
                 <i class="bi bi-plus-circle"></i> Nueva solicitud
             </button>
@@ -19,47 +16,24 @@
         </div>
     </div>
 
-    <div class="row g-3 mb-3">
-        <div class="col-md-8">
-            <form method="GET" class="card shadow-sm p-3">
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Buscar por código o sede...">
-                    </div>
-                    <div class="col-md-4">
-                        <select name="status" class="form-select">
-                            <option value="">Todos los estados</option>
-                            @foreach(array_keys($statusColors) as $status)
-                                <option value="{{ $status }}" @selected(request('status') === $status)>{{ strtoupper(str_replace('_', ' ', $status)) }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-grid">
-                        <button class="btn btn-outline-primary">Filtrar</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm p-3 h-100">
-                <h6 class="mb-2">Stock local rápido</h6>
-                <input type="text" class="form-control form-control-sm mb-2" placeholder="Buscar material..." x-model="stockSearch">
-                <div style="max-height:180px; overflow:auto;">
-                    @foreach($stocks as $stock)
-                        <div class="d-flex justify-content-between border-bottom py-1" x-show="matchStock(@js(strtolower($stock->material->name)))">
-                            <small>{{ $stock->material->name }}</small>
-                            <div class="d-flex align-items-center gap-1">
-                                <span class="badge bg-{{ $stock->current_qty <= $stock->min_qty ? 'danger' : 'secondary' }}">{{ number_format($stock->current_qty, 2) }} {{ $stock->material->unit }}</span>
-                                @can('warehouse.requests.dispatch')
-                                <button class="btn btn-sm btn-link p-0" @click="openStockModal({{ $stock->id }}, '{{ $stock->current_qty }}', '{{ $stock->min_qty }}')"><i class="bi bi-pencil-square"></i></button>
-                                @endcan
-                            </div>
-                        </div>
+    <form method="GET" class="card shadow-sm p-3 mb-3">
+        <div class="row g-2">
+            <div class="col-md-8">
+                <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Buscar por código o sede...">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">Todos los estados</option>
+                    @foreach(array_keys($statusColors) as $status)
+                        <option value="{{ $status }}" @selected(request('status') === $status)>{{ strtoupper(str_replace('_', ' ', $status)) }}</option>
                     @endforeach
-                </div>
+                </select>
+            </div>
+            <div class="col-md-1 d-grid">
+                <button class="btn btn-outline-primary">Filtrar</button>
             </div>
         </div>
-    </div>
+    </form>
 
     <div class="card shadow-sm">
         <div class="table-responsive">
@@ -118,7 +92,8 @@
                                 @foreach($req->items as $item)
                                     <div class="col-md-4">
                                         <div class="border rounded p-2 h-100">
-                                            <strong>{{ $item->material->name }}</strong><br>
+                                            <strong>{{ $item->material->name }}</strong>
+                                            <small class="d-block text-muted">{{ $item->material?->category?->name ?? 'Sin categoría' }}</small>
                                             Sol: {{ number_format($item->qty_requested,2) }} | Aprob: {{ number_format($item->qty_approved,2) }} | Env: {{ number_format($item->qty_sent,2) }} | Rec: {{ number_format($item->qty_received,2) }}
                                             <br><span class="badge bg-{{ $item->dispatch_status === 'complete' ? 'success' : ($item->dispatch_status === 'partial' ? 'warning text-dark' : ($item->dispatch_status === 'not_sent' ? 'danger' : 'secondary')) }}">{{ strtoupper($item->dispatch_status) }}</span>
                                         </div>
@@ -136,8 +111,6 @@
         <div class="p-3">{{ $requests->links() }}</div>
     </div>
 
-    @include('warehouse.requests.partials.material-modal')
-    @include('warehouse.requests.partials.stock-modal')
     @include('warehouse.requests.partials.create-modal')
     @include('warehouse.requests.partials.status-modal')
     @include('warehouse.requests.partials.dispatch-modal')
@@ -149,18 +122,10 @@
 <script>
 function warehouseRequests() {
     return {
-        stockSearch: '',
         statusRequestId: null,
         statusValue: 'submitted',
         dispatchRequestId: null,
         receiveRequestId: null,
-        stockId: null,
-        stockCurrent: 0,
-        stockMin: 0,
-        matchStock(materialName) {
-            if (!this.stockSearch) return true;
-            return materialName.includes(this.stockSearch.toLowerCase());
-        },
         openStatusModal(id, status) {
             this.statusRequestId = id;
             this.statusValue = status;
@@ -171,12 +136,6 @@ function warehouseRequests() {
             const form = document.getElementById('dispatchForm');
             form.action = form.dataset.actionTemplate.replace('__ID__', id);
             new bootstrap.Modal(document.getElementById('dispatchModal')).show();
-        },
-        openStockModal(id, current, min) {
-            this.stockId = id;
-            this.stockCurrent = current;
-            this.stockMin = min;
-            new bootstrap.Modal(document.getElementById('stockModal')).show();
         },
         openReceiveModal(id) {
             this.receiveRequestId = id;

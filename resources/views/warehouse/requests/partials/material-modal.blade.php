@@ -16,6 +16,15 @@
           <input type="text" name="name" class="form-control" required>
         </div>
         <div class="mb-2">
+          <label class="form-label">Categoría</label>
+          <select name="warehouse_material_category_id" class="form-select" required>
+            <option value="">Seleccione...</option>
+            @foreach($categories as $category)
+              <option value="{{ $category->id }}">{{ $category->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="mb-2">
           <label class="form-label">Unidad</label>
           <input type="text" name="unit" class="form-control" required placeholder="UND, CAJA, BOLSA...">
         </div>
