@@ -8,9 +8,11 @@
             <small class="text-muted">Todos los materiales deben pertenecer a una categoría.</small>
         </div>
         @can('warehouse.requests.create')
+        @if($currentWarehouse?->is_principal)
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#materialModal">
             <i class="bi bi-plus-circle"></i> Nuevo material
         </button>
+        @endif
         @endcan
     </div>
 
@@ -52,5 +54,7 @@
     </div>
 </div>
 
+@if($currentWarehouse?->is_principal)
 @include('warehouse.requests.partials.material-modal')
+@endif
 @endsection

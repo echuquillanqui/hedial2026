@@ -97,6 +97,7 @@ class WarehouseRequestController extends Controller
     public function storeMaterial(Request $request)
     {
         $this->authorizePermission('warehouse.requests.create');
+        $this->ensurePrincipalWarehouseContext();
 
         $validated = $request->validate([
             'code' => 'required|string|max:50|unique:warehouse_materials,code',
@@ -114,6 +115,18 @@ class WarehouseRequestController extends Controller
     {
         $this->authorizePermission('warehouse.requests.dispatch');
 
+        abort_unless(
+            $warehouseStock->warehouse_id === $this->currentWarehouseOrFail()->id,
+            403,
+            'No puede actualizar stock de otro almacén.'
+        );
+
+        abort_if(
+            !$this->isCurrentWarehousePrincipal(),
+            403,
+            'Solo la sede principal puede ajustar stock manualmente. El stock de sedes secundarias se actualiza por recepción.'
+        );
+
         $validated = $request->validate([
             'current_qty' => 'required|numeric|min:0',
             'min_qty' => 'required|numeric|min:0',
@@ -127,6 +140,7 @@ class WarehouseRequestController extends Controller
     public function categories(Request $request)
     {
         $this->ensureWarehouseSetup();
+        $currentWarehouse = $this->currentWarehouseOrFail();
 
         $query = WarehouseMaterialCategory::query()->orderBy('name');
 
@@ -137,12 +151,13 @@ class WarehouseRequestController extends Controller
 
         $categories = $query->withCount('materials')->paginate(15)->withQueryString();
 
-        return view('warehouse.categories.index', compact('categories'));
+        return view('warehouse.categories.index', compact('categories', 'currentWarehouse'));
     }
 
     public function storeCategory(Request $request)
     {
         $this->authorizePermission('warehouse.requests.create');
+        $this->ensurePrincipalWarehouseContext();
 
         $validated = $request->validate([
             'name' => 'required|string|max:100|unique:warehouse_material_categories,name',
@@ -157,6 +172,7 @@ class WarehouseRequestController extends Controller
     public function materials(Request $request)
     {
         $this->ensureWarehouseSetup();
+        $currentWarehouse = $this->currentWarehouseOrFail();
 
         $categories = WarehouseMaterialCategory::query()->orderBy('name')->get();
 
@@ -178,7 +194,7 @@ class WarehouseRequestController extends Controller
 
         $materials = $query->paginate(15)->withQueryString();
 
-        return view('warehouse.materials.index', compact('materials', 'categories'));
+        return view('warehouse.materials.index', compact('materials', 'categories', 'currentWarehouse'));
     }
 
     public function stocks(Request $request)
@@ -485,5 +501,24 @@ class WarehouseRequestController extends Controller
                 }
             }
         }
+    }
+
+    private function currentWarehouseOrFail(): Warehouse
+    {
+        return Warehouse::query()->where('sede_id', CurrentSede::id())->firstOrFail();
+    }
+
+    private function isCurrentWarehousePrincipal(): bool
+    {
+        return (bool) $this->currentWarehouseOrFail()->is_principal;
+    }
+
+    private function ensurePrincipalWarehouseContext(): void
+    {
+        abort_if(
+            !$this->isCurrentWarehousePrincipal(),
+            403,
+            'Solo la sede principal puede registrar categorías y materiales.'
+        );
     }
 }

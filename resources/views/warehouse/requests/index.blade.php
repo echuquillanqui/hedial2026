@@ -9,9 +9,11 @@
         </div>
         <div class="d-flex gap-2">
             @can('warehouse.requests.create')
+            @if(!$currentWarehouse->is_principal)
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRequestModal">
                 <i class="bi bi-plus-circle"></i> Nueva solicitud
             </button>
+            @endif
             @endcan
         </div>
     </div>
@@ -111,7 +113,9 @@
         <div class="p-3">{{ $requests->links() }}</div>
     </div>
 
+    @if(!$currentWarehouse->is_principal)
     @include('warehouse.requests.partials.create-modal')
+    @endif
     @include('warehouse.requests.partials.status-modal')
     @include('warehouse.requests.partials.dispatch-modal')
     @include('warehouse.requests.partials.receive-modal')

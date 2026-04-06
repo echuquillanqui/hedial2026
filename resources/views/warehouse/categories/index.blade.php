@@ -8,9 +8,11 @@
             <small class="text-muted">Registro base para clasificar materiales.</small>
         </div>
         @can('warehouse.requests.create')
+        @if($currentWarehouse?->is_principal)
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
             <i class="bi bi-plus-circle"></i> Nueva categoría
         </button>
+        @endif
         @endcan
     </div>
 
@@ -45,6 +47,7 @@
 </div>
 
 @can('warehouse.requests.create')
+@if($currentWarehouse?->is_principal)
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form class="modal-content" method="POST" action="{{ route('warehouse.categories.store') }}">
@@ -70,5 +73,6 @@
     </form>
   </div>
 </div>
+@endif
 @endcan
 @endsection

@@ -6,6 +6,11 @@
         <h4 class="mb-0">Logística - Stock de sede</h4>
         <small class="text-muted">Sede activa: {{ session('current_sede_name') }} | Almacén: {{ $currentWarehouse->name }}</small>
     </div>
+    @if(!$currentWarehouse->is_principal)
+    <div class="alert alert-info py-2">
+        El stock de esta sede se actualiza al recepcionar envíos de la sede principal.
+    </div>
+    @endif
 
     <form method="GET" class="card shadow-sm p-3 mb-3">
         <div class="row g-2">
@@ -35,9 +40,11 @@
                         <td>{{ number_format($stock->min_qty,2) }} {{ $stock->material->unit }}</td>
                         <td class="text-end">
                             @can('warehouse.requests.dispatch')
+                            @if($currentWarehouse->is_principal)
                             <button class="btn btn-sm btn-outline-primary" @click="openStockModal({{ $stock->id }}, '{{ $stock->current_qty }}', '{{ $stock->min_qty }}')">
                                 <i class="bi bi-pencil-square"></i>
                             </button>
+                            @endif
                             @endcan
                         </td>
                     </tr>
