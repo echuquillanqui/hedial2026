@@ -8,6 +8,9 @@
             <small class="text-muted">Sede activa: {{ session('current_sede_name') }} | Almacén principal: {{ $principalWarehouse?->sede?->name ?? 'No configurado' }}</small>
         </div>
         <div class="d-flex gap-2">
+            <a href="{{ route('warehouse.requests.by-area') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-diagram-3"></i> Solicitudes por área
+            </a>
             @can('warehouse.requests.create')
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRequestModal">
                 <i class="bi bi-plus-circle"></i> Nueva solicitud
@@ -45,69 +48,7 @@
         </div>
     </form>
 
-    @can('warehouse.requests.update.status')
-    <div class="card shadow-sm mb-3">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">Consolidado para revisión administrativa</h6>
-            <span class="badge bg-warning text-dark">Pendientes por revisar: {{ $consolidatedSummary['pending_review'] }}</span>
-        </div>
-        <div class="card-body">
-            <div class="row g-2 mb-3">
-                <div class="col-md-4">
-                    <div class="border rounded p-2">
-                        <small class="text-muted d-block">Solicitudes visibles</small>
-                        <strong>{{ $consolidatedSummary['requests_count'] }}</strong>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="border rounded p-2">
-                        <small class="text-muted d-block">Ítems solicitados</small>
-                        <strong>{{ $consolidatedSummary['items_count'] }}</strong>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="border rounded p-2">
-                        <small class="text-muted d-block">Cantidad total pedida</small>
-                        <strong>{{ number_format($consolidatedSummary['qty_requested_total'], 2) }}</strong>
-                    </div>
-                </div>
-            </div>
 
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr>
-                            <th>Área</th>
-                            <th>Sede</th>
-                            <th>Solicitudes</th>
-                            <th>Ítems</th>
-                            <th>Total solicitado</th>
-                            <th>Pendientes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($areaSummary as $row)
-                        <tr>
-                            <td>{{ $row['area_name'] }}</td>
-                            <td>{{ $row['sede_name'] }}</td>
-                            <td>{{ $row['requests_count'] }}</td>
-                            <td>{{ $row['items_count'] }}</td>
-                            <td>{{ number_format($row['qty_requested_total'], 2) }}</td>
-                            <td>
-                                <span class="badge bg-{{ $row['pending_review'] > 0 ? 'warning text-dark' : 'success' }}">
-                                    {{ $row['pending_review'] }}
-                                </span>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="6" class="text-center text-muted">Sin información para consolidar.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    @endcan
 
     <div class="card shadow-sm">
         <div class="table-responsive">

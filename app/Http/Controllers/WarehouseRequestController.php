@@ -58,7 +58,7 @@ class WarehouseRequestController extends Controller
 
     public function __construct()
     {
-        $this->middleware('permission:warehouse.requests.view')->only(['dashboard', 'index', 'categories', 'materials', 'stocks', 'downloadAlerts']);
+        $this->middleware('permission:warehouse.requests.view')->only(['dashboard', 'index', 'byArea', 'categories', 'materials', 'stocks', 'downloadAlerts']);
         $this->middleware('permission:warehouse.requests.print')->only(['printRequest', 'printDispatch']);
         $this->middleware('permission:warehouse.requests.create')->only(['store']);
         $this->middleware('permission:warehouse.requests.update.status')->only(['updateStatus']);
@@ -104,36 +104,9 @@ class WarehouseRequestController extends Controller
             $query->where('operational_area_id', $request->integer('operational_area_id'));
         }
 
-        $requestsForSummary = (clone $query)
-            ->with(['items', 'operationalArea.sede'])
-            ->get();
-
-        $areaSummary = $requestsForSummary
-            ->groupBy(fn ($warehouseRequest) => $warehouseRequest->operationalArea?->name ?? 'Sin área')
-            ->map(function ($requestsByArea) {
-                $firstRequest = $requestsByArea->first();
-                $area = $firstRequest?->operationalArea;
-
-                return [
-                    'area_name' => $area?->name ?? 'Sin área',
-                    'sede_name' => $area?->sede?->name ?? 'Sin sede',
-                    'requests_count' => $requestsByArea->count(),
-                    'items_count' => $requestsByArea->sum(fn ($warehouseRequest) => $warehouseRequest->items->count()),
-                    'qty_requested_total' => $requestsByArea->sum(fn ($warehouseRequest) => $warehouseRequest->items->sum('qty_requested')),
-                    'pending_review' => $requestsByArea->whereIn('status', ['submitted', 'received_by_warehouse'])->count(),
-                ];
-            })
-            ->sortByDesc('pending_review')
-            ->values();
-
-        $consolidatedSummary = [
-            'requests_count' => $requestsForSummary->count(),
-            'items_count' => $requestsForSummary->sum(fn ($warehouseRequest) => $warehouseRequest->items->count()),
-            'qty_requested_total' => $requestsForSummary->sum(fn ($warehouseRequest) => $warehouseRequest->items->sum('qty_requested')),
-            'pending_review' => $requestsForSummary->whereIn('status', ['submitted', 'received_by_warehouse'])->count(),
-        ];
-
-        $operationalAreaFilterOptions = $requestsForSummary
+        $operationalAreaFilterOptions = (clone $query)
+            ->with('operationalArea.sede')
+            ->get()
             ->map(fn ($warehouseRequest) => $warehouseRequest->operationalArea)
             ->filter()
             ->unique('id')
@@ -173,8 +146,6 @@ class WarehouseRequestController extends Controller
             'requests',
             'materials',
             'availableWarehouses',
-            'areaSummary',
-            'consolidatedSummary',
             'operationalAreaFilterOptions',
             'statusColors',
             'statusLabels',
@@ -184,6 +155,70 @@ class WarehouseRequestController extends Controller
             'principalWarehouse'
             ,
             'operationalAreas'
+        ));
+    }
+
+    public function byArea(Request $request)
+    {
+        $currentSedeId = CurrentSede::id();
+        $this->ensureWarehouseSetup();
+
+        $currentWarehouse = Warehouse::query()->where('sede_id', $currentSedeId)->first();
+        $principalWarehouse = Warehouse::query()->where('is_principal', true)->first();
+
+        abort_unless($currentWarehouse, 403, 'No existe almacén configurado para la sede activa.');
+
+        $query = WarehouseRequest::query()
+            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material.category', 'requester', 'operationalArea'])
+            ->where(function ($q) use ($currentWarehouse, $principalWarehouse) {
+                $q->where('from_warehouse_id', $currentWarehouse->id)
+                    ->orWhere('to_warehouse_id', $currentWarehouse->id);
+
+                if ($principalWarehouse && $currentWarehouse->is_principal) {
+                    $q->orWhere('to_warehouse_id', $principalWarehouse->id);
+                }
+            });
+
+        if ($request->filled('search')) {
+            $term = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($term) {
+                $q->where('request_code', 'like', "%{$term}%")
+                    ->orWhereHas('operationalArea', fn ($sq) => $sq->where('name', 'like', "%{$term}%"))
+                    ->orWhereHas('requester', fn ($sq) => $sq->where('name', 'like', "%{$term}%"));
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        if ($request->filled('operational_area_id')) {
+            $query->where('operational_area_id', $request->integer('operational_area_id'));
+        }
+
+        $operationalAreaFilterOptions = (clone $query)
+            ->with('operationalArea.sede')
+            ->get()
+            ->map(fn ($warehouseRequest) => $warehouseRequest->operationalArea)
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+
+        $requests = $query->latest()->paginate(15)->withQueryString();
+
+        $statusColors = self::STATUS_COLORS;
+        $statusLabels = self::STATUS_LABELS;
+        $dispatchStatusLabels = self::DISPATCH_STATUS_LABELS;
+        $receiveStatusLabels = self::RECEIVE_STATUS_LABELS;
+
+        return view('warehouse.requests.by-area', compact(
+            'requests',
+            'statusColors',
+            'statusLabels',
+            'dispatchStatusLabels',
+            'receiveStatusLabels',
+            'operationalAreaFilterOptions'
         ));
     }
 

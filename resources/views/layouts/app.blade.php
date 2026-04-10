@@ -181,8 +181,13 @@
             </li>
             <li><hr class="dropdown-divider"></li>
             <li>
-                <a class="dropdown-item {{ request()->routeIs('warehouse.requests.*') ? 'active' : '' }}" href="{{ route('warehouse.requests.index') }}">
+                <a class="dropdown-item {{ request()->routeIs('warehouse.requests.index') ? 'active' : '' }}" href="{{ route('warehouse.requests.index') }}">
                     <i class="bi bi-file-earmark-text me-2"></i> Solicitudes
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('warehouse.requests.by-area') ? 'active' : '' }}" href="{{ route('warehouse.requests.by-area') }}">
+                    <i class="bi bi-diagram-3 me-2"></i> Solicitudes por área
                 </a>
             </li>
         </ul>

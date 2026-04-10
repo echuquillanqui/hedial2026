@@ -79,6 +79,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
 
     Route::get('almacen/dashboard', [App\Http\Controllers\WarehouseRequestController::class, 'dashboard'])->name('warehouse.dashboard');
     Route::get('almacen/solicitudes', [App\Http\Controllers\WarehouseRequestController::class, 'index'])->name('warehouse.requests.index');
+    Route::get('almacen/solicitudes-por-area', [App\Http\Controllers\WarehouseRequestController::class, 'byArea'])->name('warehouse.requests.by-area');
     Route::get('almacen/categorias', [App\Http\Controllers\WarehouseRequestController::class, 'categories'])->name('warehouse.categories.index');
     Route::post('almacen/categorias', [App\Http\Controllers\WarehouseRequestController::class, 'storeCategory'])->name('warehouse.categories.store');
     Route::get('almacen/materiales', [App\Http\Controllers\WarehouseRequestController::class, 'materials'])->name('warehouse.materials.index');
