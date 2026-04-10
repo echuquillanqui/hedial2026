@@ -46,6 +46,9 @@
                 <a class="navbar-brand fw-bold" href="{{ url('/home') }}">
                     <i class="bi bi-heart-pulse-fill me-2"></i> HEMODIAL
                 </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
                 <div class="collapse navbar-collapse" id="navMain">
                     @php
                         $canManageUsers = auth()->user()->can('users.view');
@@ -66,10 +69,10 @@
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
     <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*') ? 'active fw-bold' : '' }}" 
-           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*') ? 'active fw-bold' : '' }}"
+           type="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-people-fill me-1"></i> Gestión
-        </a>
+        </button>
         <ul class="dropdown-menu shadow border-0">
             @if($canManageUsers)
             <li>
@@ -111,10 +114,10 @@
 
     @if($canSeeClinicalArea)
     <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('orders.*', 'medicals.*', 'nurses.*', 'extra-materials.*') ? 'active fw-bold' : '' }}" 
-           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.*', 'medicals.*', 'nurses.*', 'extra-materials.*') ? 'active fw-bold' : '' }}"
+           type="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-clipboard2-pulse-fill me-1"></i> Área Clínica
-        </a>
+        </button>
         <ul class="dropdown-menu shadow border-0">
             @if($canViewOrders)
             <li>
@@ -153,10 +156,10 @@
 
     @if($canViewWarehouse)
     <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle px-3 {{ request()->routeIs('warehouse.*') ? 'active fw-bold' : '' }}"
-           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('warehouse.*') ? 'active fw-bold' : '' }}"
+           type="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-truck me-1"></i> LOGÍSTICA
-        </a>
+        </button>
         <ul class="dropdown-menu shadow border-0">
             <li>
                 <a class="dropdown-item {{ request()->routeIs('warehouse.dashboard') ? 'active' : '' }}" href="{{ route('warehouse.dashboard') }}">
@@ -204,13 +207,13 @@
                             <a class="btn btn-sm btn-outline-light" href="{{ route('sede.select') }}">Cambiar sede</a>
                         </li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                            <button class="nav-link dropdown-toggle d-flex align-items-center border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <div class="text-end me-2 d-none d-sm-block">
                                     <div class="small fw-bold lh-1">{{ Auth::user()->name }}</div>
                                     <small class="opacity-75" style="font-size: 0.7rem;">{{ Auth::user()->profession }}</small>
                                 </div>
                                 <i class="bi bi-person-circle fs-4"></i>
-                            </a>
+                            </button>
                             <div class="dropdown-menu dropdown-menu-end border-0 shadow">
                                 <a class="dropdown-item text-danger" href="{{ route('logout') }}" 
                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
