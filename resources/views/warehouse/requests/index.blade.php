@@ -18,7 +18,7 @@
 
     <form method="GET" class="card shadow-sm p-3 mb-3">
         <div class="row g-2">
-            <div class="col-md-8">
+            <div class="col-md-5">
                 <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Buscar por código o sede...">
             </div>
             <div class="col-md-3">
@@ -29,11 +29,85 @@
                     @endforeach
                 </select>
             </div>
+            <div class="col-md-3">
+                <select name="operational_area_id" class="form-select">
+                    <option value="">Todas las áreas</option>
+                    @foreach($operationalAreaFilterOptions as $areaFilter)
+                        <option value="{{ $areaFilter->id }}" @selected((string) request('operational_area_id') === (string) $areaFilter->id)>
+                            {{ $areaFilter->name }} ({{ $areaFilter->sede?->name ?? 'Sin sede' }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
             <div class="col-md-1 d-grid">
                 <button class="btn btn-outline-primary">Filtrar</button>
             </div>
         </div>
     </form>
+
+    @can('warehouse.requests.update.status')
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Consolidado para revisión administrativa</h6>
+            <span class="badge bg-warning text-dark">Pendientes por revisar: {{ $consolidatedSummary['pending_review'] }}</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">Solicitudes visibles</small>
+                        <strong>{{ $consolidatedSummary['requests_count'] }}</strong>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">Ítems solicitados</small>
+                        <strong>{{ $consolidatedSummary['items_count'] }}</strong>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">Cantidad total pedida</small>
+                        <strong>{{ number_format($consolidatedSummary['qty_requested_total'], 2) }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Área</th>
+                            <th>Sede</th>
+                            <th>Solicitudes</th>
+                            <th>Ítems</th>
+                            <th>Total solicitado</th>
+                            <th>Pendientes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($areaSummary as $row)
+                        <tr>
+                            <td>{{ $row['area_name'] }}</td>
+                            <td>{{ $row['sede_name'] }}</td>
+                            <td>{{ $row['requests_count'] }}</td>
+                            <td>{{ $row['items_count'] }}</td>
+                            <td>{{ number_format($row['qty_requested_total'], 2) }}</td>
+                            <td>
+                                <span class="badge bg-{{ $row['pending_review'] > 0 ? 'warning text-dark' : 'success' }}">
+                                    {{ $row['pending_review'] }}
+                                </span>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="6" class="text-center text-muted">Sin información para consolidar.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @endcan
 
     <div class="card shadow-sm">
         <div class="table-responsive">

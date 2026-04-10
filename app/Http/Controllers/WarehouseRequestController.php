@@ -100,6 +100,46 @@ class WarehouseRequestController extends Controller
             $query->where('status', $request->input('status'));
         }
 
+        if ($request->filled('operational_area_id')) {
+            $query->where('operational_area_id', $request->integer('operational_area_id'));
+        }
+
+        $requestsForSummary = (clone $query)
+            ->with(['items', 'operationalArea.sede'])
+            ->get();
+
+        $areaSummary = $requestsForSummary
+            ->groupBy(fn ($warehouseRequest) => $warehouseRequest->operationalArea?->name ?? 'Sin área')
+            ->map(function ($requestsByArea) {
+                $firstRequest = $requestsByArea->first();
+                $area = $firstRequest?->operationalArea;
+
+                return [
+                    'area_name' => $area?->name ?? 'Sin área',
+                    'sede_name' => $area?->sede?->name ?? 'Sin sede',
+                    'requests_count' => $requestsByArea->count(),
+                    'items_count' => $requestsByArea->sum(fn ($warehouseRequest) => $warehouseRequest->items->count()),
+                    'qty_requested_total' => $requestsByArea->sum(fn ($warehouseRequest) => $warehouseRequest->items->sum('qty_requested')),
+                    'pending_review' => $requestsByArea->whereIn('status', ['submitted', 'received_by_warehouse'])->count(),
+                ];
+            })
+            ->sortByDesc('pending_review')
+            ->values();
+
+        $consolidatedSummary = [
+            'requests_count' => $requestsForSummary->count(),
+            'items_count' => $requestsForSummary->sum(fn ($warehouseRequest) => $warehouseRequest->items->count()),
+            'qty_requested_total' => $requestsForSummary->sum(fn ($warehouseRequest) => $warehouseRequest->items->sum('qty_requested')),
+            'pending_review' => $requestsForSummary->whereIn('status', ['submitted', 'received_by_warehouse'])->count(),
+        ];
+
+        $operationalAreaFilterOptions = $requestsForSummary
+            ->map(fn ($warehouseRequest) => $warehouseRequest->operationalArea)
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+
         $requests = $query->latest()->paginate(12)->withQueryString();
 
         $materials = WarehouseMaterial::query()
@@ -133,6 +173,9 @@ class WarehouseRequestController extends Controller
             'requests',
             'materials',
             'availableWarehouses',
+            'areaSummary',
+            'consolidatedSummary',
+            'operationalAreaFilterOptions',
             'statusColors',
             'statusLabels',
             'dispatchStatusLabels',
