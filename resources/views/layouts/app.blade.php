@@ -41,15 +41,15 @@
 <body>
     <div id="app">
         @auth
-        <nav class="navbar navbar-expand-md navbar-dark shadow-sm">
+        <nav class="navbar navbar-expand-md navbar-dark shadow-sm" x-data="{ mobileOpen: false }">
             <div class="container-fluid px-4">
                 <a class="navbar-brand fw-bold" href="{{ url('/home') }}">
                     <i class="bi bi-heart-pulse-fill me-2"></i> HEMODIAL
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler" type="button" @click="mobileOpen = !mobileOpen" :aria-expanded="mobileOpen.toString()" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="collapse navbar-collapse" id="navMain">
+                <div class="navbar-collapse" :class="{ 'd-none d-md-flex': !mobileOpen, 'd-flex flex-column flex-md-row': mobileOpen }" id="navMain">
                     @php
                         $canManageUsers = auth()->user()->can('users.view');
                         $canManagePatients = auth()->user()->can('patients.view');
@@ -68,12 +68,12 @@
                     @endphp
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
-    <li class="nav-item dropdown">
+    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
         <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*') ? 'active fw-bold' : '' }}"
-           type="button" data-bs-toggle="dropdown" aria-expanded="false">
+           type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-people-fill me-1"></i> Gestión
         </button>
-        <ul class="dropdown-menu shadow border-0">
+        <ul class="dropdown-menu shadow border-0" x-show="open" x-transition x-cloak style="display: none;">
             @if($canManageUsers)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
@@ -113,12 +113,12 @@
     @endif
 
     @if($canSeeClinicalArea)
-    <li class="nav-item dropdown">
+    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
         <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.*', 'medicals.*', 'nurses.*', 'extra-materials.*') ? 'active fw-bold' : '' }}"
-           type="button" data-bs-toggle="dropdown" aria-expanded="false">
+           type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-clipboard2-pulse-fill me-1"></i> Área Clínica
         </button>
-        <ul class="dropdown-menu shadow border-0">
+        <ul class="dropdown-menu shadow border-0" x-show="open" x-transition x-cloak style="display: none;">
             @if($canViewOrders)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">
@@ -155,12 +155,12 @@
     @endif
 
     @if($canViewWarehouse)
-    <li class="nav-item dropdown">
+    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
         <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('warehouse.*') ? 'active fw-bold' : '' }}"
-           type="button" data-bs-toggle="dropdown" aria-expanded="false">
+           type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-truck me-1"></i> LOGÍSTICA
         </button>
-        <ul class="dropdown-menu shadow border-0">
+        <ul class="dropdown-menu shadow border-0" x-show="open" x-transition x-cloak style="display: none;">
             <li>
                 <a class="dropdown-item {{ request()->routeIs('warehouse.dashboard') ? 'active' : '' }}" href="{{ route('warehouse.dashboard') }}">
                     <i class="bi bi-speedometer2 me-2"></i> Dashboard
@@ -206,15 +206,15 @@
                         <li class="nav-item me-2">
                             <a class="btn btn-sm btn-outline-light" href="{{ route('sede.select') }}">Cambiar sede</a>
                         </li>
-                        <li class="nav-item dropdown">
-                            <button class="nav-link dropdown-toggle d-flex align-items-center border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
+                            <button class="nav-link dropdown-toggle d-flex align-items-center border-0 bg-transparent" type="button" @click="open = !open" :aria-expanded="open.toString()">
                                 <div class="text-end me-2 d-none d-sm-block">
                                     <div class="small fw-bold lh-1">{{ Auth::user()->name }}</div>
                                     <small class="opacity-75" style="font-size: 0.7rem;">{{ Auth::user()->profession }}</small>
                                 </div>
                                 <i class="bi bi-person-circle fs-4"></i>
                             </button>
-                            <div class="dropdown-menu dropdown-menu-end border-0 shadow">
+                            <div class="dropdown-menu dropdown-menu-end border-0 shadow" x-show="open" x-transition x-cloak style="display: none;">
                                 <a class="dropdown-item text-danger" href="{{ route('logout') }}" 
                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                     Cerrar Sesión
@@ -236,7 +236,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     @stack('scripts')
 </body>
