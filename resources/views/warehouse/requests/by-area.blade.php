@@ -89,7 +89,7 @@
                                 <button
                                     type="button"
                                     class="btn btn-outline-primary btn-sm js-open-request-detail"
-                                    data-request='@json($payload)'>
+                                    data-request='@json($payload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)'>
                                     <i class="bi bi-eye"></i> Ver pedido
                                 </button>
                             </td>
@@ -163,7 +163,14 @@
 
     document.querySelectorAll('.js-open-request-detail').forEach((button) => {
         button.addEventListener('click', () => {
-            const data = JSON.parse(button.dataset.request || '{}');
+            const rawPayload = button.dataset.request || '{}';
+            let data = {};
+
+            try {
+                data = JSON.parse(rawPayload);
+            } catch (error) {
+                console.error('No se pudo leer el detalle de la solicitud.', error);
+            }
 
             codeEl.textContent = data.request_code || '-';
             areaEl.textContent = data.area || '-';
