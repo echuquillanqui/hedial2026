@@ -5,7 +5,7 @@
     window.sedesData = @json($sedes);
 </script>
 
-<div class="container-fluid py-4" x-data="sedeManagement">
+<div class="container-fluid py-4" x-data="sedeManagement()">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-0">Sedes</h2>
