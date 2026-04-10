@@ -115,11 +115,14 @@ class WarehouseRequestController extends Controller
             ->get();
         $availableWarehouses = Warehouse::query()
             ->with('sede')
-            ->where('id', '!=', $currentWarehouse->id)
             ->where('is_active', true)
-            ->when(! $currentWarehouse->is_principal, function ($query) {
-                $query->where('is_principal', true);
+            ->when(! $currentWarehouse->is_principal, function ($query) use ($currentWarehouse) {
+                $query->where(function ($inner) use ($currentWarehouse) {
+                    $inner->where('is_principal', true)
+                        ->orWhere('id', $currentWarehouse->id);
+                });
             })
+            ->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$currentWarehouse->id])
             ->orderBy('is_principal', 'desc')
             ->orderBy('name')
             ->get();
@@ -358,9 +361,8 @@ class WarehouseRequestController extends Controller
         ]);
 
         $toWarehouse = Warehouse::query()->findOrFail($validated['to_warehouse_id']);
-        abort_if($fromWarehouse->id === $toWarehouse->id, 422, 'Debe seleccionar una sede destino distinta a la sede activa.');
         abort_if(
-            ! $fromWarehouse->is_principal && ! $toWarehouse->is_principal,
+            $fromWarehouse->id !== $toWarehouse->id && ! $fromWarehouse->is_principal && ! $toWarehouse->is_principal,
             422,
             'Las sedes secundarias solo pueden enviar solicitudes al almacén principal.'
         );
