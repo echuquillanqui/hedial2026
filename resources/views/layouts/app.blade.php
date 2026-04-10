@@ -73,7 +73,7 @@
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-people-fill me-1"></i> Gestión
         </button>
-        <ul class="dropdown-menu shadow border-0" x-show="open" x-transition x-cloak style="display: none;">
+        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
             @if($canManageUsers)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
@@ -118,7 +118,7 @@
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-clipboard2-pulse-fill me-1"></i> Área Clínica
         </button>
-        <ul class="dropdown-menu shadow border-0" x-show="open" x-transition x-cloak style="display: none;">
+        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
             @if($canViewOrders)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">
@@ -160,7 +160,7 @@
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-truck me-1"></i> LOGÍSTICA
         </button>
-        <ul class="dropdown-menu shadow border-0" x-show="open" x-transition x-cloak style="display: none;">
+        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
             <li>
                 <a class="dropdown-item {{ request()->routeIs('warehouse.dashboard') ? 'active' : '' }}" href="{{ route('warehouse.dashboard') }}">
                     <i class="bi bi-speedometer2 me-2"></i> Dashboard
@@ -214,7 +214,7 @@
                                 </div>
                                 <i class="bi bi-person-circle fs-4"></i>
                             </button>
-                            <div class="dropdown-menu dropdown-menu-end border-0 shadow" x-show="open" x-transition x-cloak style="display: none;">
+                            <div class="dropdown-menu dropdown-menu-end border-0 shadow" :class="{ 'show': open }" x-transition x-cloak>
                                 <a class="dropdown-item text-danger" href="{{ route('logout') }}" 
                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                     Cerrar Sesión
