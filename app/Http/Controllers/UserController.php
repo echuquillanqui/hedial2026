@@ -7,6 +7,7 @@ use App\Models\OperationalArea;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\Models\Sede;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -88,8 +89,13 @@ class UserController extends Controller
             'sedes'            => 'nullable|array',
             'sedes.*'          => 'exists:sedes,id',
             'operational_areas' => 'nullable|array',
-            'operational_areas.*' => 'exists:operational_areas,id',
+            'operational_areas.*' => 'distinct|exists:operational_areas,id',
         ]);
+
+        $this->ensureOperationalAreasMatchSedes(
+            $request->input('operational_areas', []),
+            $request->input('sedes', [])
+        );
 
         $user = User::create([
             'name'             => $request->name,
@@ -136,8 +142,13 @@ class UserController extends Controller
             'sedes'            => 'nullable|array',
             'sedes.*'          => 'exists:sedes,id',
             'operational_areas' => 'nullable|array',
-            'operational_areas.*' => 'exists:operational_areas,id',
+            'operational_areas.*' => 'distinct|exists:operational_areas,id',
         ]);
+
+        $this->ensureOperationalAreasMatchSedes(
+            $request->input('operational_areas', []),
+            $request->input('sedes', [])
+        );
 
         $data = $request->only([
             'name',
@@ -214,6 +225,30 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->route('users.index')->with('success', 'Usuario eliminado con éxito.');
+    }
+
+    private function ensureOperationalAreasMatchSedes(array $operationalAreaIds, array $sedeIds): void
+    {
+        if (empty($operationalAreaIds)) {
+            return;
+        }
+
+        if (empty($sedeIds)) {
+            throw ValidationException::withMessages([
+                'operational_areas' => 'Debe asignar al menos una sede para vincular áreas operativas.',
+            ]);
+        }
+
+        $validCount = OperationalArea::query()
+            ->whereIn('id', $operationalAreaIds)
+            ->whereIn('sede_id', $sedeIds)
+            ->count();
+
+        if ($validCount !== count(array_unique($operationalAreaIds))) {
+            throw ValidationException::withMessages([
+                'operational_areas' => 'Solo puede asignar áreas operativas que pertenezcan a las sedes seleccionadas.',
+            ]);
+        }
     }
 
     public function storeRole(Request $request)

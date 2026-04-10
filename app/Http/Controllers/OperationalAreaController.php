@@ -32,7 +32,12 @@ class OperationalAreaController extends Controller
     {
         $validated = $request->validate([
             'sede_id' => ['required', 'exists:sedes,id'],
-            'name' => ['required', 'string', 'max:150'],
+            'name' => [
+                'required',
+                'string',
+                'max:150',
+                Rule::unique('operational_areas', 'name')->where(fn ($query) => $query->where('sede_id', $request->integer('sede_id'))),
+            ],
             'code' => ['nullable', 'string', 'max:30', 'unique:operational_areas,code'],
             'is_active' => ['required', 'boolean'],
         ]);
@@ -46,7 +51,14 @@ class OperationalAreaController extends Controller
     {
         $validated = $request->validate([
             'sede_id' => ['required', 'exists:sedes,id'],
-            'name' => ['required', 'string', 'max:150'],
+            'name' => [
+                'required',
+                'string',
+                'max:150',
+                Rule::unique('operational_areas', 'name')
+                    ->ignore($operationalArea->id)
+                    ->where(fn ($query) => $query->where('sede_id', $request->integer('sede_id'))),
+            ],
             'code' => ['nullable', 'string', 'max:30', Rule::unique('operational_areas', 'code')->ignore($operationalArea->id)],
             'is_active' => ['required', 'boolean'],
         ]);
