@@ -1,6 +1,6 @@
 <div class="modal fade" id="createRequestModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <form class="modal-content" method="POST" action="{{ route('warehouse.requests.store') }}">
+    <form class="modal-content" method="POST" action="{{ route('warehouse.requests.store') }}" id="warehouseRequestForm">
       @csrf
       <div class="modal-header">
         <h5 class="modal-title">Nueva solicitud de materiales</h5>
@@ -43,6 +43,12 @@
           <table class="table table-sm align-middle" id="itemsTable">
             <thead>
               <tr>
+                <th style="width: 90px;">
+                  <div class="form-check m-0">
+                    <input type="checkbox" class="form-check-input" id="toggleAllItems" checked>
+                    <label class="form-check-label" for="toggleAllItems">Incluir</label>
+                  </div>
+                </th>
                 <th>Material</th>
                 <th>Cantidad solicitada</th>
                 <th></th>
@@ -50,6 +56,9 @@
             </thead>
             <tbody>
               <tr>
+                <td>
+                  <input type="checkbox" class="form-check-input item-include" checked>
+                </td>
                 <td>
                   <select name="items[0][warehouse_material_id]" class="form-select" required>
                     <option value="">Seleccione...</option>
@@ -59,11 +68,12 @@
                   </select>
                 </td>
                 <td><input type="number" step="0.01" min="0.01" name="items[0][qty_requested]" class="form-control" required></td>
-                <td><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+                <td><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove(); syncSelectAllCheckbox();"><i class="bi bi-trash"></i></button></td>
               </tr>
             </tbody>
           </table>
           <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addRequestRow()"><i class="bi bi-plus"></i> Agregar línea</button>
+          <small class="text-muted d-block mt-2">Antes de enviar, puede desmarcar ítems que no necesita y ajustar cantidades en el consolidado.</small>
         </div>
       </div>
       <div class="modal-footer">
@@ -83,14 +93,71 @@ function addRequestRow() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
         <td>
+            <input type="checkbox" class="form-check-input item-include" checked>
+        </td>
+        <td>
             <select name="items[${idx}][warehouse_material_id]" class="form-select" required>
                 <option value="">Seleccione...</option>
                 ${options}
             </select>
         </td>
         <td><input type="number" step="0.01" min="0.01" name="items[${idx}][qty_requested]" class="form-control" required></td>
-        <td><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove(); syncSelectAllCheckbox();"><i class="bi bi-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
+    syncSelectAllCheckbox();
 }
+
+function syncSelectAllCheckbox() {
+    const items = Array.from(document.querySelectorAll('#itemsTable tbody .item-include'));
+    const toggle = document.getElementById('toggleAllItems');
+
+    if (!toggle) {
+        return;
+    }
+
+    toggle.checked = items.length > 0 && items.every((input) => input.checked);
+}
+
+document.addEventListener('change', function (event) {
+    if (event.target && event.target.id === 'toggleAllItems') {
+        const checked = event.target.checked;
+        document.querySelectorAll('#itemsTable tbody .item-include').forEach((input) => {
+            input.checked = checked;
+        });
+    }
+
+    if (event.target && event.target.classList.contains('item-include')) {
+        syncSelectAllCheckbox();
+    }
+});
+
+document.getElementById('warehouseRequestForm')?.addEventListener('submit', function (event) {
+    const rows = Array.from(document.querySelectorAll('#itemsTable tbody tr'));
+    const selectedRows = rows.filter((row) => row.querySelector('.item-include')?.checked);
+
+    if (selectedRows.length === 0) {
+        event.preventDefault();
+        alert('Debe seleccionar al menos un ítem para enviar la solicitud.');
+
+        return;
+    }
+
+    const tbody = document.querySelector('#itemsTable tbody');
+
+    selectedRows.forEach((row, idx) => {
+        row.querySelectorAll('select[name], input[name]').forEach((input) => {
+            input.name = input.name.replace(/items\[\d+\]/, `items[${idx}]`);
+        });
+    });
+
+    rows.filter((row) => !selectedRows.includes(row)).forEach((row) => {
+        row.querySelectorAll('select[name], input[name]').forEach((input) => {
+            input.removeAttribute('name');
+        });
+    });
+
+    tbody.innerHTML = '';
+    selectedRows.forEach((row) => tbody.appendChild(row));
+});
 </script>

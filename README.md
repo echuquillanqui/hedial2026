@@ -64,3 +64,37 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+
+## Flujo logístico de requerimientos consolidados
+
+Este es el flujo propuesto para la operación entre áreas, administración de sede y logística central:
+
+1. **Registro del requerimiento por área**
+   - Cada área de una sede registra su necesidad de materiales con su **Administrador de Sede**.
+
+2. **Consolidación automática por sede**
+   - El Administrador de Sede exporta un **consolidado** con todos los requerimientos de sus áreas.
+
+3. **Revisión del consolidado por el Administrador de Sede**
+   - Antes de enviar a la sede principal, el administrador debe visualizar el consolidado en una tabla editable.
+   - En esta tabla debe poder:
+     - Marcar o desmarcar ítems mediante **checks** para excluir lo que ya no necesita.
+     - **Modificar cantidades** cuando la necesidad cambie.
+
+4. **Validación contra stock local de la sede**
+   - El Administrador de Sede revisa su stock disponible.
+   - Solo mantiene en el envío lo que efectivamente falta en su sede.
+
+5. **Envío de solicitud consolidada a sede principal**
+   - Con el consolidado depurado, la sede secundaria envía la solicitud final a la sede principal.
+
+6. **Aprobación y despacho por usuario logístico**
+   - El **Usuario Logístico** de sede principal revisa, aprueba y realiza los despachos a las sedes.
+
+7. **Trazabilidad recomendada**
+   - Registrar en bitácora: usuario, fecha/hora, ítems excluidos por check, cambios de cantidad y estado de aprobación/ despacho.
+
+### Resultado esperado
+
+Con este flujo, cada sede envía solo lo que realmente necesita y logística central opera sobre solicitudes consolidadas, revisadas y trazables.
