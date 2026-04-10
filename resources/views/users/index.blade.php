@@ -144,6 +144,22 @@
                 return this.filteredUsers.slice(start, end);
             },
 
+            get filteredOperationalAreas() {
+                const selectedSedes = new Set((this.currentUser.sedes_selected || []).map(id => String(id)));
+
+                if (selectedSedes.size === 0) {
+                    return this.operationalAreasCatalog;
+                }
+
+                return this.operationalAreasCatalog.filter(area => selectedSedes.has(String(area.sede_id)));
+            },
+
+            syncOperationalAreasWithSedes() {
+                const allowedAreaIds = new Set(this.filteredOperationalAreas.map(area => String(area.id)));
+                this.currentUser.operational_areas_selected = (this.currentUser.operational_areas_selected || [])
+                    .filter(areaId => allowedAreaIds.has(String(areaId)));
+            },
+
             openModal(user = null) {
                 this.currentUser = user
                     ? {
@@ -154,6 +170,8 @@
                         operational_areas_selected: (user.operational_areas || []).map(a => String(a.id)),
                     }
                     : { id: null, name: '', username: '', email: '', profession: '', license_number: '', specialty_number: '', roles_selected: [], permissions_selected: [], sedes_selected: [], operational_areas_selected: [] };
+
+                this.syncOperationalAreasWithSedes();
 
                 const modal = window.bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal'));
                 modal.show();

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\OperationalArea;
+use App\Support\CurrentSede;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -28,12 +29,27 @@ class UserController extends Controller
 
     public function index()
     {
-        $users = User::with(['roles', 'permissions', 'sedes', 'operationalAreas.sede'])->orderBy('name', 'asc')->get();
+        $manageableSedeIds = $this->manageableSedeIds();
+
+        $users = User::with(['roles', 'permissions', 'sedes', 'operationalAreas.sede'])
+            ->when(! auth()->user()?->hasRole('superadmin'), function ($query) use ($manageableSedeIds) {
+                $query->whereHas('sedes', fn ($sedeQuery) => $sedeQuery->whereIn('sedes.id', $manageableSedeIds));
+            })
+            ->orderBy('name', 'asc')
+            ->get();
         $roles = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
 
-        $sedes = Sede::where('is_active', true)->orderBy('name')->get();
-        $operationalAreas = OperationalArea::query()->with('sede')->where('is_active', true)->orderBy('name')->get();
+        $sedes = Sede::where('is_active', true)
+            ->when(! auth()->user()?->hasRole('superadmin'), fn ($query) => $query->whereIn('id', $manageableSedeIds))
+            ->orderBy('name')
+            ->get();
+        $operationalAreas = OperationalArea::query()
+            ->with('sede')
+            ->where('is_active', true)
+            ->when(! auth()->user()?->hasRole('superadmin'), fn ($query) => $query->whereIn('sede_id', $manageableSedeIds))
+            ->orderBy('name')
+            ->get();
 
         return view('users.index', compact('users', 'roles', 'permissions', 'sedes', 'operationalAreas'));
     }
@@ -74,6 +90,8 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        $this->ensureManagedSedes($request->input('sedes', []));
+
         $request->validate([
             'name'             => 'required|string|max:255',
             'username'         => 'required|string|max:255|unique:users,username',
@@ -127,6 +145,8 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
+        $this->ensureManagedSedes($request->input('sedes', []));
+
         $request->validate([
             'name'             => 'required|string|max:255',
             'username'         => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
@@ -249,6 +269,35 @@ class UserController extends Controller
                 'operational_areas' => 'Solo puede asignar áreas operativas que pertenezcan a las sedes seleccionadas.',
             ]);
         }
+    }
+
+    private function ensureManagedSedes(array $sedeIds): void
+    {
+        if (auth()->user()?->hasRole('superadmin') || empty($sedeIds)) {
+            return;
+        }
+
+        $manageableSedeIds = $this->manageableSedeIds();
+        $selectedSedes = array_map('intval', $sedeIds);
+
+        foreach ($selectedSedes as $sedeId) {
+            if (! in_array($sedeId, $manageableSedeIds, true)) {
+                throw ValidationException::withMessages([
+                    'sedes' => 'Solo puede asignar usuarios a su sede activa.',
+                ]);
+            }
+        }
+    }
+
+    private function manageableSedeIds(): array
+    {
+        if (auth()->user()?->hasRole('superadmin')) {
+            return Sede::query()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+
+        $currentSedeId = CurrentSede::id();
+
+        return $currentSedeId ? [$currentSedeId] : [];
     }
 
     public function storeRole(Request $request)

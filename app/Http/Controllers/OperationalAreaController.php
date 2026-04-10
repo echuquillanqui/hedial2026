@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\OperationalArea;
 use App\Models\Sede;
+use App\Support\CurrentSede;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OperationalAreaController extends Controller
 {
@@ -17,19 +19,33 @@ class OperationalAreaController extends Controller
 
     public function index()
     {
+        $currentSedeId = CurrentSede::id();
+        $isSuperAdmin = auth()->user()?->hasRole('superadmin');
+
         $areas = OperationalArea::query()
             ->with(['sede', 'users:id,name'])
+            ->when(! $isSuperAdmin && $currentSedeId, function ($query) use ($currentSedeId) {
+                $query->where('sede_id', $currentSedeId);
+            })
             ->orderByDesc('is_active')
             ->orderBy('name')
             ->get();
 
-        $sedes = Sede::query()->where('is_active', true)->orderBy('name')->get();
+        $sedes = Sede::query()
+            ->where('is_active', true)
+            ->when(! $isSuperAdmin && $currentSedeId, function ($query) use ($currentSedeId) {
+                $query->whereKey($currentSedeId);
+            })
+            ->orderBy('name')
+            ->get();
 
         return view('operational-areas.index', compact('areas', 'sedes'));
     }
 
     public function store(Request $request)
     {
+        $this->ensureCanManageSede($request->integer('sede_id'));
+
         $validated = $request->validate([
             'sede_id' => ['required', 'exists:sedes,id'],
             'name' => [
@@ -49,6 +65,9 @@ class OperationalAreaController extends Controller
 
     public function update(Request $request, OperationalArea $operationalArea)
     {
+        $this->ensureCanManageSede($operationalArea->sede_id);
+        $this->ensureCanManageSede($request->integer('sede_id'));
+
         $validated = $request->validate([
             'sede_id' => ['required', 'exists:sedes,id'],
             'name' => [
@@ -66,5 +85,20 @@ class OperationalAreaController extends Controller
         $operationalArea->update($validated);
 
         return redirect()->route('operational-areas.index')->with('success', 'Área operativa actualizada correctamente.');
+    }
+
+    private function ensureCanManageSede(?int $sedeId): void
+    {
+        $user = auth()->user();
+
+        if (! $user || $user->hasRole('superadmin')) {
+            return;
+        }
+
+        if (! $sedeId || $sedeId !== CurrentSede::id()) {
+            throw ValidationException::withMessages([
+                'sede_id' => 'Solo puede gestionar áreas operativas de su sede activa.',
+            ]);
+        }
     }
 }

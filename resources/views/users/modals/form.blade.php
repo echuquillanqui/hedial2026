@@ -66,7 +66,7 @@
 
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-warning">Sedes asignadas</label>
-                            <select name="sedes[]" class="form-select rounded-3" multiple size="6" x-model="currentUser.sedes_selected">
+                            <select name="sedes[]" class="form-select rounded-3" multiple size="6" x-model="currentUser.sedes_selected" @change="syncOperationalAreasWithSedes()">
                                 <template x-for="sede in sedesCatalog" :key="`sede-${sede.id}`">
                                     <option :value="String(sede.id)" x-text="sede.name"></option>
                                 </template>
@@ -75,7 +75,7 @@
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-info">Áreas operativas asignadas</label>
                             <select name="operational_areas[]" class="form-select rounded-3" multiple size="6" x-model="currentUser.operational_areas_selected">
-                                <template x-for="area in operationalAreasCatalog" :key="`area-${area.id}`">
+                                <template x-for="area in filteredOperationalAreas" :key="`area-${area.id}`">
                                     <option :value="String(area.id)" x-text="`${area.sede?.name || 'Sin sede'} - ${area.name}`"></option>
                                 </template>
                             </select>

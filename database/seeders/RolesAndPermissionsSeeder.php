@@ -3,7 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Sede;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -94,6 +97,33 @@ class RolesAndPermissionsSeeder extends Seeder
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
             $role->syncPermissions($rolePermissions);
         }
+
+        $adminRole = Role::firstWhere(['name' => 'admin', 'guard_name' => 'web']);
+        Sede::query()->where('is_active', true)->get()->each(function (Sede $sede) use ($adminRole) {
+            $base = Str::of($sede->name)->lower()->ascii()->replace(' ', '.');
+            $username = "admin.{$base}";
+            $email = "{$username}@hemodial.local";
+
+            $user = User::query()->firstOrCreate(
+                ['username' => $username],
+                [
+                    'name' => 'Administrador ' . $sede->name,
+                    'email' => $email,
+                    'password' => Hash::make('Admin@123456'),
+                    'profession' => 'ADMINISTRATIVO',
+                ]
+            );
+
+            if (! $user->wasRecentlyCreated && $user->email !== $email) {
+                $user->update(['email' => $email]);
+            }
+
+            if ($adminRole) {
+                $user->syncRoles([$adminRole->name]);
+            }
+
+            $user->sedes()->sync([$sede->id]);
+        });
 
         $ownerUser = User::where('username', 'rchuquillanqui')->first();
 
