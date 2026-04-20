@@ -7,6 +7,7 @@ use App\Models\HemodialysisMaterial;
 use App\Models\HemodialysisMaterialConsumption;
 use App\Models\Order;
 use App\Models\Patient;
+use App\Models\WarehouseMaterial;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -50,6 +51,11 @@ class ExtraMaterialController extends Controller
             ->whereMonth('fecha_orden', (int) $monthNumber)
             ->orderByDesc('fecha_orden')
             ->get();
+
+        $warehouseMaterials = WarehouseMaterial::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'unit']);
 
         $summaryByPatient = ExtraMaterial::query()
             ->when($currentSedeId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('sede_id', $currentSedeId)))
@@ -96,6 +102,7 @@ class ExtraMaterialController extends Controller
             'materials',
             'patients',
             'orders',
+            'warehouseMaterials',
             'summaryByPatient',
             'totalMonth',
             'month',

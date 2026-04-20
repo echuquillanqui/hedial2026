@@ -31,7 +31,17 @@
             </div>
             <div class="col-md-5">
                 <label class="label-mini">Material</label>
-                <input type="text" name="material_name" class="form-control form-control-sm" value="{{ old('material_name') }}" placeholder="Ej. Dializador extra" required>
+                <select name="material_name" class="form-select form-select-sm @error('material_name') is-invalid @enderror" required>
+                    <option value="">-- Seleccionar material de logística --</option>
+                    @foreach($warehouseMaterials as $warehouseMaterial)
+                        <option value="{{ $warehouseMaterial->name }}" {{ old('material_name') === $warehouseMaterial->name ? 'selected' : '' }}>
+                            {{ $warehouseMaterial->code }} - {{ $warehouseMaterial->name }} ({{ $warehouseMaterial->unit }})
+                        </option>
+                    @endforeach
+                    @if(old('material_name') && !$warehouseMaterials->contains('name', old('material_name')))
+                        <option value="{{ old('material_name') }}" selected>{{ old('material_name') }} (no activo en logística)</option>
+                    @endif
+                </select>
             </div>
             <div class="col-md-2">
                 <label class="label-mini">Cantidad</label>
