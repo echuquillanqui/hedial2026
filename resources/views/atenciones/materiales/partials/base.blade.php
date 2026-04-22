@@ -3,25 +3,37 @@
     <div class="card-body">
         <form action="{{ route('extra-materials.base.store') }}" method="POST" class="row g-2 align-items-end">
             @csrf
+            <div class="col-md-12">
+                <label class="label-mini">Buscar en materiales de logística</label>
+                <select class="form-select form-select-sm js-warehouse-material-select" data-target-name="base_material_name" data-target-unit="base_material_unit">
+                    <option value="">-- Buscar y seleccionar material --</option>
+                    @foreach($warehouseMaterials as $warehouseMaterial)
+                        <option value="{{ $warehouseMaterial->name }}" data-unit="{{ $warehouseMaterial->unit }}">
+                            {{ $warehouseMaterial->code }} - {{ $warehouseMaterial->name }} ({{ $warehouseMaterial->unit }})
+                        </option>
+                    @endforeach
+                </select>
+                <small class="text-muted">Al seleccionar un material, se completa automáticamente el nombre y la unidad.</small>
+            </div>
             <div class="col-md-5">
                 <label class="label-mini">Nombre del material</label>
-                <input type="text" name="name" class="form-control form-control-sm" required>
+                <input type="text" id="base_material_name" name="name" class="form-control form-control-sm" value="{{ old('name') }}" required>
             </div>
             <div class="col-md-2">
                 <label class="label-mini">Unidad</label>
-                <input type="text" name="unit" class="form-control form-control-sm" value="unidad" required>
+                <input type="text" id="base_material_unit" name="unit" class="form-control form-control-sm" value="{{ old('unit', 'unidad') }}" required>
             </div>
             <div class="col-md-2">
                 <label class="label-mini">Stock inicial</label>
-                <input type="number" min="0" step="0.01" name="stock" class="form-control form-control-sm" value="0" required>
+                <input type="number" min="0" step="0.01" name="stock" class="form-control form-control-sm" value="{{ old('stock', 0) }}" required>
             </div>
             <div class="col-md-2">
                 <label class="label-mini">Consumo por orden</label>
-                <input type="number" min="0.01" step="0.01" name="quantity_per_order" class="form-control form-control-sm" value="1" required>
+                <input type="number" min="0.01" step="0.01" name="quantity_per_order" class="form-control form-control-sm" value="{{ old('quantity_per_order', 1) }}" required>
             </div>
             <div class="col-md-1">
                 <div class="form-check mb-2">
-                    <input class="form-check-input" type="checkbox" name="is_active" value="1" checked id="is_active_base">
+                    <input class="form-check-input" type="checkbox" name="is_active" value="1" {{ old('is_active', 1) ? 'checked' : '' }} id="is_active_base">
                     <label class="form-check-label small" for="is_active_base">Activo</label>
                 </div>
             </div>

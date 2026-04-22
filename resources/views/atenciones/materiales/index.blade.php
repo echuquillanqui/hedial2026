@@ -47,6 +47,38 @@
             placeholder: 'Buscar paciente por nombre o DNI',
             allowClear: true,
         });
+
+        $('.js-warehouse-material-select').select2({
+            width: '100%',
+            placeholder: 'Buscar material por código, nombre o unidad',
+            allowClear: true,
+        });
+
+        $('.js-warehouse-material-select').on('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+            const targetNameId = this.dataset.targetName;
+            const targetUnitId = this.dataset.targetUnit;
+
+            if (!targetNameId || !targetUnitId || !selectedOption) {
+                return;
+            }
+
+            const nameInput = document.getElementById(targetNameId);
+            const unitInput = document.getElementById(targetUnitId);
+
+            if (!nameInput || !unitInput) {
+                return;
+            }
+
+            const selectedName = selectedOption.value || '';
+            const selectedUnit = selectedOption.dataset.unit || '';
+
+            nameInput.value = selectedName;
+
+            if (selectedUnit) {
+                unitInput.value = selectedUnit;
+            }
+        });
     });
 </script>
 @endpush
