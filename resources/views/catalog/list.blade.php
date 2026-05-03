@@ -35,11 +35,7 @@
                                 @endforeach
                             </td>
                             <td class="text-end pe-3">
-<<<<<<< ours
-                                <a href="{{ route('operational-areas.index') }}" class="btn btn-sm btn-outline-primary rounded-pill">Editar área</a>
-=======
                                 <a href="{{ route('catalog.areas.edit', $area) }}" class="btn btn-sm btn-outline-primary rounded-pill">Editar área</a>
->>>>>>> theirs
                             </td>
                         </tr>
                     @empty
