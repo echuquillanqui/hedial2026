@@ -13,7 +13,19 @@ class CatalogController extends Controller
 {
     public function index()
     {
-        return view('catalog.index');
+        $areaNames = Area::query()
+            ->select('name')
+            ->orderBy('name')
+            ->pluck('name')
+            ->values();
+
+        $profileNames = Profile::query()
+            ->select('name')
+            ->orderBy('name')
+            ->pluck('name')
+            ->values();
+
+        return view('catalog.index', compact('areaNames', 'profileNames'));
     }
 
     public function list()
@@ -65,7 +77,7 @@ class CatalogController extends Controller
         ]);
 
         DB::transaction(function () use ($validated): void {
-            $area = Area::create(['name' => $validated['area_name']]);
+            $area = Area::firstOrCreate(['name' => $validated['area_name']]);
 
             $createdTests = [];
 
@@ -94,7 +106,7 @@ class CatalogController extends Controller
             }
 
             if (filled($validated['profile_name'] ?? null)) {
-                $profile = Profile::create(['name' => $validated['profile_name']]);
+                $profile = Profile::firstOrCreate(['name' => $validated['profile_name']]);
                 $profile->tests()->sync(array_values($createdTests));
             }
         });

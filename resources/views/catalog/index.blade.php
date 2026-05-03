@@ -33,16 +33,28 @@
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Área</label>
                                 <div class="input-group input-group-sm">
-                                    <input type="text" name="area_name" class="form-control rounded-start-3" required value="{{ old('area_name') }}" placeholder="Ej: Bioquímica" data-area-input>
+                                    <input type="text" name="area_name" class="form-control rounded-start-3" required value="{{ old('area_name') }}" placeholder="Ej: Bioquímica" data-area-input list="areas-list" autocomplete="off">
                                     <button type="button" class="btn btn-outline-danger px-2" title="Limpiar área" data-clear-area>🗑</button>
                                 </div>
+                                <div class="form-text" data-area-hint>Escribe para buscar áreas existentes o crear una nueva.</div>
+                                <datalist id="areas-list">
+                                    @foreach(($areaNames ?? collect()) as $areaName)
+                                        <option value="{{ $areaName }}"></option>
+                                    @endforeach
+                                </datalist>
                             </div>
                             <div class="mb-4">
                                 <label class="form-label fw-semibold">Perfil</label>
                                 <div class="input-group input-group-sm">
-                                    <input type="text" name="profile_name" class="form-control rounded-start-3" value="{{ old('profile_name') }}" placeholder="Opcional. Ej: Perfil renal" data-profile-input>
+                                    <input type="text" name="profile_name" class="form-control rounded-start-3" value="{{ old('profile_name') }}" placeholder="Opcional. Ej: Perfil renal" data-profile-input list="profiles-list" autocomplete="off">
                                     <button type="button" class="btn btn-outline-danger px-2" title="Limpiar perfil" data-clear-profile>🗑</button>
                                 </div>
+                                <div class="form-text" data-profile-hint>Opcional. Selecciona un perfil existente o crea uno nuevo.</div>
+                                <datalist id="profiles-list">
+                                    @foreach(($profileNames ?? collect()) as $profileName)
+                                        <option value="{{ $profileName }}"></option>
+                                    @endforeach
+                                </datalist>
                             </div>
 
                             <div class="small text-muted">
@@ -98,7 +110,37 @@
 (() => {
     const testsContainer = document.getElementById('tests-container');
     const addTestBtn = document.getElementById('add-test-btn');
+    const areaInput = document.querySelector('[data-area-input]');
+    const profileInput = document.querySelector('[data-profile-input]');
+    const areaHint = document.querySelector('[data-area-hint]');
+    const profileHint = document.querySelector('[data-profile-hint]');
+    const areaNames = @json(($areaNames ?? collect())->values());
+    const profileNames = @json(($profileNames ?? collect())->values());
     let testIndex = 0;
+
+    function normalize(value) {
+        return (value || '').trim().toLowerCase();
+    }
+
+    function hasExactMatch(value, options) {
+        const normalized = normalize(value);
+        return normalized.length > 0 && options.some((option) => normalize(option) === normalized);
+    }
+
+    function updateHint(input, hintEl, options, typeLabel) {
+        if (!input || !hintEl) return;
+
+        const currentValue = input.value.trim();
+        if (!currentValue) {
+            hintEl.textContent = `Escribe para buscar ${typeLabel}s existentes o crear uno nuevo.`;
+            return;
+        }
+
+        const exists = hasExactMatch(currentValue, options);
+        hintEl.textContent = exists
+            ? `${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} existente: se reutilizará "${currentValue}".`
+            : `${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} nuevo: se creará "${currentValue}".`;
+    }
 
     function makeOptionRow(idx, optionIdx, label = '', value = '') {
         return `<div class="row g-1 mb-1 align-items-center" data-option-row>
@@ -160,6 +202,17 @@
             const input = document.querySelector('[data-profile-input]');
             if (input) input.value = '';
         }
+    });
+
+    [
+        [areaInput, areaHint, areaNames, 'área'],
+        [profileInput, profileHint, profileNames, 'perfil'],
+    ].forEach(([input, hintEl, options, typeLabel]) => {
+        if (!input) return;
+        const refresh = () => updateHint(input, hintEl, options, typeLabel);
+        input.addEventListener('input', refresh);
+        input.addEventListener('change', refresh);
+        refresh();
     });
 
 
