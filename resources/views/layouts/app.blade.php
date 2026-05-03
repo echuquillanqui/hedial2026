@@ -65,6 +65,7 @@
                         $canSeeClinicalArea = $canViewOrders || $canViewMedicals || $canViewNurses || $canViewExtraMaterials;
 
                         $canViewWarehouse = auth()->user()->can('warehouse.requests.view');
+                        $canViewCatalog = auth()->user()->can('orders.view');
                     @endphp
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
@@ -101,6 +102,14 @@
             </li>
             @endif
         </ul>
+    </li>
+    @endif
+
+    @if($canViewCatalog)
+    <li class="nav-item">
+        <a class="nav-link px-3 {{ request()->routeIs('catalog.*') ? 'active fw-bold' : '' }}" href="{{ route('catalog.index') }}">
+            <i class="bi bi-journal-medical me-1"></i> Catálogo
+        </a>
     </li>
     @endif
 
