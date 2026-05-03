@@ -32,11 +32,11 @@
                             <h5 class="mb-3">Datos del catálogo</h5>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Área</label>
-                                <input type="text" name="area_name" class="form-control rounded-3" required value="{{ old('area_name') }}" placeholder="Ej: Bioquímica">
+                                <input type="text" name="area_name" class="form-control form-control-sm rounded-3" required value="{{ old('area_name') }}" placeholder="Ej: Bioquímica">
                             </div>
                             <div class="mb-4">
                                 <label class="form-label fw-semibold">Perfil</label>
-                                <input type="text" name="profile_name" class="form-control rounded-3" value="{{ old('profile_name') }}" placeholder="Opcional. Ej: Perfil renal">
+                                <input type="text" name="profile_name" class="form-control form-control-sm rounded-3" value="{{ old('profile_name') }}" placeholder="Opcional. Ej: Perfil renal">
                             </div>
 
                             <div class="small text-muted">
@@ -47,12 +47,15 @@
 
                     <div class="col-lg-9">
                         <div class="p-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
                                 <div>
                                     <h4 class="mb-1">Exámenes</h4>
                                     <p class="text-muted mb-0">Agrega exámenes y configura sus opciones según el tipo.</p>
                                 </div>
-                                <button type="button" class="btn btn-primary rounded-pill px-4" id="add-test-btn">+ Agregar examen</button>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('catalog.list') }}" class="btn btn-outline-secondary rounded-pill px-4">Ver listado</a>
+                                    <button type="button" class="btn btn-primary rounded-pill px-4" id="add-test-btn">+ Agregar examen</button>
+                                </div>
                             </div>
 
                             <div id="tests-container" class="d-grid gap-3 mb-4"></div>
@@ -93,8 +96,8 @@
 
     function makeOptionRow(idx, optionIdx) {
         return `<div class="row g-2 mb-2" data-option-row>
-            <div class="col-md-5"><input class="form-control rounded-3" name="tests[${idx}][options][${optionIdx}][label]" placeholder="Etiqueta"></div>
-            <div class="col-md-5"><input class="form-control rounded-3" name="tests[${idx}][options][${optionIdx}][value]" placeholder="Valor"></div>
+            <div class="col-md-5"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][options][${optionIdx}][label]" placeholder="Etiqueta"></div>
+            <div class="col-md-5"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][options][${optionIdx}][value]" placeholder="Valor"></div>
             <div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100 rounded-3" data-remove-option>Quitar</button></div>
         </div>`;
     }
@@ -102,23 +105,23 @@
     function addTestCard() {
         const idx = testIndex++;
         const card = document.createElement('div');
-        card.className = 'card border-0 shadow-sm';
+        card.className = 'border rounded-3 bg-white p-2';
         card.dataset.testCard = '1';
         card.dataset.index = idx;
         card.dataset.optionIndex = 0;
 
         card.innerHTML = `
-            <div class="card-body">
-                <div class="d-flex justify-content-between mb-3">
-                    <strong class="text-primary">Examen #${idx + 1}</strong>
-                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" data-remove-test>Eliminar</button>
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong class="text-primary small">Examen #${idx + 1}</strong>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill py-0 px-2" data-remove-test>Eliminar</button>
                 </div>
-                <div class="row g-2">
-                    <div class="col-md-4"><input class="form-control rounded-3" name="tests[${idx}][name]" placeholder="Nombre" data-test-name required></div>
-                    <div class="col-md-2"><input class="form-control rounded-3" name="tests[${idx}][unit]" placeholder="Unidad"></div>
-                    <div class="col-md-3"><input class="form-control rounded-3" name="tests[${idx}][reference_value]" placeholder="Valor de referencia"></div>
+                <div class="row g-1">
+                    <div class="col-md-4"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][name]" placeholder="Nombre" data-test-name required></div>
+                    <div class="col-md-2"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][unit]" placeholder="Unidad"></div>
+                    <div class="col-md-3"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][reference_value]" placeholder="Valor de referencia"></div>
                     <div class="col-md-3">
-                        <select class="form-select rounded-3" name="tests[${idx}][type]" data-test-type required>
+                        <select class="form-select form-select-sm rounded-3" name="tests[${idx}][type]" data-test-type required>
                             <option value="number">number</option>
                             <option value="text">text</option>
                             <option value="select">select</option>

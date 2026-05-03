@@ -49,6 +49,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
         ->names('operational-areas');
 
     Route::get('catalogo', [CatalogController::class, 'index'])->name('catalog.index');
+    Route::get('catalogo/listado', [CatalogController::class, 'list'])->name('catalog.list');
+    Route::get('catalogo/perfiles/{profile}/editar', [CatalogController::class, 'editProfile'])->name('catalog.profiles.edit');
+    Route::put('catalogo/perfiles/{profile}', [CatalogController::class, 'updateProfile'])->name('catalog.profiles.update');
     Route::post('catalogo', [CatalogController::class, 'store'])->name('catalog.store');
     Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');
     Route::post('/users/permissions', [UserController::class, 'storePermission'])->name('users.permissions.store');
