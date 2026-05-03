@@ -18,6 +18,10 @@ class DatabaseSeeder extends Seeder
             PatientSeeder::class,
             RolesAndPermissionsSeeder::class,
             WarehouseMaterialSeeder::class,
+            AreaSeeder::class,
+            TestSeeder::class,
+            TestOptionSeeder::class,
+            ProfileSeeder::class,
         ]);
     }
 }
