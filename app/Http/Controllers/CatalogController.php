@@ -31,9 +31,19 @@ class CatalogController extends Controller
     public function list()
     {
         $areas = Area::with('tests')->latest()->get();
-        $profiles = Profile::with('tests')->latest()->get();
+        $profiles = Profile::with('tests')->latest()->paginate(10);
 
         return view('catalog.list', compact('areas', 'profiles'));
+    }
+
+    public function destroyProfile(Profile $profile): RedirectResponse
+    {
+        DB::transaction(function () use ($profile): void {
+            $profile->tests()->detach();
+            $profile->delete();
+        });
+
+        return redirect()->route('catalog.list')->with('success', 'Perfil eliminado correctamente.');
     }
 
     public function editProfile(Profile $profile)

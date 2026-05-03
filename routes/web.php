@@ -52,6 +52,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('catalogo/listado', [CatalogController::class, 'list'])->name('catalog.list');
     Route::get('catalogo/perfiles/{profile}/editar', [CatalogController::class, 'editProfile'])->name('catalog.profiles.edit');
     Route::put('catalogo/perfiles/{profile}', [CatalogController::class, 'updateProfile'])->name('catalog.profiles.update');
+    Route::delete('catalogo/perfiles/{profile}', [CatalogController::class, 'destroyProfile'])->name('catalog.profiles.destroy');
     Route::post('catalogo', [CatalogController::class, 'store'])->name('catalog.store');
     Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');
     Route::post('/users/permissions', [UserController::class, 'storePermission'])->name('users.permissions.store');

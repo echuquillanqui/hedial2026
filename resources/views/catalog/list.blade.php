@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid">
+<div class="container">
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
@@ -64,7 +64,14 @@
                                 @endforeach
                             </td>
                             <td class="text-end pe-3">
-                                <a href="{{ route('catalog.profiles.edit', $profile) }}" class="btn btn-sm btn-outline-primary rounded-pill">Editar perfil</a>
+                                <div class="d-inline-flex gap-2">
+                                    <a href="{{ route('catalog.profiles.edit', $profile) }}" class="btn btn-sm btn-outline-primary rounded-pill">Editar perfil</a>
+                                    <form method="POST" action="{{ route('catalog.profiles.destroy', $profile) }}" onsubmit="return confirm('¿Seguro que deseas eliminar este perfil?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">Eliminar</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -74,6 +81,11 @@
                 </table>
             </div>
         </div>
+    </div>
+
+
+    <div class="d-flex justify-content-end mt-3">
+        {{ $profiles->links() }}
     </div>
 </div>
 @endsection

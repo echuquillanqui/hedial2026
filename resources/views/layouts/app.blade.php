@@ -108,7 +108,7 @@
     @if($canViewCatalog)
     <li class="nav-item">
         <a class="nav-link px-3 {{ request()->routeIs('catalog.*') ? 'active fw-bold' : '' }}" href="{{ route('catalog.index') }}">
-            <i class="bi bi-journal-medical me-1"></i> Catálogo
+            <i class="bi bi-journal-medical me-1"></i> Laboratorio
         </a>
     </li>
     @endif
