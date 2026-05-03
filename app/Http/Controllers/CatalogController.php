@@ -36,6 +36,24 @@ class CatalogController extends Controller
         return view('catalog.list', compact('areas', 'profiles'));
     }
 
+    public function editArea(Area $area)
+    {
+        return view('catalog.edit-area', [
+            'area' => $area,
+        ]);
+    }
+
+    public function updateArea(Request $request, Area $area): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $area->update($validated);
+
+        return redirect()->route('catalog.list')->with('success', 'Área de laboratorio actualizada correctamente.');
+    }
+
     public function destroyProfile(Profile $profile): RedirectResponse
     {
         DB::transaction(function () use ($profile): void {

@@ -22,6 +22,7 @@
                     <tr>
                         <th class="ps-3">Área</th>
                         <th>Exámenes</th>
+                        <th class="text-end pe-3">Acciones</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -33,9 +34,16 @@
                                     <span class="badge text-bg-light border me-1 mb-1">{{ $test->name }}</span>
                                 @endforeach
                             </td>
+                            <td class="text-end pe-3">
+<<<<<<< ours
+                                <a href="{{ route('operational-areas.index') }}" class="btn btn-sm btn-outline-primary rounded-pill">Editar área</a>
+=======
+                                <a href="{{ route('catalog.areas.edit', $area) }}" class="btn btn-sm btn-outline-primary rounded-pill">Editar área</a>
+>>>>>>> theirs
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="2" class="text-center text-muted py-4">No hay áreas registradas.</td></tr>
+                        <tr><td colspan="3" class="text-center text-muted py-4">No hay áreas registradas.</td></tr>
                     @endforelse
                     </tbody>
                 </table>

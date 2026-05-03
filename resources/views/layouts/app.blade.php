@@ -106,10 +106,30 @@
     @endif
 
     @if($canViewCatalog)
-    <li class="nav-item">
-        <a class="nav-link px-3 {{ request()->routeIs('catalog.*') ? 'active fw-bold' : '' }}" href="{{ route('catalog.index') }}">
+    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('catalog.*', 'orders.*') ? 'active fw-bold' : '' }}"
+           type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-journal-medical me-1"></i> Laboratorio
-        </a>
+        </button>
+        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('catalog.*') ? 'active' : '' }}" href="{{ route('catalog.index') }}">
+                    <i class="bi bi-journal-text me-2"></i> Catálogo
+                </a>
+            </li>
+            @if($canViewOrders)
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="">
+                    <i class="bi bi-list-check me-2"></i> Generar Examenes
+                </a>
+            </li>
+            @endif
+            <li>
+                <span class="dropdown-item text-muted" aria-disabled="true">
+                    <i class="bi bi-clipboard2-pulse me-2"></i> Resultados
+                </span>
+            </li>
+        </ul>
     </li>
     @endif
 

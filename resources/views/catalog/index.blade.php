@@ -162,9 +162,9 @@
             <div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <strong class="text-primary small">Examen #${idx + 1}</strong>
-                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Eliminar examen" data-remove-test>🗑</button>
                 </div>
-                <div class="row g-1">
+                <div class="row g-1 align-items-center">
+                    <div class="col-auto ms-auto order-md-last"><button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Eliminar examen" data-remove-test>🗑</button></div>
                     <div class="col-md-4"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][name]" placeholder="Nombre" data-test-name required></div>
                     <div class="col-md-2"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][unit]" placeholder="Unidad"></div>
                     <div class="col-md-3"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][reference_value]" placeholder="Valor de referencia"></div>
