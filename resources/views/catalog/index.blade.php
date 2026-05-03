@@ -36,11 +36,11 @@
                             </div>
                             <div class="mb-4">
                                 <label class="form-label fw-semibold">Perfil</label>
-                                <input type="text" name="profile_name" class="form-control rounded-3" required value="{{ old('profile_name') }}" placeholder="Ej: Perfil renal">
+                                <input type="text" name="profile_name" class="form-control rounded-3" value="{{ old('profile_name') }}" placeholder="Opcional. Ej: Perfil renal">
                             </div>
 
                             <div class="small text-muted">
-                                Selecciona en la derecha los exámenes que formarán parte de este perfil.
+                                Si indicas un perfil, los exámenes creados se asignarán automáticamente a ese perfil. Si no, quedarán solo en el área.
                             </div>
                         </div>
                     </div>
@@ -57,11 +57,7 @@
 
                             <div id="tests-container" class="d-grid gap-3 mb-4"></div>
 
-                            <div class="border-top pt-3">
-                                <h5 class="mb-3">Asignación de exámenes al perfil</h5>
-                                <div id="profile-tests-list" class="row g-2"></div>
-                            </div>
-
+                            
                             <div class="mt-4">
                                 <button class="btn btn-success px-4 rounded-pill">Guardar catálogo</button>
                             </div>
@@ -93,28 +89,7 @@
 (() => {
     const testsContainer = document.getElementById('tests-container');
     const addTestBtn = document.getElementById('add-test-btn');
-    const profileTestsList = document.getElementById('profile-tests-list');
     let testIndex = 0;
-
-    function renderProfileCheckboxes() {
-        profileTestsList.innerHTML = '';
-        const cards = testsContainer.querySelectorAll('[data-test-card]');
-
-        cards.forEach((card) => {
-            const idx = card.dataset.index;
-            const nameInput = card.querySelector('[data-test-name]');
-            const label = (nameInput.value || `Examen #${Number(idx) + 1}`).trim();
-
-            const col = document.createElement('div');
-            col.className = 'col-md-4';
-            col.innerHTML = `
-                <div class="form-check border rounded-3 p-2 bg-light">
-                    <input class="form-check-input" type="checkbox" name="profile_tests[]" value="${idx}" id="profile_test_${idx}">
-                    <label class="form-check-label" for="profile_test_${idx}">${label}</label>
-                </div>`;
-            profileTestsList.appendChild(col);
-        });
-    }
 
     function makeOptionRow(idx, optionIdx) {
         return `<div class="row g-2 mb-2" data-option-row>
@@ -160,16 +135,10 @@
             </div>`;
 
         testsContainer.appendChild(card);
-        renderProfileCheckboxes();
     }
 
     addTestBtn.addEventListener('click', addTestCard);
 
-    testsContainer.addEventListener('input', (event) => {
-        if (event.target.matches('[data-test-name]')) {
-            renderProfileCheckboxes();
-        }
-    });
 
     testsContainer.addEventListener('change', (event) => {
         if (event.target.matches('[data-test-type]')) {
@@ -185,7 +154,6 @@
 
         if (event.target.matches('[data-remove-test]')) {
             card.remove();
-            renderProfileCheckboxes();
             return;
         }
 

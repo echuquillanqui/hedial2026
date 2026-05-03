@@ -19,7 +19,7 @@ class CatalogController extends Controller
     {
         $validated = $request->validate([
             'area_name' => ['required', 'string', 'max:255'],
-            'profile_name' => ['required', 'string', 'max:255'],
+            'profile_name' => ['nullable', 'string', 'max:255'],
             'tests' => ['required', 'array', 'min:1'],
             'tests.*.name' => ['required', 'string', 'max:255'],
             'tests.*.unit' => ['nullable', 'string', 'max:100'],
@@ -28,8 +28,6 @@ class CatalogController extends Controller
             'tests.*.options' => ['nullable', 'array'],
             'tests.*.options.*.label' => ['required_with:tests.*.options.*.value', 'nullable', 'string', 'max:255'],
             'tests.*.options.*.value' => ['required_with:tests.*.options.*.label', 'nullable', 'string', 'max:255'],
-            'profile_tests' => ['nullable', 'array'],
-            'profile_tests.*' => ['integer', 'min:0'],
         ]);
 
         DB::transaction(function () use ($validated): void {
@@ -61,16 +59,10 @@ class CatalogController extends Controller
                 $createdTests[$index] = $test->id;
             }
 
-            $profile = Profile::create(['name' => $validated['profile_name']]);
-
-            $selectedIndexes = collect($validated['profile_tests'] ?? [])->map(fn ($i) => (int) $i);
-            $selectedTestIds = $selectedIndexes
-                ->map(fn ($i) => $createdTests[$i] ?? null)
-                ->filter()
-                ->values()
-                ->all();
-
-            $profile->tests()->sync($selectedTestIds);
+            if (filled($validated['profile_name'] ?? null)) {
+                $profile = Profile::create(['name' => $validated['profile_name']]);
+                $profile->tests()->sync(array_values($createdTests));
+            }
         });
 
         return back()->with('success', 'Catálogo registrado correctamente.');
