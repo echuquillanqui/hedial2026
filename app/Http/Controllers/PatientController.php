@@ -118,7 +118,9 @@ class PatientController extends Controller
             ->when($currentSedeId, fn ($query) => $query->where('sede_id', $currentSedeId))
             ->where(function ($query) use ($q) {
                 $query->where('dni', 'LIKE', "%$q%")
-                    ->orWhere('surname', 'LIKE', "%$q%");
+                    ->orWhere('surname', 'LIKE', "%$q%")
+                    ->orWhere('last_name', 'LIKE', "%$q%")
+                    ->orWhere('first_name', 'LIKE', "%$q%");
             });
 
         if ($insuranceType === 'SIS') {

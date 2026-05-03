@@ -12,6 +12,7 @@ use App\Http\Controllers\SedeController;
 use App\Http\Controllers\SedeSessionController;
 use App\Http\Controllers\OperationalAreaController;
 use App\Http\Controllers\CatalogController;
+use App\Http\Controllers\LaboratoryOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,6 +57,12 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::put('catalogo/perfiles/{profile}', [CatalogController::class, 'updateProfile'])->name('catalog.profiles.update');
     Route::delete('catalogo/perfiles/{profile}', [CatalogController::class, 'destroyProfile'])->name('catalog.profiles.destroy');
     Route::post('catalogo', [CatalogController::class, 'store'])->name('catalog.store');
+
+    Route::get('laboratory/orders/create', [LaboratoryOrderController::class, 'create'])->name('laboratory.orders.create');
+    Route::post('laboratory/orders', [LaboratoryOrderController::class, 'store'])->name('laboratory.orders.store');
+    Route::get('laboratory/results', [LaboratoryOrderController::class, 'results'])->name('laboratory.results.index');
+    Route::put('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'updateResults'])->name('laboratory.results.update');
+
     Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');
     Route::post('/users/permissions', [UserController::class, 'storePermission'])->name('users.permissions.store');
     Route::post('/users/bulk-permissions', [UserController::class, 'bulkAssignPermissions'])->name('users.bulk-permissions');
