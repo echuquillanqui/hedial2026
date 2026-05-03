@@ -32,11 +32,17 @@
                             <h5 class="mb-3">Datos del catálogo</h5>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Área</label>
-                                <input type="text" name="area_name" class="form-control form-control-sm rounded-3" required value="{{ old('area_name') }}" placeholder="Ej: Bioquímica">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="area_name" class="form-control rounded-start-3" required value="{{ old('area_name') }}" placeholder="Ej: Bioquímica" data-area-input>
+                                    <button type="button" class="btn btn-outline-danger px-2" title="Limpiar área" data-clear-area>🗑</button>
+                                </div>
                             </div>
                             <div class="mb-4">
                                 <label class="form-label fw-semibold">Perfil</label>
-                                <input type="text" name="profile_name" class="form-control form-control-sm rounded-3" value="{{ old('profile_name') }}" placeholder="Opcional. Ej: Perfil renal">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="profile_name" class="form-control rounded-start-3" value="{{ old('profile_name') }}" placeholder="Opcional. Ej: Perfil renal" data-profile-input>
+                                    <button type="button" class="btn btn-outline-danger px-2" title="Limpiar perfil" data-clear-profile>🗑</button>
+                                </div>
                             </div>
 
                             <div class="small text-muted">
@@ -94,11 +100,11 @@
     const addTestBtn = document.getElementById('add-test-btn');
     let testIndex = 0;
 
-    function makeOptionRow(idx, optionIdx) {
-        return `<div class="row g-2 mb-2" data-option-row>
-            <div class="col-md-5"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][options][${optionIdx}][label]" placeholder="Etiqueta"></div>
-            <div class="col-md-5"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][options][${optionIdx}][value]" placeholder="Valor"></div>
-            <div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100 rounded-3" data-remove-option>Quitar</button></div>
+    function makeOptionRow(idx, optionIdx, label = '', value = '') {
+        return `<div class="row g-1 mb-1 align-items-center" data-option-row>
+            <div class="col-md-5"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][options][${optionIdx}][label]" placeholder="Etiqueta" value="${label}"></div>
+            <div class="col-md-6"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][options][${optionIdx}][value]" placeholder="Valor" value="${value}"></div>
+            <div class="col-md-1 d-grid"><button type="button" class="btn btn-outline-danger btn-sm py-0" title="Quitar opción" data-remove-option>✕</button></div>
         </div>`;
     }
 
@@ -114,7 +120,7 @@
             <div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <strong class="text-primary small">Examen #${idx + 1}</strong>
-                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill py-0 px-2" data-remove-test>Eliminar</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Eliminar examen" data-remove-test>🗑</button>
                 </div>
                 <div class="row g-1">
                     <div class="col-md-4"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][name]" placeholder="Nombre" data-test-name required></div>
@@ -128,12 +134,13 @@
                         </select>
                     </div>
                 </div>
-                <div class="mt-3 d-none" data-options-wrapper>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="mt-2 d-none" data-options-wrapper>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
                         <strong>Opciones del select</strong>
-                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-add-option>Agregar opción</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-add-option>+ Opción</button>
                     </div>
-                    <div class="p-3 bg-light rounded-3" data-options-list></div>
+                    <input class="form-control form-control-sm mb-1" placeholder="Ingreso rápido: POSITIVO;NEGATIVO" data-options-quick>
+                    <div class="p-2 bg-light rounded-3" data-options-list></div>
                 </div>
             </div>`;
 
@@ -143,6 +150,19 @@
     addTestBtn.addEventListener('click', addTestCard);
 
 
+    document.addEventListener('click', (event) => {
+        if (event.target.matches('[data-clear-area]')) {
+            const input = document.querySelector('[data-area-input]');
+            if (input) input.value = '';
+        }
+
+        if (event.target.matches('[data-clear-profile]')) {
+            const input = document.querySelector('[data-profile-input]');
+            if (input) input.value = '';
+        }
+    });
+
+
     testsContainer.addEventListener('change', (event) => {
         if (event.target.matches('[data-test-type]')) {
             const card = event.target.closest('[data-test-card]');
@@ -150,6 +170,25 @@
             wrapper.classList.toggle('d-none', event.target.value !== 'select');
         }
     });
+
+    testsContainer.addEventListener('blur', (event) => {
+        if (!event.target.matches('[data-options-quick]')) return;
+        const raw = event.target.value.trim();
+        if (!raw) return;
+
+        const card = event.target.closest('[data-test-card]');
+        const list = card.querySelector('[data-options-list]');
+        const idx = card.dataset.index;
+        const chunks = raw.split(/[;,\n]+/).map(v => v.trim()).filter(Boolean);
+
+        chunks.forEach((value) => {
+            const optionIdx = Number(card.dataset.optionIndex);
+            list.insertAdjacentHTML('beforeend', makeOptionRow(idx, optionIdx, value, value));
+            card.dataset.optionIndex = optionIdx + 1;
+        });
+
+        event.target.value = '';
+    }, true);
 
     testsContainer.addEventListener('click', (event) => {
         const card = event.target.closest('[data-test-card]');
@@ -166,6 +205,10 @@
             const optionIdx = Number(card.dataset.optionIndex);
             list.insertAdjacentHTML('beforeend', makeOptionRow(idx, optionIdx));
             card.dataset.optionIndex = optionIdx + 1;
+            return;
+        }
+
+        if (event.target.matches('[data-options-quick]')) {
             return;
         }
 
