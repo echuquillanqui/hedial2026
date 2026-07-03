@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('laboratory_orders', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('patient_id')->constrained('patients')->cascadeOnDelete();
+            $table->string('patient_name');
             $table->string('requested_by')->nullable();
             $table->enum('status', ['pending', 'completed'])->default('pending');
             $table->timestamps();

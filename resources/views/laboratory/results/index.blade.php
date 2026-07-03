@@ -2,11 +2,19 @@
 
 @section('content')
 <div class="container-fluid">
-    <h4>Resultados de laboratorio</h4>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+        <h4 class="mb-0">Resultados de laboratorio</h4>
+        <form method="POST" action="{{ route('laboratory.orders.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+            @csrf
+            <input type="file" name="file" class="form-control form-control-sm" accept=".csv,.txt,.xlsx" required>
+            <button class="btn btn-sm btn-outline-primary">Importar Excel</button>
+        </form>
+    </div>
+    <p class="text-muted small">El archivo debe tener la columna <code>nombres_y_apellidos</code> y columnas de exámenes como HTO, HB, UPRE, UPOST, CLORO, SODIO, POTASIO, fosforoserico, calciocerico, TGO y TGP.</p>
     @foreach($orders as $order)
         <div class="card mb-3 shadow-sm">
             <div class="card-header d-flex justify-content-between">
-                <strong>{{ $order->patient->surname }} {{ $order->patient->last_name }}, {{ $order->patient->first_name }}</strong>
+                <strong>{{ $order->patient_name }}</strong>
                 <span class="badge {{ $order->status === 'completed' ? 'text-bg-success' : 'text-bg-warning' }}">{{ strtoupper($order->status) }}</span>
             </div>
             <div class="card-body">
