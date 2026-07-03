@@ -9,13 +9,15 @@
         'tests' => $profile->tests->pluck('id')->map(fn ($id) => (int) $id)->values(),
     ])->values()),
     oldTestIds: @js(collect(old('test_ids', []))->map(fn ($id) => (int) $id)->values()),
+    oldPatientId: @js(old('patient_id')),
+    patientSearchUrl: @js(route('patients.search')),
 })">
     <div class="card border-0 shadow-sm">
         <div class="card-body p-4 p-lg-5">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
                 <div>
                     <h4 class="mb-1">Generar orden de laboratorio</h4>
-                    <p class="text-muted mb-0">Ingresa el nombre completo del paciente, perfiles y exámenes.</p>
+                    <p class="text-muted mb-0">Selecciona paciente, perfiles y exámenes con búsqueda rápida.</p>
                 </div>
                 <span class="badge text-bg-primary-subtle border border-primary-subtle text-primary-emphasis px-3 py-2">Nuevo</span>
             </div>
@@ -27,14 +29,22 @@
                         <label class="form-label fw-semibold">Paciente</label>
                         <input
                             type="text"
-                            name="patient_name"
-                            class="form-control @error('patient_name') is-invalid @enderror"
-                            value="{{ old('patient_name') }}"
-                            placeholder="Nombres y apellidos completos"
+                            class="form-control"
+                            x-model="patientQuery"
+                            @input.debounce.350ms="searchPatients"
+                            placeholder="Buscar por DNI, nombres o apellidos"
                             autocomplete="off"
                             required
                         >
-                        @error('patient_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div class="list-group mt-2 shadow-sm" x-show="patientOptions.length && patientQuery.length >= 2" x-cloak>
+                            <template x-for="patient in patientOptions" :key="patient.id">
+                                <button type="button" class="list-group-item list-group-item-action" @click="selectPatient(patient)">
+                                    <span class="fw-semibold" x-text="patient.text"></span>
+                                </button>
+                            </template>
+                        </div>
+                        <small class="text-success mt-2 d-block" x-show="selectedPatientName" x-text="`Paciente seleccionado: ${selectedPatientName}`" x-cloak></small>
+                        <input type="hidden" name="patient_id" x-model="patientId">
                     </div>
 
                     <div class="col-lg-4">
@@ -89,13 +99,17 @@
 </div>
 
 <script>
-    function laboratoryOrderForm({ tests, profiles, oldTestIds }) {
+    function laboratoryOrderForm({ tests, profiles, oldTestIds, oldPatientId, patientSearchUrl }) {
         return {
             tests,
             profiles,
             testQuery: '',
             selectedTests: oldTestIds || [],
             selectedProfileIds: [],
+            patientId: oldPatientId || '',
+            patientQuery: '',
+            patientOptions: [],
+            selectedPatientName: '',
 
             get filteredTests() {
                 if (!this.testQuery.trim()) return this.tests;
@@ -134,6 +148,24 @@
                 } else {
                     this.selectedTests.push(testId);
                 }
+            },
+
+            async searchPatients() {
+                if (this.patientQuery.length < 2) {
+                    this.patientOptions = [];
+                    return;
+                }
+
+                const response = await fetch(`${patientSearchUrl}?q=${encodeURIComponent(this.patientQuery)}`);
+                const data = await response.json();
+                this.patientOptions = data.results || [];
+            },
+
+            selectPatient(patient) {
+                this.patientId = patient.id;
+                this.selectedPatientName = patient.text;
+                this.patientQuery = patient.text;
+                this.patientOptions = [];
             },
         };
     }
