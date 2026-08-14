@@ -33,6 +33,7 @@ class FissalLaboratoryTest extends TestCase
         $this->assertFalse(Test::where('name', 'Examen FISSAL obsoleto')->value('is_fissal'));
         $this->assertEqualsCanonicalizing(['B', 'M', 'S', 'T'], Test::where('is_fissal', true)->pluck('frequency')->unique()->all());
         $this->assertSame('M', Test::where('name', 'Fósforo inorgánico (fosfato)')->value('frequency'));
+        $this->assertSame('T', Test::where('name', 'Albúmina')->value('frequency'));
     }
 
     public function test_nephrology_auxiliary_exam_blocks_match_the_fissal_catalog(): void
@@ -42,6 +43,8 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame(['Mensual', 'Bimestral', 'Trimestral', 'Semestral'], array_keys($groups));
         $this->assertContains('Nitrógeno ureico (urea pre y post diálisis)', $groups['Mensual']);
         $this->assertContains('Perfil de electrolitos (cloro, sodio y potasio)', $groups['Mensual']);
+        $this->assertNotContains('Albúmina', $groups['Bimestral']);
+        $this->assertContains('Albúmina', $groups['Trimestral']);
         $this->assertSame(21, collect($groups)->flatten()->count());
     }
 
@@ -128,6 +131,29 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame($expectedItems * 2, LaboratoryOrder::withCount('items')->get()->sum('items_count'));
     }
 
+    public function test_periods_include_the_previous_groups_and_albumin_starts_at_trimestral(): void
+    {
+        $this->seed(FissalLaboratorySeeder::class);
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('laboratory.orders.store'), [
+            'patient_ids' => [$patient->id],
+            'schedules' => collect(['M', 'B', 'T', 'S'])->map(fn (string $period, int $index) => [
+                'period' => $period,
+                'sampled_at' => "2026-0".($index + 1).'-14',
+            ])->all(),
+        ])->assertRedirect(route('laboratory.results.index'));
+
+        $orders = LaboratoryOrder::with('items.test')->get()->keyBy('period');
+        $this->assertEqualsCanonicalizing(['M'], $orders['M']->items->pluck('test.frequency')->unique()->all());
+        $this->assertEqualsCanonicalizing(['M', 'B'], $orders['B']->items->pluck('test.frequency')->unique()->all());
+        $this->assertEqualsCanonicalizing(['M', 'B', 'T'], $orders['T']->items->pluck('test.frequency')->unique()->all());
+        $this->assertEqualsCanonicalizing(['M', 'B', 'T', 'S'], $orders['S']->items->pluck('test.frequency')->unique()->all());
+        $this->assertFalse($orders['B']->items->pluck('test.name')->contains('Albúmina'));
+        $this->assertTrue($orders['T']->items->pluck('test.name')->contains('Albúmina'));
+    }
+
     public function test_create_order_page_receives_profiles_with_fissal_tests(): void
     {
         $this->seed(FissalLaboratorySeeder::class);
@@ -153,6 +179,21 @@ class FissalLaboratoryTest extends TestCase
                 && $loadedProfile->tests->count() === 1
                 && $loadedProfile->tests->contains($fissalTest);
         });
+    }
+
+    public function test_create_order_page_uses_four_period_buttons(): void
+    {
+        $this->seed(FissalLaboratorySeeder::class);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.orders.create'));
+
+        $response->assertOk();
+        $response->assertSee('title="Mensual"', false);
+        $response->assertSee('Bimestral: incluye mensual y bimestral');
+        $response->assertSee('Trimestral: incluye mensual, bimestral y trimestral');
+        $response->assertSee('Semestral: incluye todos los grupos');
+        $response->assertSee("periodIncludes(schedule.period, 'M')", false);
     }
 
     public function test_laboratory_generation_defaults_to_the_sequence_for_the_current_day(): void

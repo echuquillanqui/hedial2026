@@ -8,6 +8,7 @@
     .laboratory-batch .patient-list { max-height: 510px; overflow-y: auto; }
     .laboratory-batch .patient-row { cursor: pointer; }
     .laboratory-batch .patient-row:hover { background: #f1f8f4; }
+    .laboratory-batch .period-selector .btn { font-size: .62rem; padding: .35rem .25rem; }
 </style>
 
 <div class="container-fluid px-4 py-3 laboratory-batch" x-data="laboratoryBatchForm({
@@ -115,7 +116,15 @@
                             <template x-for="(schedule, index) in schedules" :key="schedule.key">
                                 <div class="row g-2 align-items-center border rounded p-2 mb-2 bg-light">
                                     <div class="col-6"><input type="date" class="form-control form-control-sm border-success" :name="`schedules[${index}][sampled_at]`" x-model="schedule.sampled_at" required></div>
-                                    <div class="col-5"><select class="form-select form-select-sm border-success" :name="`schedules[${index}][period]`" x-model="schedule.period" required><option value="M">Mensual</option><option value="B">Bimestral</option><option value="T">Trimestral</option><option value="S">Semestral</option></select></div>
+                                    <div class="col-5">
+                                        <div class="btn-group w-100 period-selector" role="group" aria-label="Frecuencia de exámenes">
+                                            <input type="hidden" :name="`schedules[${index}][period]`" x-model="schedule.period">
+                                            <button type="button" class="btn btn-outline-success fw-bold" :class="periodIncludes(schedule.period, 'M') && 'active'" :aria-pressed="periodIncludes(schedule.period, 'M')" @click="schedule.period = 'M'" title="Mensual">Mensual</button>
+                                            <button type="button" class="btn btn-outline-success fw-bold" :class="periodIncludes(schedule.period, 'B') && 'active'" :aria-pressed="periodIncludes(schedule.period, 'B')" @click="schedule.period = 'B'" title="Bimestral: incluye mensual y bimestral">Bimestral</button>
+                                            <button type="button" class="btn btn-outline-success fw-bold" :class="periodIncludes(schedule.period, 'T') && 'active'" :aria-pressed="periodIncludes(schedule.period, 'T')" @click="schedule.period = 'T'" title="Trimestral: incluye mensual, bimestral y trimestral">Trimestral</button>
+                                            <button type="button" class="btn btn-outline-success fw-bold" :class="periodIncludes(schedule.period, 'S') && 'active'" :aria-pressed="periodIncludes(schedule.period, 'S')" @click="schedule.period = 'S'" title="Semestral: incluye todos los grupos">Semestral</button>
+                                        </div>
+                                    </div>
                                     <div class="col-1 text-end"><button type="button" class="btn btn-sm p-0 text-danger" @click="removeSchedule(index)" :disabled="schedules.length === 1" title="Quitar"><i class="bi bi-trash"></i></button></div>
                                     <div class="col-12"><small class="text-success" x-text="`${testsFor(schedule.period).length} exámenes incluidos`"></small></div>
                                 </div>
@@ -143,6 +152,7 @@ function laboratoryBatchForm({ tests, initialSchedules, initialPatients }) {
         addSchedule() { this.schedules.push({ sampled_at: '{{ date('Y-m-d') }}', period: 'M', key: `${Date.now()}-${Math.random()}` }); },
         removeSchedule(index) { if (this.schedules.length > 1) this.schedules.splice(index, 1); },
         periodName(period) { return { M: 'Mensual', B: 'Bimestral', T: 'Trimestral', S: 'Semestral' }[period]; },
+        periodIncludes(period, frequency) { const periods = ['M', 'B', 'T', 'S']; return periods.indexOf(frequency) <= periods.indexOf(period); },
         testsFor(period) { const frequencies = { M: ['M'], B: ['M', 'B'], T: ['M', 'B', 'T'], S: ['M', 'B', 'T', 'S'] }[period] || []; return this.tests.filter(test => frequencies.includes(test.frequency)); },
         normalize(value) { return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); },
         matchesPatient(value) { return this.normalize(value).includes(this.normalize(this.patientQuery)); },

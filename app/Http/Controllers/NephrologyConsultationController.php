@@ -24,8 +24,8 @@ class NephrologyConsultationController extends Controller
 
     public const AUXILIARY_EXAMS = [
         'Mensual' => ['Hematocrito', 'Hemoglobina', 'Nitrógeno ureico (urea pre y post diálisis)', 'Perfil de electrolitos (cloro, sodio y potasio)', 'Calcio total', 'Fósforo inorgánico (fosfato)'],
-        'Bimestral' => ['Aspartato aminotransferasa (AST/TGO)', 'Alanina aminotransferasa (ALT/TGP)', 'Albúmina'],
-        'Trimestral' => ['Fosfatasa alcalina', 'Hierro', 'Ferritina', 'Transferrina', 'Parathormona (PTH)'],
+        'Bimestral' => ['Aspartato aminotransferasa (AST/TGO)', 'Alanina aminotransferasa (ALT/TGP)'],
+        'Trimestral' => ['Albúmina', 'Fosfatasa alcalina', 'Hierro', 'Ferritina', 'Transferrina', 'Parathormona (PTH)'],
         'Semestral' => ['Anticuerpos VIH 1 y VIH 2', 'Sífilis (anticuerpo no treponémico)', 'Antígeno de superficie hepatitis B (HBsAg)', 'Anticuerpo de superficie hepatitis B (anti-HBs)', 'Anticuerpo core total hepatitis B (anti-HBc)', 'Anticuerpo hepatitis C (anti-HCV)', 'Anticuerpo HTLV 1'],
     ];
 

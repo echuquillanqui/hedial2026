@@ -29,7 +29,7 @@ class FissalLaboratorySeeder extends Seeder
             [$biochemistry, 'Calcio total', 'mg/dL', '8.8 - 10.2', 'M', 'number'],
             [$biochemistry, 'Aspartato aminotransferasa (AST/TGO)', 'U/L', 'Varones: < 50 / Mujeres: < 35', 'B', 'number'],
             [$biochemistry, 'Alanina aminotransferasa (ALT/TGP)', 'U/L', 'Varones: < 50 / Mujeres: < 35', 'B', 'number'],
-            [$biochemistry, 'Albúmina', 'g/dL', '3.97 - 4.94', 'B', 'number'],
+            [$biochemistry, 'Albúmina', 'g/dL', '3.97 - 4.94', 'T', 'number'],
             [$biochemistry, 'Fósforo inorgánico (fosfato)', 'mg/dL', '2.5 - 5.6', 'M', 'number'],
             [$biochemistry, 'Fosfatasa alcalina', 'U/L', 'Varones: 40 - 129 / Mujeres: 35 - 104', 'T', 'number'],
             [$biochemistry, 'Hierro', 'µg/dL', '59 - 158', 'T', 'number'],
