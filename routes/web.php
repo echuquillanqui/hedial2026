@@ -13,6 +13,7 @@ use App\Http\Controllers\SedeSessionController;
 use App\Http\Controllers\OperationalAreaController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\LaboratoryOrderController;
+use App\Http\Controllers\FuaConfigurationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,6 +52,8 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
 
     Route::get('catalogo', [CatalogController::class, 'index'])->name('catalog.index');
     Route::put('catalogo', [CatalogController::class, 'update'])->name('catalog.update');
+    Route::get('fuas/configuracion', [FuaConfigurationController::class, 'edit'])->name('fuas.configuration.edit');
+    Route::put('fuas/configuracion', [FuaConfigurationController::class, 'update'])->name('fuas.configuration.update');
     Route::get('catalogo/listado', [CatalogController::class, 'list'])->name('catalog.list');
     Route::get('catalogo/areas/{area}/editar', [CatalogController::class, 'editArea'])->name('catalog.areas.edit');
     Route::put('catalogo/areas/{area}', [CatalogController::class, 'updateArea'])->name('catalog.areas.update');

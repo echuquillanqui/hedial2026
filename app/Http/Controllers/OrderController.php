@@ -13,6 +13,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Support\CurrentSede;
+use App\Models\Fua;
+use App\Services\FuaNumberService;
 
 class OrderController extends Controller
 {
@@ -27,7 +29,7 @@ class OrderController extends Controller
 
         $currentSedeId = CurrentSede::id();
 
-        $orders = Order::with(['patient', 'medical', 'sede'])
+        $orders = Order::with(['patient', 'medical', 'sede', 'fua'])
             ->when($currentSedeId, fn ($query) => $query->where('sede_id', $currentSedeId))
             ->when($request->search, function ($query, $search) {
                 $query->where(function($q) use ($search) {
@@ -110,6 +112,7 @@ class OrderController extends Controller
             'horas_dialisis' => 'required|numeric|min:0.5',
             'fecha_orden'    => 'required|date',
             'laboratory_period' => 'required|in:M,B,T,S',
+            'attention_type' => 'required|in:'.Fua::HEMODIALYSIS.','.Fua::NEPHROLOGY,
         ]);
 
         try {
@@ -128,6 +131,7 @@ class OrderController extends Controller
 
             $this->createRelatedRecords($order, $order->patient);
             $this->createLaboratoryOrder($order, $patient);
+            app(FuaNumberService::class)->createForOrder($order);
 
             DB::commit();
             return redirect()->route('orders.index')->with('toastr', [
@@ -152,6 +156,8 @@ class OrderController extends Controller
             'horas_individual' => 'required|array', // Captura el array de la vista
             'laboratory_periods' => 'required|array',
             'laboratory_periods.*' => 'required|in:M,B,T,S',
+            'attention_types' => 'required|array',
+            'attention_types.*' => 'required|in:'.Fua::HEMODIALYSIS.','.Fua::NEPHROLOGY,
         ]);
 
         try {
@@ -167,6 +173,7 @@ class OrderController extends Controller
                 // 1. Capturar la hora individual (ej: 3.5)
                 $horasHD = $request->horas_individual[$id] ?? 3.5;
                 $laboratoryPeriod = $request->laboratory_periods[$id];
+                $attentionType = $request->attention_types[$id];
 
                 // 2. Crear la Orden (Tabla: orders)
                 $order = Order::create([
@@ -176,6 +183,7 @@ class OrderController extends Controller
                     'turno'          => $patient->turno,
                     'es_covid'       => isset($request->covid_flags[$id]),
                     'laboratory_period' => $laboratoryPeriod,
+                    'attention_type' => $attentionType,
                     'horas_dialisis' => $horasHD, // Se guarda como decimal
                     'fecha_orden'    => $request->fecha_orden,
                     'sede_id'        => $patient->sede_id,
@@ -184,6 +192,7 @@ class OrderController extends Controller
                 // 3. Crear registros clínicos relacionados (medicals, nurses y treatments)
                 $this->createRelatedRecords($order, $patient, $horasHD);
                 $this->createLaboratoryOrder($order, $patient);
+                app(FuaNumberService::class)->createForOrder($order);
 
             }
 
@@ -219,6 +228,7 @@ class OrderController extends Controller
             'horas_dialisis' => 'required|numeric|min:0.5', // Cambiado de integer a numeric
             'fecha_orden'    => 'required|date',
             'laboratory_period' => 'required|in:M,B,T,S',
+            'attention_type' => 'required|in:'.Fua::HEMODIALYSIS.','.Fua::NEPHROLOGY,
         ]);
 
         try {

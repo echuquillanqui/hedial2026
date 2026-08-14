@@ -14,11 +14,13 @@ class Test extends Model
 
     protected $fillable = [
         'area_id',
+        'code',
         'name',
         'unit',
         'reference_value',
         'type',
         'frequency',
+        'fua_quantity',
         'is_fissal',
     ];
 

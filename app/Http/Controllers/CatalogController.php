@@ -41,6 +41,8 @@ class CatalogController extends Controller
             'tests.*.reference_value' => ['nullable', 'string', 'max:255'],
             'tests.*.type' => ['required', 'in:number,text,select'],
             'tests.*.frequency' => ['required', 'in:M,B,T,S'],
+            'tests.*.code' => ['nullable', 'string', 'max:30', 'distinct'],
+            'tests.*.fua_quantity' => ['required', 'integer', 'min:1'],
         ]);
 
         $submittedIds = collect(array_keys($validated['tests']))->map(fn ($id) => (int) $id)->sort()->values();
@@ -58,6 +60,8 @@ class CatalogController extends Controller
                     'reference_value' => $data['reference_value'] ?? null,
                     'type' => $data['type'],
                     'frequency' => $data['frequency'],
+                    'code' => $data['code'] ?? null,
+                    'fua_quantity' => $data['fua_quantity'],
                 ]);
             }
         });
@@ -136,6 +140,8 @@ class CatalogController extends Controller
             'tests.*.unit' => ['nullable', 'string', 'max:100'],
             'tests.*.reference_value' => ['nullable', 'string', 'max:255'],
             'tests.*.type' => ['required', 'in:number,text,select'],
+            'tests.*.code' => ['nullable', 'string', 'max:30', 'distinct'],
+            'tests.*.fua_quantity' => ['nullable', 'integer', 'min:1'],
             'tests.*.options' => ['nullable', 'array'],
             'tests.*.options.*.label' => ['required_with:tests.*.options.*.value', 'nullable', 'string', 'max:255'],
             'tests.*.options.*.value' => ['required_with:tests.*.options.*.label', 'nullable', 'string', 'max:255'],
@@ -152,6 +158,8 @@ class CatalogController extends Controller
                     'unit' => $testData['unit'] ?? null,
                     'reference_value' => $testData['reference_value'] ?? null,
                     'type' => $testData['type'],
+                    'code' => $testData['code'] ?? null,
+                    'fua_quantity' => $testData['fua_quantity'] ?? 1,
                 ]);
 
                 if ($testData['type'] === 'select' && !empty($testData['options'])) {

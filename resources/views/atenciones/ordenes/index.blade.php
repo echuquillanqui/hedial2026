@@ -79,6 +79,7 @@
                             <th class="data-title text-center">Turno</th>
                             <th class="data-title text-center">Horas</th>
                             <th class="data-title text-center">Examen Lab.</th>
+                            <th class="data-title text-center">FUA</th>
                             <th class="data-title text-center">Opciones</th>
                         </tr>
                     </thead>
@@ -93,11 +94,15 @@
                             <td class="fw-bold small text-center">TURNO - {{ $order->turno }}</td>
                             <td class="fw-bold text-primary text-center">{{ number_format($order->horas_dialisis, 1) }}</td>
                             <td class="text-center"><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">{{ $order->laboratory_period ?? '-' }}</span></td>
+                            <td class="text-center">
+                                <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{ $order->fua?->number ?? 'Pendiente' }}</span>
+                                <div class="small text-muted">{{ $order->attention_type === 'NEPHROLOGY' ? 'Consulta' : 'Hemodiálisis' }}</div>
+                            </td>
                             <td>
                                 <div class="d-flex justify-content-center gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editOrderModal"
                                             data-id="{{ $order->id }}" data-paciente="{{ $order->patient->surname }} {{ $order->patient->first_name }}"
-                                            data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}">
+                                            data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}" data-attention-type="{{ $order->attention_type }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
                                     
@@ -109,7 +114,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="7" class="text-center py-5 text-muted">No se encontraron órdenes.</td></tr>
+                        <tr><td colspan="8" class="text-center py-5 text-muted">No se encontraron órdenes.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -169,6 +174,14 @@
                                 <option value="S">S - Semestral</option>
                             </select>
                         </div>
+                        <div class="col-md-6">
+                            <label class="modal-label">Tipo de atención / FUA</label>
+                            <select name="attention_type" id="modal_attention_type" class="form-select border-primary" required>
+                                <option value="HEMODIALYSIS">Hemodiálisis</option>
+                                <option value="NEPHROLOGY">Consulta nefrológica</option>
+                            </select>
+                            <small class="text-muted">Cambiarlo no renumera una FUA ya emitida.</small>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
@@ -225,6 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal_horas').value = btn.getAttribute('data-horas');
         document.getElementById('modal_fecha').value = btn.getAttribute('data-fecha');
         document.getElementById('modal_laboratory_period').value = btn.getAttribute('data-laboratory-period');
+        document.getElementById('modal_attention_type').value = btn.getAttribute('data-attention-type');
     });
 
     // Lógica Modal Eliminar
