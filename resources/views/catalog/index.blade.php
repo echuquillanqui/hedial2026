@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid">
+<div class="container">
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
     @if($errors->any())
         <div class="alert alert-danger">
-            <strong>Se encontraron errores:</strong>
+            <strong>No se pudieron guardar los cambios:</strong>
             <ul class="mb-0 mt-2">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -17,260 +17,81 @@
         </div>
     @endif
 
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-            <form method="POST" action="{{ route('catalog.store') }}" id="catalog-form">
-                @csrf
-
-                <div class="row g-0">
-                    <div class="col-lg-3 border-end bg-light-subtle">
-                        <div class="p-4 h-100">
-                            <div class="catalog-ribbon mb-4">
-                                <span>Configuración</span>
-                            </div>
-
-                            <h5 class="mb-3">Datos del catálogo</h5>
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Área</label>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" name="area_name" class="form-control rounded-start-3" required value="{{ old('area_name') }}" placeholder="Ej: Bioquímica" data-area-input list="areas-list" autocomplete="off">
-                                    <button type="button" class="btn btn-outline-danger px-2" title="Limpiar área" data-clear-area>🗑</button>
-                                </div>
-                                <div class="form-text" data-area-hint>Escribe para buscar áreas existentes o crear una nueva.</div>
-                                <datalist id="areas-list">
-                                    @foreach(($areaNames ?? collect()) as $areaName)
-                                        <option value="{{ $areaName }}"></option>
-                                    @endforeach
-                                </datalist>
-                            </div>
-                            <div class="mb-4">
-                                <label class="form-label fw-semibold">Perfil</label>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" name="profile_name" class="form-control rounded-start-3" value="{{ old('profile_name') }}" placeholder="Opcional. Ej: Perfil renal" data-profile-input list="profiles-list" autocomplete="off">
-                                    <button type="button" class="btn btn-outline-danger px-2" title="Limpiar perfil" data-clear-profile>🗑</button>
-                                </div>
-                                <div class="form-text" data-profile-hint>Opcional. Selecciona un perfil existente o crea uno nuevo.</div>
-                                <datalist id="profiles-list">
-                                    @foreach(($profileNames ?? collect()) as $profileName)
-                                        <option value="{{ $profileName }}"></option>
-                                    @endforeach
-                                </datalist>
-                            </div>
-
-                            <div class="small text-muted">
-                                Si indicas un perfil, los exámenes creados se asignarán automáticamente a ese perfil. Si no, quedarán solo en el área.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-9">
-                        <div class="p-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
-                                <div>
-                                    <h4 class="mb-1">Exámenes</h4>
-                                    <p class="text-muted mb-0">Agrega exámenes y configura sus opciones según el tipo.</p>
-                                </div>
-                                <div class="d-flex gap-2">
-                                    <a href="{{ route('catalog.list') }}" class="btn btn-outline-secondary rounded-pill px-4">Ver listado</a>
-                                    <button type="button" class="btn btn-primary rounded-pill px-4" id="add-test-btn">+ Agregar examen</button>
-                                </div>
-                            </div>
-
-                            <div id="tests-container" class="d-grid gap-3 mb-4"></div>
-
-                            
-                            <div class="mt-4">
-                                <button class="btn btn-success px-4 rounded-pill">Guardar catálogo</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </form>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="mb-1">Catálogo de exámenes FISSAL</h3>
+            <p class="text-muted mb-0">Edita la configuración de los 24 exámenes incluidos en el catálogo.</p>
         </div>
     </div>
+
+    <form method="POST" action="{{ route('catalog.update') }}">
+        @csrf
+        @method('PUT')
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Área</th>
+                                <th>Examen</th>
+                                <th>Unidad</th>
+                                <th>Valor de referencia</th>
+                                <th>Tipo</th>
+                                <th class="pe-3">Frecuencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($tests as $test)
+                                <tr>
+                                    <td class="ps-3" style="min-width: 180px">
+                                        <input type="text" name="tests[{{ $test->id }}][area]" class="form-control form-control-sm" value="{{ old("tests.{$test->id}.area", $test->area->name) }}" required list="catalog-areas">
+                                    </td>
+                                    <td style="min-width: 240px">
+                                        <input type="text" name="tests[{{ $test->id }}][name]" class="form-control form-control-sm" value="{{ old("tests.{$test->id}.name", $test->name) }}" required>
+                                    </td>
+                                    <td style="min-width: 110px">
+                                        <input type="text" name="tests[{{ $test->id }}][unit]" class="form-control form-control-sm" value="{{ old("tests.{$test->id}.unit", $test->unit) }}">
+                                    </td>
+                                    <td style="min-width: 260px">
+                                        <input type="text" name="tests[{{ $test->id }}][reference_value]" class="form-control form-control-sm" value="{{ old("tests.{$test->id}.reference_value", $test->reference_value) }}">
+                                    </td>
+                                    <td style="min-width: 110px">
+                                        <select name="tests[{{ $test->id }}][type]" class="form-select form-select-sm" required>
+                                            @foreach(['number' => 'Número', 'text' => 'Texto', 'select' => 'Selección'] as $value => $label)
+                                                <option value="{{ $value }}" @selected(old("tests.{$test->id}.type", $test->type) === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="pe-3" style="min-width: 140px">
+                                        <select name="tests[{{ $test->id }}][frequency]" class="form-select form-select-sm" required>
+                                            @foreach(['M' => 'Mensual', 'B' => 'Bimestral', 'T' => 'Trimestral', 'S' => 'Semestral'] as $value => $label)
+                                                <option value="{{ $value }}" @selected(old("tests.{$test->id}.frequency", $test->frequency) === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="6" class="text-center text-muted py-4">No hay exámenes FISSAL registrados.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <datalist id="catalog-areas">
+            @foreach($areaNames as $areaName)
+                <option value="{{ $areaName }}"></option>
+            @endforeach
+        </datalist>
+
+        @if($tests->isNotEmpty())
+            <div class="d-flex justify-content-end mt-3">
+                <button type="submit" class="btn btn-success rounded-pill px-4">Guardar cambios</button>
+            </div>
+        @endif
+    </form>
 </div>
 @endsection
-
-@push('styles')
-<style>
-    .catalog-ribbon {
-        width: fit-content;
-        color: #fff;
-        background: linear-gradient(135deg, #0d6efd, #3d8bfd);
-        padding: .45rem .95rem;
-        border-radius: 0 .75rem .75rem 0;
-        box-shadow: 0 8px 20px rgba(13, 110, 253, 0.25);
-        font-weight: 600;
-    }
-</style>
-@endpush
-
-@push('scripts')
-<script>
-(() => {
-    const testsContainer = document.getElementById('tests-container');
-    const addTestBtn = document.getElementById('add-test-btn');
-    const areaInput = document.querySelector('[data-area-input]');
-    const profileInput = document.querySelector('[data-profile-input]');
-    const areaHint = document.querySelector('[data-area-hint]');
-    const profileHint = document.querySelector('[data-profile-hint]');
-    const areaNames = @json(($areaNames ?? collect())->values());
-    const profileNames = @json(($profileNames ?? collect())->values());
-    let testIndex = 0;
-
-    function normalize(value) {
-        return (value || '').trim().toLowerCase();
-    }
-
-    function hasExactMatch(value, options) {
-        const normalized = normalize(value);
-        return normalized.length > 0 && options.some((option) => normalize(option) === normalized);
-    }
-
-    function updateHint(input, hintEl, options, typeLabel) {
-        if (!input || !hintEl) return;
-
-        const currentValue = input.value.trim();
-        if (!currentValue) {
-            hintEl.textContent = `Escribe para buscar ${typeLabel}s existentes o crear uno nuevo.`;
-            return;
-        }
-
-        const exists = hasExactMatch(currentValue, options);
-        hintEl.textContent = exists
-            ? `${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} existente: se reutilizará "${currentValue}".`
-            : `${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} nuevo: se creará "${currentValue}".`;
-    }
-
-    function makeOptionRow(idx, optionIdx, label = '', value = '') {
-        return `<div class="row g-1 mb-1 align-items-center" data-option-row>
-            <div class="col-md-5"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][options][${optionIdx}][label]" placeholder="Etiqueta" value="${label}"></div>
-            <div class="col-md-6"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][options][${optionIdx}][value]" placeholder="Valor" value="${value}"></div>
-            <div class="col-md-1 d-grid"><button type="button" class="btn btn-outline-danger btn-sm py-0" title="Quitar opción" data-remove-option>✕</button></div>
-        </div>`;
-    }
-
-    function addTestCard() {
-        const idx = testIndex++;
-        const card = document.createElement('div');
-        card.className = 'border rounded-3 bg-white p-2';
-        card.dataset.testCard = '1';
-        card.dataset.index = idx;
-        card.dataset.optionIndex = 0;
-
-        card.innerHTML = `
-            <div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong class="text-primary small">Examen #${idx + 1}</strong>
-                </div>
-                <div class="row g-1 align-items-center">
-                    <div class="col-auto ms-auto order-md-last"><button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Eliminar examen" data-remove-test>🗑</button></div>
-                    <div class="col-md-4"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][name]" placeholder="Nombre" data-test-name required></div>
-                    <div class="col-md-2"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][unit]" placeholder="Unidad"></div>
-                    <div class="col-md-3"><input class="form-control form-control-sm rounded-3" name="tests[${idx}][reference_value]" placeholder="Valor de referencia"></div>
-                    <div class="col-md-3">
-                        <select class="form-select form-select-sm rounded-3" name="tests[${idx}][type]" data-test-type required>
-                            <option value="number">number</option>
-                            <option value="text">text</option>
-                            <option value="select">select</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mt-2 d-none" data-options-wrapper>
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <strong>Opciones del select</strong>
-                        <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-add-option>+ Opción</button>
-                    </div>
-                    <input class="form-control form-control-sm mb-1" placeholder="Ingreso rápido: POSITIVO;NEGATIVO" data-options-quick>
-                    <div class="p-2 bg-light rounded-3" data-options-list></div>
-                </div>
-            </div>`;
-
-        testsContainer.appendChild(card);
-    }
-
-    addTestBtn.addEventListener('click', addTestCard);
-
-
-    document.addEventListener('click', (event) => {
-        if (event.target.matches('[data-clear-area]')) {
-            const input = document.querySelector('[data-area-input]');
-            if (input) input.value = '';
-        }
-
-        if (event.target.matches('[data-clear-profile]')) {
-            const input = document.querySelector('[data-profile-input]');
-            if (input) input.value = '';
-        }
-    });
-
-    [
-        [areaInput, areaHint, areaNames, 'área'],
-        [profileInput, profileHint, profileNames, 'perfil'],
-    ].forEach(([input, hintEl, options, typeLabel]) => {
-        if (!input) return;
-        const refresh = () => updateHint(input, hintEl, options, typeLabel);
-        input.addEventListener('input', refresh);
-        input.addEventListener('change', refresh);
-        refresh();
-    });
-
-
-    testsContainer.addEventListener('change', (event) => {
-        if (event.target.matches('[data-test-type]')) {
-            const card = event.target.closest('[data-test-card]');
-            const wrapper = card.querySelector('[data-options-wrapper]');
-            wrapper.classList.toggle('d-none', event.target.value !== 'select');
-        }
-    });
-
-    testsContainer.addEventListener('blur', (event) => {
-        if (!event.target.matches('[data-options-quick]')) return;
-        const raw = event.target.value.trim();
-        if (!raw) return;
-
-        const card = event.target.closest('[data-test-card]');
-        const list = card.querySelector('[data-options-list]');
-        const idx = card.dataset.index;
-        const chunks = raw.split(/[;,\n]+/).map(v => v.trim()).filter(Boolean);
-
-        chunks.forEach((value) => {
-            const optionIdx = Number(card.dataset.optionIndex);
-            list.insertAdjacentHTML('beforeend', makeOptionRow(idx, optionIdx, value, value));
-            card.dataset.optionIndex = optionIdx + 1;
-        });
-
-        event.target.value = '';
-    }, true);
-
-    testsContainer.addEventListener('click', (event) => {
-        const card = event.target.closest('[data-test-card]');
-        if (!card) return;
-
-        if (event.target.matches('[data-remove-test]')) {
-            card.remove();
-            return;
-        }
-
-        if (event.target.matches('[data-add-option]')) {
-            const list = card.querySelector('[data-options-list]');
-            const idx = card.dataset.index;
-            const optionIdx = Number(card.dataset.optionIndex);
-            list.insertAdjacentHTML('beforeend', makeOptionRow(idx, optionIdx));
-            card.dataset.optionIndex = optionIdx + 1;
-            return;
-        }
-
-        if (event.target.matches('[data-options-quick]')) {
-            return;
-        }
-
-        if (event.target.matches('[data-remove-option]')) {
-            event.target.closest('[data-option-row]').remove();
-        }
-    });
-
-    addTestCard();
-})();
-</script>
-@endpush

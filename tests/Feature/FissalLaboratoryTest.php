@@ -23,6 +23,56 @@ class FissalLaboratoryTest extends TestCase
         $this->assertEqualsCanonicalizing(['B', 'M', 'S', 'T'], Test::where('is_fissal', true)->pluck('frequency')->unique()->all());
     }
 
+    public function test_catalog_only_displays_the_24_fissal_tests(): void
+    {
+        $this->seed(FissalLaboratorySeeder::class);
+        $user = User::factory()->create();
+        $fissalTest = Test::where('is_fissal', true)->firstOrFail();
+        $nonFissalTest = Test::create([
+            'area_id' => $fissalTest->area_id,
+            'name' => 'Examen que no pertenece al catálogo',
+            'type' => 'text',
+            'is_fissal' => false,
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('catalog.index'));
+
+        $response->assertOk();
+        $response->assertViewHas('tests', fn ($tests): bool => $tests->count() === 24
+            && $tests->every(fn (Test $test): bool => $test->is_fissal)
+            && ! $tests->contains($nonFissalTest));
+        $response->assertDontSee($nonFissalTest->name);
+        $response->assertDontSee('Agregar examen');
+    }
+
+    public function test_all_fissal_catalog_fields_can_be_updated(): void
+    {
+        $this->seed(FissalLaboratorySeeder::class);
+        $user = User::factory()->create();
+        $tests = Test::where('is_fissal', true)->get();
+        $target = $tests->first();
+        $payload = $tests->mapWithKeys(fn (Test $test) => [$test->id => [
+            'area' => $test->is($target) ? 'Área actualizada' : $test->area->name,
+            'name' => $test->is($target) ? 'Examen actualizado' : $test->name,
+            'unit' => $test->is($target) ? 'u/mL' : $test->unit,
+            'reference_value' => $test->is($target) ? '1 - 10' : $test->reference_value,
+            'type' => $test->is($target) ? 'select' : $test->type,
+            'frequency' => $test->is($target) ? 'S' : $test->frequency,
+        ]])->all();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->put(route('catalog.update'), ['tests' => $payload]);
+
+        $response->assertRedirect(route('catalog.index'));
+        $target->refresh();
+        $this->assertSame('Área actualizada', $target->area->name);
+        $this->assertSame('Examen actualizado', $target->name);
+        $this->assertSame('u/mL', $target->unit);
+        $this->assertSame('1 - 10', $target->reference_value);
+        $this->assertSame('select', $target->type);
+        $this->assertSame('S', $target->frequency);
+        $this->assertTrue($target->is_fissal);
+    }
+
     public function test_multiple_patient_orders_can_be_generated(): void
     {
         $this->seed(FissalLaboratorySeeder::class);
