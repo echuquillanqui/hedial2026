@@ -8,6 +8,7 @@ use App\Models\Profile;
 use App\Models\Test;
 use App\Models\User;
 use Database\Seeders\FissalLaboratorySeeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -119,6 +120,44 @@ class FissalLaboratoryTest extends TestCase
                 && $loadedProfile->tests->count() === 1
                 && $loadedProfile->tests->contains($fissalTest);
         });
+    }
+
+    public function test_laboratory_generation_defaults_to_the_sequence_for_the_current_day(): void
+    {
+        Carbon::setTestNow('2026-08-14 09:00:00'); // Viernes
+        $user = User::factory()->create();
+        $fridayPatient = Patient::factory()->create(['secuencia' => 'L-M-V', 'turno' => '1']);
+        $otherPatient = Patient::factory()->create(['secuencia' => 'M-J-S', 'turno' => '1']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.orders.create'));
+
+        $response->assertOk();
+        $response->assertViewHas('sequence', 'L-M-V');
+        $response->assertViewHas('shift', null);
+        $response->assertViewHas('patients', fn ($patients): bool => $patients->contains($fridayPatient)
+            && ! $patients->contains($otherPatient));
+        $response->assertSee('value="2026-08-14"', false);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_laboratory_patients_can_be_filtered_by_sequence_and_shift(): void
+    {
+        $user = User::factory()->create();
+        $expectedPatient = Patient::factory()->create(['secuencia' => 'M-J-S', 'turno' => '3']);
+        Patient::factory()->create(['secuencia' => 'M-J-S', 'turno' => '2']);
+        Patient::factory()->create(['secuencia' => 'L-M-V', 'turno' => '3']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.orders.create', [
+            'secuencia' => 'M-J-S',
+            'turno' => '3',
+        ]));
+
+        $response->assertOk();
+        $response->assertViewHas('sequence', 'M-J-S');
+        $response->assertViewHas('shift', '3');
+        $response->assertViewHas('patients', fn ($patients): bool => $patients->count() === 1
+            && $patients->first()->is($expectedPatient));
     }
 
     public function test_individual_dialysis_order_generates_cumulative_exams_for_selected_period(): void
