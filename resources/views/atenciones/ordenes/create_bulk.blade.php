@@ -141,6 +141,12 @@
                                                     </select>
                                                 </div>
                                                 <div class="col-md-2">
+                                                    <select name="attention_type" class="form-select form-select-sm border-primary" aria-label="Tipo de atención para FUA" required>
+                                                        <option value="HEMODIALYSIS">FUA Hemodiálisis</option>
+                                                        <option value="NEPHROLOGY">FUA Consulta</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
                                                     <input type="date" name="fecha_orden" class="form-control form-control-sm border-success" value="{{ date('Y-m-d') }}" required>
                                                 </div>
                                                 <div class="col-md-2">
@@ -221,6 +227,7 @@
                                         <th class="text-center">H.C.</th>
                                         <th class="text-center" style="width: 140px;">HORAS HD</th>
                                         <th class="text-center" style="width: 150px;">EXAMEN LAB.</th>
+                                        <th class="text-center" style="width: 165px;">TIPO DE FUA</th>
                                         <th class="text-center">COVID</th>
                                     </tr>
                                 </thead>
@@ -252,6 +259,12 @@
                                                 <option value="B">B - Bimestral</option>
                                                 <option value="T">T - Trimestral</option>
                                                 <option value="S">S - Semestral</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select name="attention_types[{{ $patient->id }}]" class="form-select form-select-sm border-primary fw-bold" required>
+                                                <option value="HEMODIALYSIS">Hemodiálisis</option>
+                                                <option value="NEPHROLOGY">Consulta nefrológica</option>
                                             </select>
                                         </td>
                                         <td class="text-center">

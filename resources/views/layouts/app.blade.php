@@ -122,6 +122,12 @@
                     <i class="bi bi-clipboard2-pulse me-2"></i> Resultados
                 </a>
             </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('fuas.*') ? 'active' : '' }}" href="{{ route('fuas.configuration.edit') }}">
+                    <i class="bi bi-file-earmark-medical me-2"></i> Configuración FUA
+                </a>
+            </li>
         </ul>
     </li>
     @endif

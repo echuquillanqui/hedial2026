@@ -36,6 +36,8 @@
                             <tr>
                                 <th class="ps-3">Área</th>
                                 <th>Examen</th>
+                                <th>Código FUA</th>
+                                <th>Cant. FUA</th>
                                 <th>Unidad</th>
                                 <th>Valor de referencia</th>
                                 <th>Tipo</th>
@@ -50,6 +52,12 @@
                                     </td>
                                     <td style="min-width: 240px">
                                         <input type="text" name="tests[{{ $test->id }}][name]" class="form-control form-control-sm" value="{{ old("tests.{$test->id}.name", $test->name) }}" required>
+                                    </td>
+                                    <td style="min-width: 120px">
+                                        <input type="text" name="tests[{{ $test->id }}][code]" class="form-control form-control-sm" value="{{ old("tests.{$test->id}.code", $test->code) }}" placeholder="Ej. 85018">
+                                    </td>
+                                    <td style="min-width: 90px">
+                                        <input type="number" min="1" name="tests[{{ $test->id }}][fua_quantity]" class="form-control form-control-sm" value="{{ old("tests.{$test->id}.fua_quantity", $test->fua_quantity ?? 1) }}" required>
                                     </td>
                                     <td style="min-width: 110px">
                                         <input type="text" name="tests[{{ $test->id }}][unit]" class="form-control form-control-sm" value="{{ old("tests.{$test->id}.unit", $test->unit) }}">
@@ -73,7 +81,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="6" class="text-center text-muted py-4">No hay exámenes FISSAL registrados.</td></tr>
+                                <tr><td colspan="8" class="text-center text-muted py-4">No hay exámenes FISSAL registrados.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
