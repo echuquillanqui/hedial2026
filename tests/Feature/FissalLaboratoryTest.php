@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Area;
 use App\Models\LaboratoryOrder;
 use App\Models\Fua;
 use App\Models\Medical;
@@ -12,6 +13,7 @@ use App\Models\Profile;
 use App\Models\Test;
 use App\Models\User;
 use App\Models\Treatment;
+use App\Http\Controllers\NephrologyConsultationController;
 use Database\Seeders\FissalLaboratorySeeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,11 +25,36 @@ class FissalLaboratoryTest extends TestCase
 
     public function test_catalog_has_cumulative_fissal_frequencies(): void
     {
+        $area = Area::create(['name' => 'Catálogo anterior']);
+        Test::create(['area_id' => $area->id, 'name' => 'Examen FISSAL obsoleto', 'type' => 'text', 'is_fissal' => true]);
         $this->seed(FissalLaboratorySeeder::class);
 
         $this->assertSame(24, Test::where('is_fissal', true)->count());
+        $this->assertFalse(Test::where('name', 'Examen FISSAL obsoleto')->value('is_fissal'));
         $this->assertEqualsCanonicalizing(['B', 'M', 'S', 'T'], Test::where('is_fissal', true)->pluck('frequency')->unique()->all());
         $this->assertSame('M', Test::where('name', 'Fósforo inorgánico (fosfato)')->value('frequency'));
+    }
+
+    public function test_nephrology_auxiliary_exam_blocks_match_the_fissal_catalog(): void
+    {
+        $groups = NephrologyConsultationController::AUXILIARY_EXAMS;
+
+        $this->assertSame(['Mensual', 'Bimestral', 'Trimestral', 'Semestral'], array_keys($groups));
+        $this->assertContains('Nitrógeno ureico (urea pre y post diálisis)', $groups['Mensual']);
+        $this->assertContains('Perfil de electrolitos (cloro, sodio y potasio)', $groups['Mensual']);
+        $this->assertSame(21, collect($groups)->flatten()->count());
+    }
+
+    public function test_nephrology_form_can_select_each_complete_exam_block(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('consultations.create'));
+
+        $response->assertOk();
+        $response->assertSeeInOrder(['Mensual', 'Bimestral', 'Trimestral', 'Semestral']);
+        preg_match_all('/<input[^>]+data-select-exam-group/', $response->getContent(), $blockToggles);
+        $this->assertCount(4, $blockToggles[0]);
     }
 
     public function test_catalog_only_displays_the_24_fissal_tests(): void

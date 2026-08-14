@@ -10,6 +10,10 @@ class FissalLaboratorySeeder extends Seeder
 {
     public function run(): void
     {
+        // The active FISSAL catalog is deliberately closed: re-running this seeder
+        // must not leave obsolete or locally-created tests marked as FISSAL.
+        Test::query()->update(['is_fissal' => false]);
+
         $hematology = Area::firstOrCreate(['name' => 'Hematología']);
         $biochemistry = Area::firstOrCreate(['name' => 'Bioquímica']);
         $serology = Area::firstOrCreate(['name' => 'Serología e inmunología']);

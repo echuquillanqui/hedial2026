@@ -19,9 +19,6 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             WarehouseMaterialSeeder::class,
             AreaSeeder::class,
-            TestSeeder::class,
-            TestOptionSeeder::class,
-            ProfileSeeder::class,
             FissalLaboratorySeeder::class,
         ]);
     }
