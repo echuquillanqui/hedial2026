@@ -50,6 +50,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
         ->names('operational-areas');
 
     Route::get('catalogo', [CatalogController::class, 'index'])->name('catalog.index');
+    Route::put('catalogo', [CatalogController::class, 'update'])->name('catalog.update');
     Route::get('catalogo/listado', [CatalogController::class, 'list'])->name('catalog.list');
     Route::get('catalogo/areas/{area}/editar', [CatalogController::class, 'editArea'])->name('catalog.areas.edit');
     Route::put('catalogo/areas/{area}', [CatalogController::class, 'updateArea'])->name('catalog.areas.update');

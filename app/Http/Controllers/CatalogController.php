@@ -13,19 +13,56 @@ class CatalogController extends Controller
 {
     public function index()
     {
+        $tests = Test::query()
+            ->with('area')
+            ->where('is_fissal', true)
+            ->orderBy('area_id')
+            ->orderBy('id')
+            ->get();
+
         $areaNames = Area::query()
             ->select('name')
             ->orderBy('name')
             ->pluck('name')
             ->values();
 
-        $profileNames = Profile::query()
-            ->select('name')
-            ->orderBy('name')
-            ->pluck('name')
-            ->values();
+        return view('catalog.index', compact('tests', 'areaNames'));
+    }
 
-        return view('catalog.index', compact('areaNames', 'profileNames'));
+    public function update(Request $request): RedirectResponse
+    {
+        $fissalTests = Test::query()->where('is_fissal', true)->get()->keyBy('id');
+
+        $validated = $request->validate([
+            'tests' => ['required', 'array', 'size:' . $fissalTests->count()],
+            'tests.*.area' => ['required', 'string', 'max:255'],
+            'tests.*.name' => ['required', 'string', 'max:255'],
+            'tests.*.unit' => ['nullable', 'string', 'max:100'],
+            'tests.*.reference_value' => ['nullable', 'string', 'max:255'],
+            'tests.*.type' => ['required', 'in:number,text,select'],
+            'tests.*.frequency' => ['required', 'in:M,B,T,S'],
+        ]);
+
+        $submittedIds = collect(array_keys($validated['tests']))->map(fn ($id) => (int) $id)->sort()->values();
+        $expectedIds = $fissalTests->keys()->map(fn ($id) => (int) $id)->sort()->values();
+
+        abort_unless($submittedIds->all() === $expectedIds->all(), 422, 'El catálogo solo puede incluir los exámenes FISSAL.');
+
+        DB::transaction(function () use ($validated, $fissalTests): void {
+            foreach ($validated['tests'] as $id => $data) {
+                $area = Area::firstOrCreate(['name' => trim($data['area'])]);
+                $fissalTests->get((int) $id)->update([
+                    'area_id' => $area->id,
+                    'name' => $data['name'],
+                    'unit' => $data['unit'] ?? null,
+                    'reference_value' => $data['reference_value'] ?? null,
+                    'type' => $data['type'],
+                    'frequency' => $data['frequency'],
+                ]);
+            }
+        });
+
+        return redirect()->route('catalog.index')->with('success', 'Catálogo actualizado correctamente.');
     }
 
     public function list()

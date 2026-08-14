@@ -117,13 +117,6 @@
                     <i class="bi bi-journal-text me-2"></i> Catálogo
                 </a>
             </li>
-            @if($canViewOrders)
-            <li>
-                <a class="dropdown-item {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('laboratory.orders.create') }}">
-                    <i class="bi bi-list-check me-2"></i> Generar Examenes
-                </a>
-            </li>
-            @endif
             <li>
                 <a class="dropdown-item {{ request()->routeIs('laboratory.results.*') ? 'active' : '' }}" href="{{ route('laboratory.results.index') }}">
                     <i class="bi bi-clipboard2-pulse me-2"></i> Resultados
