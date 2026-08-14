@@ -109,11 +109,14 @@ class FuaController extends Controller
 
     private function logoData(?string $path): ?string
     {
-        if (! $path) {
-            return null;
+        $absolutePath = $path
+            ? storage_path('app/public/'.$path)
+            : public_path('logo/logo-fissal.png');
+
+        if (! is_file($absolutePath)) {
+            $absolutePath = public_path('logo/logo-fissal.png');
         }
 
-        $absolutePath = storage_path('app/public/'.$path);
         if (! is_file($absolutePath)) {
             return null;
         }
