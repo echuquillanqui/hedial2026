@@ -81,13 +81,17 @@ class FissalLaboratoryTest extends TestCase
         $testIds = Test::whereIn('frequency', ['M', 'B'])->pluck('id')->all();
 
         $response = $this->actingAs($user)->withoutMiddleware()->post(route('laboratory.orders.store'), [
-            'patient_ids' => $patients->pluck('id')->all(), 'period' => 'B',
-            'sampled_at' => '2026-08-14', 'test_ids' => $testIds,
+            'patient_ids' => $patients->pluck('id')->all(),
+            'schedules' => [
+                ['period' => 'M', 'sampled_at' => '2026-08-14'],
+                ['period' => 'B', 'sampled_at' => '2026-10-14'],
+            ],
         ]);
 
         $response->assertRedirect(route('laboratory.results.index'));
-        $this->assertSame(2, LaboratoryOrder::count());
-        $this->assertSame(count($testIds) * 2, LaboratoryOrder::withCount('items')->get()->sum('items_count'));
+        $this->assertSame(4, LaboratoryOrder::count());
+        $expectedItems = Test::where('frequency', 'M')->count() + count($testIds);
+        $this->assertSame($expectedItems * 2, LaboratoryOrder::withCount('items')->get()->sum('items_count'));
     }
 
     public function test_create_order_page_receives_profiles_with_fissal_tests(): void
@@ -130,6 +134,7 @@ class FissalLaboratoryTest extends TestCase
             'horas_dialisis' => 3.5,
             'fecha_orden' => '2026-08-14',
             'laboratory_period' => 'T',
+            'attention_type' => 'HEMODIALYSIS',
         ]);
 
         $response->assertRedirect(route('orders.index'));
@@ -162,6 +167,10 @@ class FissalLaboratoryTest extends TestCase
             'laboratory_periods' => [
                 $patients[0]->id => 'M',
                 $patients[1]->id => 'S',
+            ],
+            'attention_types' => [
+                $patients[0]->id => 'HEMODIALYSIS',
+                $patients[1]->id => 'HEMODIALYSIS',
             ],
         ]);
 

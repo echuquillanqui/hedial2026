@@ -1,205 +1,109 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid" x-data="laboratoryOrderForm({
-    tests: @js($tests->map(fn ($test) => ['id' => $test->id, 'name' => $test->name])->values()),
-    profiles: @js($profiles->map(fn ($profile) => [
-        'id' => $profile->id,
-        'name' => $profile->name,
-        'tests' => $profile->tests->pluck('id')->map(fn ($id) => (int) $id)->values(),
-    ])->values()),
-    oldTestIds: @js(collect(old('test_ids', []))->map(fn ($id) => (int) $id)->values()),
-    oldPatientId: @js(old('patient_id')),
-    patientSearchUrl: @js(route('patients.search')),
+<div class="container-fluid" x-data="laboratoryBatchForm({
+    tests: @js($tests->map(fn ($test) => ['id' => $test->id, 'name' => $test->name, 'frequency' => $test->frequency])->values()),
+    initialSchedules: @js(old('schedules', [['sampled_at' => date('Y-m-d'), 'period' => 'M']])),
+    initialPatients: @js(collect(old('patient_ids', []))->map(fn ($id) => (string) $id)->values()),
 })">
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-4 p-lg-5">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
-                <div>
-                    <h4 class="mb-1">Generar orden de laboratorio</h4>
-                    <p class="text-muted mb-0">Selecciona paciente, perfiles y exámenes con búsqueda rápida.</p>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+            <h3 class="mb-1">Generación masiva de laboratorios</h3>
+            <p class="text-muted mb-0">Selecciona los pacientes y define el patrón de fechas de toma de muestra.</p>
+        </div>
+        <a href="{{ route('laboratory.results.index') }}" class="btn btn-outline-secondary">Ver resultados</a>
+    </div>
+
+    @if($errors->any())
+        <div class="alert alert-danger"><strong>No se pudo generar el bloque.</strong><ul class="mb-0 mt-1">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+    @endif
+
+    <form method="POST" action="{{ route('laboratory.orders.store') }}">
+        @csrf
+        <div class="row g-4">
+            <div class="col-xl-5">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <div><strong>1. Pacientes</strong><small class="text-muted d-block">Puede generar el bloque para todos.</small></div>
+                        <span class="badge text-bg-success" x-text="`${selectedPatients.length} seleccionados`"></span>
+                    </div>
+                    <div class="card-body">
+                        <input type="search" class="form-control mb-3" x-model="patientQuery" placeholder="Buscar por DNI, H.C. o nombre">
+                        <label class="form-check border-bottom pb-2 mb-2 fw-semibold">
+                            <input type="checkbox" class="form-check-input" @change="toggleVisiblePatients($el.checked)" :checked="allVisibleSelected">
+                            Seleccionar todos los pacientes visibles
+                        </label>
+                        <div style="max-height: 480px; overflow-y: auto">
+                            @foreach($patients as $patient)
+                                <label class="form-check py-2 border-bottom patient-row" x-show="matchesPatient(@js($patient->full_name.' '.$patient->dni.' '.$patient->medical_history_number))">
+                                    <input class="form-check-input" type="checkbox" name="patient_ids[]" value="{{ $patient->id }}" x-model="selectedPatients" data-patient-search="{{ mb_strtolower($patient->full_name.' '.$patient->dni.' '.$patient->medical_history_number) }}">
+                                    <span class="form-check-label"><strong>{{ $patient->full_name }}</strong><small class="text-muted d-block">DNI: {{ $patient->dni ?: '—' }} · H.C.: {{ $patient->medical_history_number ?: '—' }}</small></span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
                 </div>
-                <span class="badge text-bg-primary-subtle border border-primary-subtle text-primary-emphasis px-3 py-2">Nuevo</span>
             </div>
 
-            <form method="POST" action="{{ route('laboratory.orders.store') }}">
-                @csrf
-                <div class="row g-4">
-                    <div class="col-lg-8">
-                        <label class="form-label fw-semibold">Paciente</label>
-                        <input
-                            type="text"
-                            class="form-control"
-                            x-model="patientQuery"
-                            @input.debounce.350ms="onPatientInput"
-                            placeholder="Buscar por DNI, nombres o apellidos"
-                            autocomplete="off"
-                            required
-                        >
-                        <div class="list-group mt-2 shadow-sm" x-show="patientOptions.length && patientQuery.length >= 2" x-cloak>
-                            <template x-for="patient in patientOptions" :key="patient.id">
-                                <button type="button" class="list-group-item list-group-item-action" @click="selectPatient(patient)">
-                                    <span class="fw-semibold" x-text="patient.text"></span>
-                                </button>
-                            </template>
-                        </div>
-                        <small class="text-success mt-2 d-block" x-show="selectedPatientName" x-text="`Paciente seleccionado: ${selectedPatientName}`" x-cloak></small>
-                        <input type="hidden" name="patient_id" x-model="patientId">
+            <div class="col-xl-7">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <div><strong>2. Patrón de toma de muestras</strong><small class="text-muted d-block">Cada fecha genera una orden para cada paciente seleccionado.</small></div>
+                        <button type="button" class="btn btn-sm btn-outline-success" @click="addSchedule()"><i class="bi bi-plus-lg me-1"></i>Agregar fecha</button>
                     </div>
-
-                    <div class="col-lg-4">
-                        <label class="form-label fw-semibold">Solicitado por</label>
-                        <input type="text" name="requested_by" class="form-control" value="{{ old('requested_by') }}" placeholder="Médico o área solicitante">
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label fw-semibold">Perfiles</label>
-                        <div class="d-flex flex-wrap gap-2">
-                            <template x-for="profile in profiles" :key="profile.id">
-                                <button type="button"
-                                    class="btn btn-sm"
-                                    :class="isProfileSelected(profile.id) ? 'btn-primary' : 'btn-outline-primary'"
-                                    @click="toggleProfile(profile.id)">
-                                    <span x-text="profile.name"></span>
-                                </button>
-                            </template>
+                    <div class="card-body">
+                        <div class="row g-2 align-items-center mb-2" x-show="schedules.length">
+                            <div class="col-5 small fw-semibold text-muted">FECHA DE MUESTRA</div><div class="col-5 small fw-semibold text-muted">GRUPO DE EXÁMENES</div>
                         </div>
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label fw-semibold">Exámenes individuales</label>
-                        <input type="text" class="form-control mb-2" x-model="testQuery" placeholder="Buscar examen..." autocomplete="off">
-                        <div class="border rounded p-3" style="max-height: 240px; overflow-y: auto;">
-                            <template x-for="test in filteredTests" :key="test.id">
-                                <label class="form-check d-flex align-items-center gap-2 mb-2">
-                                    <input class="form-check-input" type="checkbox" :value="test.id" :checked="selectedTests.includes(test.id)" @change="toggleTest(test.id)">
-                                    <span class="form-check-label" x-text="test.name"></span>
-                                </label>
-                            </template>
-                        </div>
-                        <div class="mt-3" x-show="selectedTests.length" x-cloak>
-                            <small class="text-muted d-block mb-1">Seleccionados:</small>
-                            <div class="d-flex flex-wrap gap-2">
-                                <template x-for="test in selectedTestObjects" :key="test.id">
-                                    <span class="badge text-bg-light border" x-text="test.name"></span>
-                                </template>
+                        <template x-for="(schedule, index) in schedules" :key="schedule.key">
+                            <div class="row g-2 align-items-center mb-3">
+                                <div class="col-5"><input type="date" class="form-control" :name="`schedules[${index}][sampled_at]`" x-model="schedule.sampled_at" required></div>
+                                <div class="col-5"><select class="form-select" :name="`schedules[${index}][period]`" x-model="schedule.period" required><option value="M">Mensual</option><option value="B">Bimestral (incluye mensual)</option><option value="T">Trimestral (acumulado)</option><option value="S">Semestral (todos)</option></select></div>
+                                <div class="col-2 text-end"><button type="button" class="btn btn-outline-danger" @click="removeSchedule(index)" :disabled="schedules.length === 1" title="Quitar fecha"><i class="bi bi-trash"></i></button></div>
+                                <div class="col-12"><small class="text-success" x-text="`${testsFor(schedule.period).length} exámenes seleccionados automáticamente`"></small></div>
                             </div>
-                        </div>
-
-                        <template x-for="testId in selectedTests" :key="`hidden-${testId}`">
-                            <input type="hidden" name="test_ids[]" :value="testId">
                         </template>
                     </div>
                 </div>
 
-                <button class="btn btn-primary mt-4 px-4">Guardar orden</button>
-            </form>
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white py-3"><strong>3. Exámenes incluidos por defecto</strong><small class="text-muted d-block">La frecuencia elegida es acumulativa. Sodio, potasio y cloro se registran separados para completar resultados, pero se agrupan como Perfil de electrolitos en la FUA.</small></div>
+                    <div class="card-body">
+                        <template x-for="(schedule, index) in schedules" :key="`summary-${schedule.key}`">
+                            <div class="mb-3"><div class="fw-semibold mb-2"><span x-text="schedule.sampled_at || 'Sin fecha'"></span> · <span x-text="periodName(schedule.period)"></span></div><div class="d-flex flex-wrap gap-1"><template x-for="test in testsFor(schedule.period)" :key="test.id"><span class="badge text-bg-light border fw-normal" x-text="test.name"></span></template></div></div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm"><div class="card-body d-flex justify-content-between align-items-end gap-3 flex-wrap"><div class="flex-grow-1"><label class="form-label fw-semibold">Solicitado por</label><input type="text" name="requested_by" class="form-control" value="{{ old('requested_by', auth()->user()?->name) }}" maxlength="120"></div><button class="btn btn-success px-4" :disabled="!selectedPatients.length || !schedules.length" onclick="return confirm('¿Generar las órdenes de laboratorio del patrón indicado?')"><i class="bi bi-collection me-2"></i>Generar bloque</button></div></div>
+            </div>
         </div>
-    </div>
+    </form>
 </div>
 
 <script>
-    function laboratoryOrderForm({ tests, profiles, oldTestIds, oldPatientId, patientSearchUrl }) {
-        return {
-            tests,
-            profiles,
-            testQuery: '',
-            selectedTests: oldTestIds || [],
-            selectedProfileIds: [],
-            patientId: oldPatientId || '',
-            patientQuery: '',
-            patientOptions: [],
-            selectedPatientName: '',
-            patientSearchController: null,
-
-            get filteredTests() {
-                if (!this.testQuery.trim()) return this.tests;
-                const query = this.normalizeText(this.testQuery);
-                return this.tests.filter((test) => this.normalizeText(test.name).includes(query));
-            },
-
-            get selectedTestObjects() {
-                return this.tests.filter((test) => this.selectedTests.includes(test.id));
-            },
-
-            isProfileSelected(profileId) {
-                return this.selectedProfileIds.includes(profileId);
-            },
-
-            toggleProfile(profileId) {
-                if (this.isProfileSelected(profileId)) {
-                    this.selectedProfileIds = this.selectedProfileIds.filter((id) => id !== profileId);
-                    return;
-                }
-
-                this.selectedProfileIds.push(profileId);
-                const profile = this.profiles.find((p) => p.id === profileId);
-                if (!profile) return;
-
-                profile.tests.forEach((testId) => {
-                    if (!this.selectedTests.includes(testId)) {
-                        this.selectedTests.push(testId);
-                    }
-                });
-            },
-
-            toggleTest(testId) {
-                if (this.selectedTests.includes(testId)) {
-                    this.selectedTests = this.selectedTests.filter((id) => id !== testId);
-                } else {
-                    this.selectedTests.push(testId);
-                }
-            },
-
-            onPatientInput() {
-                if (this.patientQuery !== this.selectedPatientName) {
-                    this.patientId = '';
-                    this.selectedPatientName = '';
-                }
-                this.searchPatients();
-            },
-
-            async searchPatients() {
-                if (this.patientQuery.length < 2) {
-                    this.patientOptions = [];
-                    return;
-                }
-
-                if (this.patientSearchController) {
-                    this.patientSearchController.abort();
-                }
-
-                this.patientSearchController = new AbortController();
-
-                try {
-                    const response = await fetch(`${patientSearchUrl}?q=${encodeURIComponent(this.patientQuery)}`, {
-                        signal: this.patientSearchController.signal,
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                    });
-                    const data = await response.json();
-                    this.patientOptions = data.results || [];
-                } catch (error) {
-                    if (error.name !== 'AbortError') {
-                        this.patientOptions = [];
-                    }
-                }
-            },
-
-            selectPatient(patient) {
-                this.patientId = patient.id;
-                this.selectedPatientName = patient.text;
-                this.patientQuery = patient.text;
-                this.patientOptions = [];
-            },
-
-            normalizeText(text) {
-                return String(text || '')
-                    .toLowerCase()
-                    .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '')
-                    .trim();
-            },
-        };
-    }
+function laboratoryBatchForm({ tests, initialSchedules, initialPatients }) {
+    return {
+        tests,
+        schedules: initialSchedules.map((item, index) => ({ ...item, key: `${Date.now()}-${index}` })),
+        selectedPatients: initialPatients,
+        patientQuery: '',
+        addSchedule() { this.schedules.push({ sampled_at: '', period: 'M', key: `${Date.now()}-${Math.random()}` }); },
+        removeSchedule(index) { if (this.schedules.length > 1) this.schedules.splice(index, 1); },
+        periodName(period) { return { M: 'Mensual', B: 'Bimestral', T: 'Trimestral', S: 'Semestral' }[period]; },
+        testsFor(period) {
+            const frequencies = { M: ['M'], B: ['M', 'B'], T: ['M', 'B', 'T'], S: ['M', 'B', 'T', 'S'] }[period] || [];
+            return this.tests.filter(test => frequencies.includes(test.frequency));
+        },
+        normalize(value) { return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); },
+        matchesPatient(value) { return this.normalize(value).includes(this.normalize(this.patientQuery)); },
+        get visiblePatientInputs() { return [...document.querySelectorAll('[data-patient-search]')].filter(input => this.matchesPatient(input.dataset.patientSearch)); },
+        get allVisibleSelected() { return this.visiblePatientInputs.length > 0 && this.visiblePatientInputs.every(input => this.selectedPatients.includes(input.value)); },
+        toggleVisiblePatients(checked) {
+            const ids = this.visiblePatientInputs.map(input => input.value);
+            this.selectedPatients = checked ? [...new Set([...this.selectedPatients, ...ids])] : this.selectedPatients.filter(id => !ids.includes(id));
+        },
+    };
+}
 </script>
 @endsection
