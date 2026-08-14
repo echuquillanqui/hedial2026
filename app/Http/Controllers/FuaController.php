@@ -72,6 +72,7 @@ class FuaController extends Controller
             'order.laboratoryOrder.items.test', 'responsibleUser',
         ]);
         $responsible = $fua->responsibleUser ?: $fua->order?->medical?->usuarioInicia;
+        $medications = $this->medications($fua);
         $procedures = $this->procedures($fua);
         $configuration = FuaConfiguration::global();
         $view = $fua->type === 'NEPHROLOGY' ? 'fuas.pdf_nephrology' : 'fuas.pdf';
@@ -80,6 +81,7 @@ class FuaController extends Controller
             'fua' => $fua,
             'configuration' => $configuration,
             'logoData' => $logoData,
+            'medications' => $medications,
             'responsible' => $responsible,
             'procedures' => $procedures,
         ])->setPaper('a4');
@@ -88,6 +90,21 @@ class FuaController extends Controller
         return $request->boolean('download')
             ? $document->download($filename)
             : $document->stream($filename);
+    }
+
+    private function medications(Fua $fua): array
+    {
+        $medical = $fua->order?->medical;
+
+        return collect([
+            ['code' => '3107', 'description' => 'Epoetina alfa (eritropoyetina) 2 000 UI/ml, inyectable', 'quantity' => $medical?->epo2000],
+            ['code' => '3113', 'description' => 'Epoetina alfa (eritropoyetina) 4 000 UI/ml, inyectable', 'quantity' => $medical?->epo4000],
+            ['code' => '3979', 'description' => 'Vitamina B12 (hidroxicobalamina) 1 mg/ml, inyectable', 'quantity' => $medical?->vitamina_b12],
+            ['code' => '19238', 'description' => 'Hierro (como sacarato) 20 mg Fe/ml, inyectable', 'quantity' => $medical?->hierro],
+            ['code' => '01502', 'description' => 'Calcitriol 1 mcg/ml, inyectable', 'quantity' => $medical?->calcitriol],
+        ])->filter(fn (array $medication) => is_numeric($medication['quantity']) && (float) $medication['quantity'] > 0)
+            ->values()
+            ->all();
     }
 
     private function logoData(?string $path): ?string
