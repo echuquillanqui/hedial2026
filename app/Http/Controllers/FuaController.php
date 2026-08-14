@@ -73,9 +73,13 @@ class FuaController extends Controller
         ]);
         $responsible = $fua->responsibleUser ?: $fua->order?->medical?->usuarioInicia;
         $procedures = $this->procedures($fua);
-        $document = Pdf::loadView('fuas.pdf', [
+        $configuration = FuaConfiguration::global();
+        $view = $fua->type === 'NEPHROLOGY' ? 'fuas.pdf_nephrology' : 'fuas.pdf';
+        $logoData = $this->logoData($configuration->logo_path);
+        $document = Pdf::loadView($view, [
             'fua' => $fua,
-            'configuration' => FuaConfiguration::global(),
+            'configuration' => $configuration,
+            'logoData' => $logoData,
             'responsible' => $responsible,
             'procedures' => $procedures,
         ])->setPaper('a4');
@@ -84,6 +88,22 @@ class FuaController extends Controller
         return $request->boolean('download')
             ? $document->download($filename)
             : $document->stream($filename);
+    }
+
+    private function logoData(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        $absolutePath = storage_path('app/public/'.$path);
+        if (! is_file($absolutePath)) {
+            return null;
+        }
+
+        $mime = mime_content_type($absolutePath) ?: 'image/png';
+
+        return 'data:'.$mime.';base64,'.base64_encode(file_get_contents($absolutePath));
     }
 
     private function procedures(Fua $fua): array

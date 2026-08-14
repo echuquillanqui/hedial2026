@@ -15,13 +15,30 @@
         <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
     @endif
 
-    <form method="POST" action="{{ route('fuas.configuration.update') }}">
+    <form method="POST" action="{{ route('fuas.configuration.update') }}" enctype="multipart/form-data">
         @csrf @method('PUT')
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white fw-bold">Datos comunes del formato</div>
+            <div class="card-header bg-primary text-white fw-bold">Identidad de la empresa y datos comunes</div>
             <div class="card-body row g-3">
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Logo de la empresa</label>
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        @if($configuration->logo_path)
+                            <img src="{{ asset('storage/'.$configuration->logo_path) }}" alt="Logo actual" class="border rounded bg-white p-2" style="width:100px;height:70px;object-fit:contain">
+                        @endif
+                        <div class="flex-grow-1">
+                            <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/webp">
+                            <div class="form-text">PNG, JPG o WebP, máximo 2 MB. Se adapta automáticamente al encabezado del PDF.</div>
+                        </div>
+                        @if($configuration->logo_path)
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="remove_logo" value="1" id="removeLogo"><label class="form-check-label" for="removeLogo">Quitar logo</label></div>
+                        @endif
+                    </div>
+                </div>
                 @foreach([
                     'ipress_code' => 'Código IPRESS', 'ipress_name' => 'Nombre de IPRESS',
+                    'company_name' => 'Razón social / nombre comercial', 'company_address' => 'Dirección',
+                    'company_phone' => 'Teléfono de contacto',
                     'diagnosis_code' => 'Código CIE-10', 'diagnosis_name' => 'Diagnóstico predeterminado',
                     'responsible_name' => 'Responsable de la atención', 'responsible_document' => 'DNI del responsable',
                     'responsible_college_number' => 'N.º de colegiatura', 'responsible_specialty' => 'Especialidad'
@@ -31,6 +48,28 @@
                         <input name="{{ $field }}" class="form-control" value="{{ old($field, $configuration->$field) }}" {{ in_array($field, ['responsible_name', 'responsible_document', 'responsible_college_number']) ? '' : 'required' }}>
                     </div>
                 @endforeach
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-info text-dark fw-bold">Plantilla de consulta nefrológica</div>
+            <div class="card-body row g-3">
+                @foreach([
+                    'consultation_reason' => 'Motivo de consulta',
+                    'default_etiology' => 'Etiología predeterminada',
+                    'default_vascular_access' => 'Acceso vascular predeterminado',
+                    'secondary_diagnosis_code' => 'Segundo código CIE-10',
+                    'secondary_diagnosis_name' => 'Segundo diagnóstico'
+                ] as $field => $label)
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">{{ $label }}</label>
+                        <input name="{{ $field }}" class="form-control" value="{{ old($field, $configuration->$field) }}" @required($field === 'consultation_reason')>
+                    </div>
+                @endforeach
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Anamnesis predeterminada</label>
+                    <textarea name="default_anamnesis" rows="3" class="form-control" placeholder="Se usará cuando la ficha médica no tenga evaluación registrada.">{{ old('default_anamnesis', $configuration->default_anamnesis) }}</textarea>
+                </div>
             </div>
         </div>
 
