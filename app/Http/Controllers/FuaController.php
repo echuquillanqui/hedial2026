@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Fua;
 use App\Models\FuaConfiguration;
+use App\Models\Test;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -128,34 +129,45 @@ class FuaController extends Controller
 
     private function procedures(Fua $fua): array
     {
+        if ($fua->type !== Fua::HEMODIALYSIS) {
+            return [];
+        }
+
         $rows = [['code' => '90937', 'description' => 'Procedimiento de hemodiálisis que requiere repetida(s) evaluación(es) con o sin', 'quantity' => 1]];
-        $items = $fua->order?->laboratoryOrder?->items ?? collect();
-        $urea = $items->filter(fn ($item) => str_contains(mb_strtolower($item->test?->name ?? ''), 'urea'));
+        $frequencies = match ($fua->order?->laboratory_period) {
+            'M' => ['M'],
+            'B' => ['M', 'B'],
+            'T' => ['M', 'B', 'T'],
+            'S' => ['M', 'B', 'T', 'S'],
+            default => [],
+        };
+        $tests = Test::query()->where('is_fissal', true)->whereIn('frequency', $frequencies)->get();
+        $urea = $tests->filter(fn (Test $test) => str_contains(mb_strtolower($test->name), 'urea'));
 
         if ($urea->isNotEmpty()) {
-            $rows[] = ['code' => '84520', 'description' => 'Nitrógeno ureico; cuantitativo (Urea sérica)', 'quantity' => $urea->sum(fn ($item) => $item->test?->fua_quantity ?? 1)];
+            $rows[] = ['code' => '84520', 'description' => 'Nitrógeno ureico; cuantitativo (Urea sérica)', 'quantity' => $urea->sum(fn (Test $test) => $test->fua_quantity ?? 1)];
         }
 
         $electrolyteNames = ['sodio', 'potasio', 'cloro'];
-        $electrolytes = $items->filter(fn ($item) => in_array(mb_strtolower(trim($item->test?->name ?? '')), $electrolyteNames, true));
+        $electrolytes = $tests->filter(fn (Test $test) => in_array(mb_strtolower(trim($test->name)), $electrolyteNames, true));
 
         if ($electrolytes->isNotEmpty()) {
             $rows[] = [
-                'code' => $electrolytes->first()->test?->code ?? '',
+                'code' => $electrolytes->first()->code ?? '',
                 'description' => 'Perfil de electrolitos (sodio, potasio y cloro)',
                 'quantity' => 1,
             ];
         }
 
-        foreach ($items->reject(function ($item) use ($electrolyteNames) {
-            $name = mb_strtolower(trim($item->test?->name ?? ''));
+        foreach ($tests->reject(function (Test $test) use ($electrolyteNames) {
+            $name = mb_strtolower(trim($test->name));
 
             return str_contains($name, 'urea') || in_array($name, $electrolyteNames, true);
-        }) as $item) {
+        }) as $test) {
             $rows[] = [
-                'code' => $item->test?->code ?? '',
-                'description' => $item->test?->name ?? '',
-                'quantity' => $item->test?->fua_quantity ?? 1,
+                'code' => $test->code ?? '',
+                'description' => $test->name,
+                'quantity' => $test->fua_quantity ?? 1,
             ];
         }
 

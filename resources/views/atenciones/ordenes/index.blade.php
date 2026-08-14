@@ -16,6 +16,9 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold text-uppercase m-0 text-success"><i class="bi bi-file-earmark-medical me-2"></i> Control de Órdenes</h4>
         <div class="d-flex gap-2">
+            <a href="{{ route('orders.nephrology.create') }}" class="btn btn-outline-primary shadow-sm fw-bold">
+                <i class="bi bi-clipboard2-pulse me-1"></i> CONSULTA NEFROLÓGICA
+            </a>
             <a href="{{ route('orders.create', ['mode' => 'individual']) }}" class="btn btn-outline-success shadow-sm fw-bold">
                 <i class="bi bi-person-plus me-1"></i> ORDEN INDIVIDUAL
             </a>
@@ -105,11 +108,13 @@
                                         <i class="bi bi-file-earmark-pdf"></i>
                                     </a>
                                     @endif
+                                    @if($order->attention_type === 'HEMODIALYSIS')
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editOrderModal"
                                             data-id="{{ $order->id }}" data-paciente="{{ $order->patient->surname }} {{ $order->patient->first_name }}"
-                                            data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}" data-attention-type="{{ $order->attention_type }}">
+                                            data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
+                                    @endif
                                     
                                     <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteOrderModal"
                                             data-id="{{ $order->id }}" data-paciente="{{ $order->patient->surname }} {{ $order->patient->first_name }}" data-codigo="{{ $order->codigo_unico }}">
@@ -179,14 +184,6 @@
                                 <option value="S">S - Semestral</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label class="modal-label">Tipo de atención / FUA</label>
-                            <select name="attention_type" id="modal_attention_type" class="form-select border-primary" required>
-                                <option value="HEMODIALYSIS">Hemodiálisis</option>
-                                <option value="NEPHROLOGY">Consulta nefrológica</option>
-                            </select>
-                            <small class="text-muted">Cambiarlo no renumera una FUA ya emitida.</small>
-                        </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
@@ -243,7 +240,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal_horas').value = btn.getAttribute('data-horas');
         document.getElementById('modal_fecha').value = btn.getAttribute('data-fecha');
         document.getElementById('modal_laboratory_period').value = btn.getAttribute('data-laboratory-period');
-        document.getElementById('modal_attention_type').value = btn.getAttribute('data-attention-type');
     });
 
     // Lógica Modal Eliminar

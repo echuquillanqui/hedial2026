@@ -112,7 +112,6 @@ class OrderController extends Controller
             'horas_dialisis' => 'required|numeric|min:0.5',
             'fecha_orden'    => 'required|date',
             'laboratory_period' => 'required|in:M,B,T,S',
-            'attention_type' => 'required|in:'.Fua::HEMODIALYSIS.','.Fua::NEPHROLOGY,
         ]);
 
         try {
@@ -127,10 +126,10 @@ class OrderController extends Controller
             $order = Order::create(array_merge($validated, [
                 'codigo_unico' => $this->generateCode(),
                 'sede_id' => $patient->sede_id,
+                'attention_type' => Fua::HEMODIALYSIS,
             ]));
 
             $this->createRelatedRecords($order, $order->patient);
-            $this->createLaboratoryOrder($order, $patient);
             app(FuaNumberService::class)->createForOrder($order);
 
             DB::commit();
@@ -156,8 +155,6 @@ class OrderController extends Controller
             'horas_individual' => 'required|array', // Captura el array de la vista
             'laboratory_periods' => 'required|array',
             'laboratory_periods.*' => 'required|in:M,B,T,S',
-            'attention_types' => 'required|array',
-            'attention_types.*' => 'required|in:'.Fua::HEMODIALYSIS.','.Fua::NEPHROLOGY,
         ]);
 
         try {
@@ -173,7 +170,6 @@ class OrderController extends Controller
                 // 1. Capturar la hora individual (ej: 3.5)
                 $horasHD = $request->horas_individual[$id] ?? 3.5;
                 $laboratoryPeriod = $request->laboratory_periods[$id];
-                $attentionType = $request->attention_types[$id];
 
                 // 2. Crear la Orden (Tabla: orders)
                 $order = Order::create([
@@ -183,7 +179,7 @@ class OrderController extends Controller
                     'turno'          => $patient->turno,
                     'es_covid'       => isset($request->covid_flags[$id]),
                     'laboratory_period' => $laboratoryPeriod,
-                    'attention_type' => $attentionType,
+                    'attention_type' => Fua::HEMODIALYSIS,
                     'horas_dialisis' => $horasHD, // Se guarda como decimal
                     'fecha_orden'    => $request->fecha_orden,
                     'sede_id'        => $patient->sede_id,
@@ -191,7 +187,6 @@ class OrderController extends Controller
 
                 // 3. Crear registros clínicos relacionados (medicals, nurses y treatments)
                 $this->createRelatedRecords($order, $patient, $horasHD);
-                $this->createLaboratoryOrder($order, $patient);
                 app(FuaNumberService::class)->createForOrder($order);
 
             }
@@ -203,6 +198,67 @@ class OrderController extends Controller
             DB::rollBack();
             return back()->with('error', 'Error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Formulario independiente para generar FUA de consulta nefrológica.
+     */
+    public function createNephrology(Request $request)
+    {
+        $patients = Patient::query()
+            ->when(CurrentSede::id(), fn ($query) => $query->where('sede_id', CurrentSede::id()))
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $search = trim((string) $request->search);
+                $query->where(function ($patientQuery) use ($search) {
+                    $patientQuery->where('dni', 'like', "%{$search}%")
+                        ->orWhere('medical_history_number', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('surname', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('surname')
+            ->orderBy('last_name')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('atenciones.ordenes.create_nephrology', compact('patients'));
+    }
+
+    /**
+     * Genera órdenes/FUA de consulta sin crear registros de hemodiálisis o laboratorio.
+     */
+    public function storeNephrology(Request $request)
+    {
+        $data = $request->validate([
+            'patient_ids' => ['required', 'array', 'min:1'],
+            'patient_ids.*' => ['integer', 'distinct', 'exists:patients,id'],
+            'fecha_orden' => ['required', 'date'],
+        ]);
+
+        DB::transaction(function () use ($data) {
+            Patient::query()->whereIn('id', $data['patient_ids'])->get()->each(function (Patient $patient) use ($data) {
+                if (CurrentSede::id() && (int) $patient->sede_id !== (int) CurrentSede::id()) {
+                    abort(403, 'Paciente fuera de la sede activa.');
+                }
+
+                $order = Order::create([
+                    'patient_id' => $patient->id,
+                    'codigo_unico' => $this->generateCode(),
+                    'sala' => 'CONSULTA NEFROLÓGICA',
+                    'turno' => $patient->turno ?? 'N/A',
+                    'attention_type' => Fua::NEPHROLOGY,
+                    'laboratory_period' => null,
+                    'horas_dialisis' => 0.5,
+                    'fecha_orden' => $data['fecha_orden'],
+                    'sede_id' => $patient->sede_id,
+                ]);
+
+                app(FuaNumberService::class)->createForOrder($order);
+            });
+        });
+
+        return redirect()->route('orders.index')->with('success', 'Se generaron las órdenes de consulta nefrológica y sus FUA.');
     }
 
     /**
@@ -228,7 +284,6 @@ class OrderController extends Controller
             'horas_dialisis' => 'required|numeric|min:0.5', // Cambiado de integer a numeric
             'fecha_orden'    => 'required|date',
             'laboratory_period' => 'required|in:M,B,T,S',
-            'attention_type' => 'required|in:'.Fua::HEMODIALYSIS.','.Fua::NEPHROLOGY,
         ]);
 
         try {
@@ -317,24 +372,6 @@ class OrderController extends Controller
     private function generateCode()
     {
         return 'ORD-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
-    }
-
-    /**
-     * Genera la ficha pendiente con los exámenes FISSAL del periodo elegido.
-     */
-    private function createLaboratoryOrder(Order $order, Patient $patient): void
-    {
-        $laboratoryOrder = LaboratoryOrder::create([
-            'order_id' => $order->id,
-            'patient_id' => $patient->id,
-            'patient_name' => $patient->full_name,
-            'requested_by' => auth()->user()?->name,
-            'period' => $order->laboratory_period,
-            'sampled_at' => $order->fecha_orden,
-            'provenance' => 'FISSAL',
-        ]);
-
-        $this->addLaboratoryItems($laboratoryOrder, $order->laboratory_period);
     }
 
     private function addLaboratoryItems(LaboratoryOrder $laboratoryOrder, string $period): void

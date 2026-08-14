@@ -90,6 +90,8 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('/referrals/{id}/pdf-essalud', [App\Http\Controllers\ReferralController::class, 'downloadPdfEssalud'])->name('referrals.pdf_essalud');
     Route::get('/cie10-search', [App\Http\Controllers\ReferralController::class, 'searchCie10'])->name('referrals.cie10.search');
 
+    Route::get('orders/nephrology/create', [App\Http\Controllers\OrderController::class, 'createNephrology'])->name('orders.nephrology.create');
+    Route::post('orders/nephrology', [App\Http\Controllers\OrderController::class, 'storeNephrology'])->name('orders.nephrology.store');
     Route::resource('orders', App\Http\Controllers\OrderController::class);
     Route::post('orders/store-bulk', [App\Http\Controllers\OrderController::class, 'storeBulk'])
         ->name('orders.store_bulk');

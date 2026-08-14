@@ -3,10 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\LaboratoryOrder;
+use App\Models\Fua;
+use App\Models\Medical;
+use App\Models\Nurse;
+use App\Models\Order;
 use App\Models\Patient;
 use App\Models\Profile;
 use App\Models\Test;
 use App\Models\User;
+use App\Models\Treatment;
 use Database\Seeders\FissalLaboratorySeeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,6 +27,7 @@ class FissalLaboratoryTest extends TestCase
 
         $this->assertSame(24, Test::where('is_fissal', true)->count());
         $this->assertEqualsCanonicalizing(['B', 'M', 'S', 'T'], Test::where('is_fissal', true)->pluck('frequency')->unique()->all());
+        $this->assertSame('M', Test::where('name', 'Fósforo inorgánico (fosfato)')->value('frequency'));
     }
 
     public function test_catalog_only_displays_the_24_fissal_tests(): void
@@ -160,7 +166,7 @@ class FissalLaboratoryTest extends TestCase
             && $patients->first()->is($expectedPatient));
     }
 
-    public function test_individual_dialysis_order_generates_cumulative_exams_for_selected_period(): void
+    public function test_individual_dialysis_order_keeps_laboratory_period_for_fua_without_generating_laboratory_records(): void
     {
         $this->seed(FissalLaboratorySeeder::class);
         $user = User::factory()->create();
@@ -173,23 +179,14 @@ class FissalLaboratoryTest extends TestCase
             'horas_dialisis' => 3.5,
             'fecha_orden' => '2026-08-14',
             'laboratory_period' => 'T',
-            'attention_type' => 'HEMODIALYSIS',
         ]);
 
         $response->assertRedirect(route('orders.index'));
-        $laboratoryOrder = LaboratoryOrder::with('items.test')->firstOrFail();
-        $this->assertSame('T', $laboratoryOrder->period);
-        $this->assertSame($patient->id, $laboratoryOrder->patient_id);
-        $this->assertNotNull($laboratoryOrder->order_id);
-        $this->assertNotEmpty($laboratoryOrder->items);
-        $this->assertEqualsCanonicalizing(
-            ['M', 'B', 'T'],
-            $laboratoryOrder->items->pluck('test.frequency')->unique()->all()
-        );
-        $this->assertSame(
-            Test::where('is_fissal', true)->whereIn('frequency', ['M', 'B', 'T'])->count(),
-            $laboratoryOrder->items->count()
-        );
+        $order = Order::with('fua')->firstOrFail();
+        $this->assertSame('T', $order->laboratory_period);
+        $this->assertSame(Fua::HEMODIALYSIS, $order->attention_type);
+        $this->assertSame(Fua::HEMODIALYSIS, $order->fua->type);
+        $this->assertSame(0, LaboratoryOrder::count());
     }
 
     public function test_bulk_dialysis_orders_allow_a_different_laboratory_period_per_patient(): void
@@ -207,27 +204,30 @@ class FissalLaboratoryTest extends TestCase
                 $patients[0]->id => 'M',
                 $patients[1]->id => 'S',
             ],
-            'attention_types' => [
-                $patients[0]->id => 'HEMODIALYSIS',
-                $patients[1]->id => 'HEMODIALYSIS',
-            ],
         ]);
 
         $response->assertRedirect(route('orders.index'));
-        $this->assertEqualsCanonicalizing(['M', 'S'], LaboratoryOrder::pluck('period')->all());
-        $this->assertSame(2, LaboratoryOrder::whereNotNull('order_id')->count());
+        $this->assertEqualsCanonicalizing(['M', 'S'], Order::pluck('laboratory_period')->all());
+        $this->assertSame(0, LaboratoryOrder::count());
+        $this->assertSame(2, Fua::where('type', Fua::HEMODIALYSIS)->count());
+    }
 
-        $monthlyOrder = LaboratoryOrder::with('items.test')->where('period', 'M')->firstOrFail();
-        $semesterOrder = LaboratoryOrder::with('items.test')->where('period', 'S')->firstOrFail();
+    public function test_nephrology_orders_generate_only_orders_and_fuas(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(2)->create();
 
-        $this->assertEqualsCanonicalizing(
-            ['M'],
-            $monthlyOrder->items->pluck('test.frequency')->unique()->all()
-        );
-        $this->assertEqualsCanonicalizing(
-            ['M', 'B', 'T', 'S'],
-            $semesterOrder->items->pluck('test.frequency')->unique()->all()
-        );
-        $this->assertSame(Test::where('is_fissal', true)->count(), $semesterOrder->items->count());
+        $response = $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->pluck('id')->all(),
+            'fecha_orden' => '2026-08-14',
+        ]);
+
+        $response->assertRedirect(route('orders.index'));
+        $this->assertSame(2, Order::where('attention_type', Fua::NEPHROLOGY)->count());
+        $this->assertSame(2, Fua::where('type', Fua::NEPHROLOGY)->count());
+        $this->assertSame(0, Medical::count());
+        $this->assertSame(0, Nurse::count());
+        $this->assertSame(0, Treatment::count());
+        $this->assertSame(0, LaboratoryOrder::count());
     }
 }
