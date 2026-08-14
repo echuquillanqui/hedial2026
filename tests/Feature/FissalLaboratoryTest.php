@@ -67,7 +67,7 @@ class FissalLaboratoryTest extends TestCase
         });
     }
 
-    public function test_individual_dialysis_order_generates_the_selected_laboratory_sheet(): void
+    public function test_individual_dialysis_order_generates_cumulative_exams_for_selected_period(): void
     {
         $this->seed(FissalLaboratorySeeder::class);
         $user = User::factory()->create();
@@ -88,7 +88,14 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame($patient->id, $laboratoryOrder->patient_id);
         $this->assertNotNull($laboratoryOrder->order_id);
         $this->assertNotEmpty($laboratoryOrder->items);
-        $this->assertTrue($laboratoryOrder->items->every(fn ($item) => $item->test->frequency === 'T'));
+        $this->assertEqualsCanonicalizing(
+            ['M', 'B', 'T'],
+            $laboratoryOrder->items->pluck('test.frequency')->unique()->all()
+        );
+        $this->assertSame(
+            Test::where('is_fissal', true)->whereIn('frequency', ['M', 'B', 'T'])->count(),
+            $laboratoryOrder->items->count()
+        );
     }
 
     public function test_bulk_dialysis_orders_allow_a_different_laboratory_period_per_patient(): void
@@ -111,5 +118,18 @@ class FissalLaboratoryTest extends TestCase
         $response->assertRedirect(route('orders.index'));
         $this->assertEqualsCanonicalizing(['M', 'S'], LaboratoryOrder::pluck('period')->all());
         $this->assertSame(2, LaboratoryOrder::whereNotNull('order_id')->count());
+
+        $monthlyOrder = LaboratoryOrder::with('items.test')->where('period', 'M')->firstOrFail();
+        $semesterOrder = LaboratoryOrder::with('items.test')->where('period', 'S')->firstOrFail();
+
+        $this->assertEqualsCanonicalizing(
+            ['M'],
+            $monthlyOrder->items->pluck('test.frequency')->unique()->all()
+        );
+        $this->assertEqualsCanonicalizing(
+            ['M', 'B', 'T', 'S'],
+            $semesterOrder->items->pluck('test.frequency')->unique()->all()
+        );
+        $this->assertSame(Test::where('is_fissal', true)->count(), $semesterOrder->items->count());
     }
 }

@@ -329,9 +329,16 @@ class OrderController extends Controller
 
     private function addLaboratoryItems(LaboratoryOrder $laboratoryOrder, string $period): void
     {
+        $includedFrequencies = match ($period) {
+            'M' => ['M'],
+            'B' => ['M', 'B'],
+            'T' => ['M', 'B', 'T'],
+            'S' => ['M', 'B', 'T', 'S'],
+        };
+
         $items = Test::query()
             ->where('is_fissal', true)
-            ->where('frequency', $period)
+            ->whereIn('frequency', $includedFrequencies)
             ->pluck('id')
             ->map(fn ($testId) => ['test_id' => $testId])
             ->all();
