@@ -1,37 +1,16 @@
 @extends('layouts.app')
-
 @section('content')
-<div class="container-fluid">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
-        <h4 class="mb-0">Resultados de laboratorio</h4>
-        <form method="POST" action="{{ route('laboratory.orders.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
-            @csrf
-            <input type="file" name="file" class="form-control form-control-sm" accept=".csv,.txt,.xlsx" required>
-            <button class="btn btn-sm btn-outline-primary">Importar Excel</button>
-        </form>
-    </div>
-    <p class="text-muted small">El archivo debe tener la columna <code>nombres_y_apellidos</code> y columnas de exámenes como HTO, HB, UPRE, UPOST, CLORO, SODIO, POTASIO, fosforoserico, calciocerico, TGO y TGP.</p>
-    @foreach($orders as $order)
-        <div class="card mb-3 shadow-sm">
-            <div class="card-header d-flex justify-content-between">
-                <strong>{{ $order->patient_name }}</strong>
-                <span class="badge {{ $order->status === 'completed' ? 'text-bg-success' : 'text-bg-warning' }}">{{ strtoupper($order->status) }}</span>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ route('laboratory.results.update', $order) }}">
-                    @csrf
-                    @method('PUT')
-                    @foreach($order->items as $item)
-                        <div class="row g-2 align-items-end mb-2">
-                            <div class="col-md-4"><label class="form-label">{{ $item->test->name }}</label></div>
-                            <div class="col-md-3"><input class="form-control" name="results[{{ $item->id }}][value]" value="{{ old('results.'.$item->id.'.value', $item->result_value) }}"></div>
-                            <div class="col-md-5"><input class="form-control" name="results[{{ $item->id }}][notes]" placeholder="Notas" value="{{ old('results.'.$item->id.'.notes', $item->result_notes) }}"></div>
-                        </div>
-                    @endforeach
-                    <button class="btn btn-outline-primary btn-sm">Guardar resultados</button>
-                </form>
-            </div>
-        </div>
-    @endforeach
+<div class="container-fluid fissal-index" x-data="{selected:[]}">
+ <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4"><div><span class="overline">GESTIÓN CLÍNICA</span><h2>Laboratorio FISSAL</h2><p class="text-muted mb-0">Resultados, seguimiento e impresión por paciente.</p></div><a href="{{ route('laboratory.orders.create') }}" class="btn btn-success rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Nueva orden</a></div>
+ @if(session('success'))<div class="alert alert-success border-0">{{ session('success') }}</div>@endif
+ <div class="card filter-card mb-4"><div class="card-body"><form class="row g-2"><div class="col-lg-6"><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Buscar paciente..."></div><div class="col-lg-2"><select name="period" class="form-select"><option value="">Todos los periodos</option>@foreach(['M'=>'Mensual','B'=>'Bimensual','T'=>'Trimestral','S'=>'Semestral'] as $key=>$label)<option value="{{ $key }}" @selected(request('period')===$key)>{{ $label }}</option>@endforeach</select></div><div class="col-lg-2"><select name="status" class="form-select"><option value="">Todos los estados</option><option value="pending" @selected(request('status')==='pending')>Pendiente</option><option value="completed" @selected(request('status')==='completed')>Completado</option></select></div><div class="col-lg-2"><button class="btn btn-dark w-100">Filtrar</button></div></form></div></div>
+ <form method="POST" action="{{ route('laboratory.results.bulk-pdf') }}" target="_blank">@csrf
+ <div class="bulkbar mb-3" x-show="selected.length" x-cloak><strong x-text="`${selected.length} órdenes seleccionadas`"></strong><button class="btn btn-light btn-sm"><i class="bi bi-printer me-2"></i>Imprimir en bloque</button></div>
+ <div class="card table-card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th><input type="checkbox" @change="selected=$event.target.checked?@js($orders->pluck('id')->map(fn($id)=>(string)$id)):[]"></th><th>Paciente</th><th>Control</th><th>Fecha</th><th>Avance</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
+ @forelse($orders as $order) @php($done=$order->items->whereNotNull('completed_at')->count())
+ <tr><td><input name="order_ids[]" value="{{ $order->id }}" type="checkbox" x-model="selected"></td><td><div class="patient-name">{{ $order->patient_name }}</div><small>DNI {{ $order->patient?->dni ?: '—' }} · H.C. {{ $order->patient?->medical_history_number ?: '—' }}</small></td><td><span class="period period-{{ strtolower($order->period) }}">{{ $order->period }}</span> {{ ['M'=>'Mensual','B'=>'Bimensual','T'=>'Trimestral','S'=>'Semestral'][$order->period] }}</td><td>{{ $order->sampled_at?->format('d/m/Y') ?: $order->created_at->format('d/m/Y') }}</td><td><strong>{{ $done }}/{{ $order->items->count() }}</strong><div class="progress"><div class="progress-bar" style="width:{{ $order->items->count() ? $done/$order->items->count()*100 : 0 }}%"></div></div></td><td><span class="status {{ $order->status }}">{{ $order->status==='completed'?'Completado':'Pendiente' }}</span></td><td class="text-end"><a href="{{ route('laboratory.results.show',$order) }}" class="btn btn-sm btn-outline-success" title="Ver y actualizar"><i class="bi bi-pencil-square"></i></a> <a target="_blank" href="{{ route('laboratory.results.pdf',$order) }}" class="btn btn-sm btn-outline-dark" title="PDF"><i class="bi bi-file-earmark-pdf"></i></a></td></tr>
+ @empty<tr><td colspan="7" class="text-center py-5 text-muted">No hay órdenes para mostrar.</td></tr>@endforelse
+ </tbody></table></div></div></form><div class="mt-3">{{ $orders->links() }}</div>
 </div>
+<style>.fissal-index{--green:#087f5b}.overline{font-size:11px;letter-spacing:2px;color:var(--green);font-weight:800}.fissal-index h2{font-weight:800;color:#163d35}.filter-card,.table-card{border:0;border-radius:16px;box-shadow:0 8px 28px #183f3512}.table thead th{background:#f1f7f5;color:#52736c;font-size:11px;text-transform:uppercase;padding:14px;border:0}.table td{padding:15px 12px;border-color:#edf2f0}.patient-name{font-weight:750;color:#183f37}.table small{color:#82958f}.period{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#e0f4ed;color:var(--green);font-weight:800;margin-right:5px}.progress{height:4px;margin-top:5px;width:80px}.progress-bar{background:var(--green)}.status{padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700}.status.completed{background:#dff5e9;color:#18794e}.status.pending{background:#fff0d4;color:#9a6400}.bulkbar{background:linear-gradient(90deg,#07684c,#07966b);color:white;padding:12px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center}</style>
 @endsection

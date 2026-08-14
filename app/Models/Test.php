@@ -18,7 +18,11 @@ class Test extends Model
         'unit',
         'reference_value',
         'type',
+        'frequency',
+        'is_fissal',
     ];
+
+    protected $casts = ['is_fissal' => 'boolean'];
 
     public function area(): BelongsTo
     {
