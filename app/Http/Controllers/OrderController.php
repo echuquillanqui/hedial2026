@@ -7,6 +7,8 @@ use App\Models\Patient;
 use App\Models\Medical;
 use App\Models\Nurse;
 use App\Models\Treatment;
+use App\Models\LaboratoryOrder;
+use App\Models\Test;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -107,6 +109,7 @@ class OrderController extends Controller
             'turno'          => 'required|string',
             'horas_dialisis' => 'required|numeric|min:0.5',
             'fecha_orden'    => 'required|date',
+            'laboratory_period' => 'required|in:M,B,T,S',
         ]);
 
         try {
@@ -124,6 +127,7 @@ class OrderController extends Controller
             ]));
 
             $this->createRelatedRecords($order, $order->patient);
+            $this->createLaboratoryOrder($order, $patient);
 
             DB::commit();
             return redirect()->route('orders.index')->with('toastr', [
@@ -145,7 +149,9 @@ class OrderController extends Controller
             'patient_ids'      => 'required|array|min:1',
             'sala'             => 'required|string',
             'fecha_orden'      => 'required|date',
-            'horas_individual' => 'required|array' // Captura el array de la vista
+            'horas_individual' => 'required|array', // Captura el array de la vista
+            'laboratory_periods' => 'required|array',
+            'laboratory_periods.*' => 'required|in:M,B,T,S',
         ]);
 
         try {
@@ -160,6 +166,7 @@ class OrderController extends Controller
                 
                 // 1. Capturar la hora individual (ej: 3.5)
                 $horasHD = $request->horas_individual[$id] ?? 3.5;
+                $laboratoryPeriod = $request->laboratory_periods[$id];
 
                 // 2. Crear la Orden (Tabla: orders)
                 $order = Order::create([
@@ -168,6 +175,7 @@ class OrderController extends Controller
                     'sala'           => $request->sala,
                     'turno'          => $patient->turno,
                     'es_covid'       => isset($request->covid_flags[$id]),
+                    'laboratory_period' => $laboratoryPeriod,
                     'horas_dialisis' => $horasHD, // Se guarda como decimal
                     'fecha_orden'    => $request->fecha_orden,
                     'sede_id'        => $patient->sede_id,
@@ -175,6 +183,7 @@ class OrderController extends Controller
 
                 // 3. Crear registros clínicos relacionados (medicals, nurses y treatments)
                 $this->createRelatedRecords($order, $patient, $horasHD);
+                $this->createLaboratoryOrder($order, $patient);
 
             }
 
@@ -209,12 +218,19 @@ class OrderController extends Controller
             'turno'          => 'required|string',
             'horas_dialisis' => 'required|numeric|min:0.5', // Cambiado de integer a numeric
             'fecha_orden'    => 'required|date',
+            'laboratory_period' => 'required|in:M,B,T,S',
         ]);
 
         try {
             DB::beginTransaction();
 
             $order->update($validated);
+
+            if ($order->laboratoryOrder && $order->laboratoryOrder->period !== $order->laboratory_period) {
+                $order->laboratoryOrder->update(['period' => $order->laboratory_period]);
+                $order->laboratoryOrder->items()->delete();
+                $this->addLaboratoryItems($order->laboratoryOrder, $order->laboratory_period);
+            }
 
             // Sincronizar con la tabla medicals
             if ($order->medical) {
@@ -291,6 +307,36 @@ class OrderController extends Controller
     private function generateCode()
     {
         return 'ORD-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
+    }
+
+    /**
+     * Genera la ficha pendiente con los exámenes FISSAL del periodo elegido.
+     */
+    private function createLaboratoryOrder(Order $order, Patient $patient): void
+    {
+        $laboratoryOrder = LaboratoryOrder::create([
+            'order_id' => $order->id,
+            'patient_id' => $patient->id,
+            'patient_name' => $patient->full_name,
+            'requested_by' => auth()->user()?->name,
+            'period' => $order->laboratory_period,
+            'sampled_at' => $order->fecha_orden,
+            'provenance' => 'FISSAL',
+        ]);
+
+        $this->addLaboratoryItems($laboratoryOrder, $order->laboratory_period);
+    }
+
+    private function addLaboratoryItems(LaboratoryOrder $laboratoryOrder, string $period): void
+    {
+        $items = Test::query()
+            ->where('is_fissal', true)
+            ->where('frequency', $period)
+            ->pluck('id')
+            ->map(fn ($testId) => ['test_id' => $testId])
+            ->all();
+
+        $laboratoryOrder->items()->createMany($items);
     }
 
 }

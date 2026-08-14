@@ -78,6 +78,7 @@
                             <th class="data-title text-center">Sala</th>
                             <th class="data-title text-center">Turno</th>
                             <th class="data-title text-center">Horas</th>
+                            <th class="data-title text-center">Examen Lab.</th>
                             <th class="data-title text-center">Opciones</th>
                         </tr>
                     </thead>
@@ -91,11 +92,12 @@
                             <td class="text-center"><span class="badge bg-light text-success border border-success">{{ $order->sala }}</span></td>
                             <td class="fw-bold small text-center">TURNO - {{ $order->turno }}</td>
                             <td class="fw-bold text-primary text-center">{{ number_format($order->horas_dialisis, 1) }}</td>
+                            <td class="text-center"><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">{{ $order->laboratory_period ?? '-' }}</span></td>
                             <td>
                                 <div class="d-flex justify-content-center gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editOrderModal"
                                             data-id="{{ $order->id }}" data-paciente="{{ $order->patient->surname }} {{ $order->patient->first_name }}"
-                                            data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}">
+                                            data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
                                     
@@ -158,6 +160,15 @@
                             <label class="modal-label">Fecha</label>
                             <input type="date" name="fecha_orden" id="modal_fecha" class="form-control border-success" required>
                         </div>
+                        <div class="col-md-6">
+                            <label class="modal-label">Tipo de examen de laboratorio</label>
+                            <select name="laboratory_period" id="modal_laboratory_period" class="form-select border-success" required>
+                                <option value="M">M - Mensual</option>
+                                <option value="B">B - Bimestral</option>
+                                <option value="T">T - Trimestral</option>
+                                <option value="S">S - Semestral</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
@@ -213,6 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal_turno').value = btn.getAttribute('data-turno');
         document.getElementById('modal_horas').value = btn.getAttribute('data-horas');
         document.getElementById('modal_fecha').value = btn.getAttribute('data-fecha');
+        document.getElementById('modal_laboratory_period').value = btn.getAttribute('data-laboratory-period');
     });
 
     // Lógica Modal Eliminar

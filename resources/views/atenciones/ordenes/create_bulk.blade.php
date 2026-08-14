@@ -132,7 +132,15 @@
                                                 <div class="col-md-2">
                                                     <input type="number" name="horas_dialisis" class="form-control form-control-sm border-success" value="3.5" step="0.5" min="0.5" required>
                                                 </div>
-                                                <div class="col-md-3">
+                                                <div class="col-md-2">
+                                                    <select name="laboratory_period" class="form-select form-select-sm border-success" aria-label="Tipo de examen de laboratorio" required>
+                                                        <option value="M">Lab. M</option>
+                                                        <option value="B">Lab. B</option>
+                                                        <option value="T">Lab. T</option>
+                                                        <option value="S">Lab. S</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
                                                     <input type="date" name="fecha_orden" class="form-control form-control-sm border-success" value="{{ date('Y-m-d') }}" required>
                                                 </div>
                                                 <div class="col-md-2">
@@ -212,6 +220,7 @@
                                         <th>APELLIDOS Y NOMBRES</th>
                                         <th class="text-center">H.C.</th>
                                         <th class="text-center" style="width: 140px;">HORAS HD</th>
+                                        <th class="text-center" style="width: 150px;">EXAMEN LAB.</th>
                                         <th class="text-center">COVID</th>
                                     </tr>
                                 </thead>
@@ -236,6 +245,14 @@
                                                        value="3.5" step="0.5" min="0.5">
                                                 <span class="input-group-text bg-light text-success border-success fw-bold small">hrs</span>
                                             </div>
+                                        </td>
+                                        <td>
+                                            <select name="laboratory_periods[{{ $patient->id }}]" class="form-select form-select-sm border-success fw-bold" required>
+                                                <option value="M">M - Mensual</option>
+                                                <option value="B">B - Bimestral</option>
+                                                <option value="T">T - Trimestral</option>
+                                                <option value="S">S - Semestral</option>
+                                            </select>
                                         </td>
                                         <td class="text-center">
                                             <div class="form-check form-switch d-inline-block">
