@@ -7,6 +7,7 @@ use App\Models\LaboratoryOrderItem;
 use App\Models\Patient;
 use App\Models\Profile;
 use App\Models\Test;
+use App\Support\CurrentSede;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -15,15 +16,34 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaboratoryOrderController extends Controller
 {
-    public function create()
+    public function create(Request $request)
     {
+        $defaultSequence = match (now()->dayOfWeekIso) {
+            1, 3, 5 => 'L-M-V',
+            2, 4, 6 => 'M-J-S',
+            default => null,
+        };
+        $sequence = in_array($request->query('secuencia'), ['L-M-V', 'M-J-S'], true)
+            ? $request->query('secuencia')
+            : $defaultSequence;
+        $shift = in_array($request->query('turno'), ['1', '2', '3', '4'], true)
+            ? $request->query('turno')
+            : null;
+
         $tests = Test::with('area:id,name')->where('is_fissal', true)->orderBy('area_id')->orderBy('name')->get();
-        $patients = Patient::orderBy('surname')->orderBy('first_name')->get();
+        $patients = Patient::query()
+            ->when(CurrentSede::id(), fn ($query) => $query->where('sede_id', CurrentSede::id()))
+            ->when($sequence, fn ($query) => $query->where('secuencia', $sequence))
+            ->when($shift, fn ($query) => $query->where('turno', $shift))
+            ->orderBy('turno')
+            ->orderBy('surname')
+            ->orderBy('last_name')
+            ->get();
         $profiles = Profile::with(['tests' => fn ($query) => $query->where('is_fissal', true)])
             ->orderBy('name')
             ->get();
 
-        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles'));
+        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles', 'sequence', 'shift'));
     }
 
     public function store(Request $request)
