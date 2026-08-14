@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\LaboratoryOrder;
 use App\Models\Patient;
+use App\Models\Profile;
 use App\Models\Test;
 use App\Models\User;
 use Database\Seeders\FissalLaboratorySeeder;
@@ -37,5 +38,32 @@ class FissalLaboratoryTest extends TestCase
         $response->assertRedirect(route('laboratory.results.index'));
         $this->assertSame(2, LaboratoryOrder::count());
         $this->assertSame(count($testIds) * 2, LaboratoryOrder::withCount('items')->get()->sum('items_count'));
+    }
+
+    public function test_create_order_page_receives_profiles_with_fissal_tests(): void
+    {
+        $this->seed(FissalLaboratorySeeder::class);
+        $user = User::factory()->create();
+        $fissalTest = Test::where('is_fissal', true)->firstOrFail();
+        $nonFissalTest = Test::create([
+            'area_id' => $fissalTest->area_id,
+            'name' => 'Examen fuera de FISSAL',
+            'unit' => 'mg/dL',
+            'type' => 'number',
+            'is_fissal' => false,
+        ]);
+        $profile = Profile::create(['name' => 'Perfil de prueba']);
+        $profile->tests()->attach([$fissalTest->id, $nonFissalTest->id]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.orders.create'));
+
+        $response->assertOk();
+        $response->assertViewHas('profiles', function ($profiles) use ($profile, $fissalTest): bool {
+            $loadedProfile = $profiles->firstWhere('id', $profile->id);
+
+            return $loadedProfile !== null
+                && $loadedProfile->tests->count() === 1
+                && $loadedProfile->tests->contains($fissalTest);
+        });
     }
 }
