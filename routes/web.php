@@ -67,8 +67,6 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::delete('catalogo/perfiles/{profile}', [CatalogController::class, 'destroyProfile'])->name('catalog.profiles.destroy');
     Route::post('catalogo', [CatalogController::class, 'store'])->name('catalog.store');
 
-    Route::get('laboratory/orders/create', [LaboratoryOrderController::class, 'create'])->name('laboratory.orders.create');
-    Route::post('laboratory/orders', [LaboratoryOrderController::class, 'store'])->name('laboratory.orders.store');
     Route::post('laboratory/orders/import', [LaboratoryOrderController::class, 'import'])->name('laboratory.orders.import');
     Route::get('laboratory/results', [LaboratoryOrderController::class, 'results'])->name('laboratory.results.index');
     Route::get('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'show'])->name('laboratory.results.show');

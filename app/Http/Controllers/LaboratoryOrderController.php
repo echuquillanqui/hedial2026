@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\LaboratoryOrder;
 use App\Models\LaboratoryOrderItem;
-use App\Models\Patient;
-use App\Models\Profile;
 use App\Models\Test;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,46 +13,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaboratoryOrderController extends Controller
 {
-    public function create()
-    {
-        $tests = Test::with('area:id,name')->where('is_fissal', true)->orderBy('area_id')->orderBy('name')->get();
-        $patients = Patient::orderBy('surname')->orderBy('first_name')->get();
-        $profiles = Profile::with(['tests' => fn ($query) => $query->where('is_fissal', true)])
-            ->orderBy('name')
-            ->get();
-
-        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles'));
-    }
-
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'patient_ids' => 'required|array|min:1',
-            'patient_ids.*' => 'integer|exists:patients,id',
-            'requested_by' => 'nullable|string|max:120',
-            'period' => 'required|in:M,B,T,S',
-            'sampled_at' => 'required|date',
-            'test_ids' => 'required|array|min:1',
-            'test_ids.*' => 'integer|exists:tests,id',
-        ]);
-
-        DB::transaction(function () use ($data) {
-            Patient::whereIn('id', $data['patient_ids'])->get()->each(function (Patient $patient) use ($data) {
-                $order = LaboratoryOrder::create([
-                    'patient_id' => $patient->id,
-                    'patient_name' => $patient->full_name,
-                    'requested_by' => $data['requested_by'] ?? null,
-                    'period' => $data['period'],
-                    'sampled_at' => $data['sampled_at'],
-                    'provenance' => 'FISSAL',
-                ]);
-                $order->items()->createMany(collect($data['test_ids'])->unique()->map(fn ($id) => ['test_id' => $id])->all());
-            });
-        });
-
-        return redirect()->route('laboratory.results.index')->with('success', 'Orden de laboratorio registrada correctamente.');
-    }
-
     public function import(Request $request)
     {
         $data = $request->validate([
