@@ -19,6 +19,9 @@
     .cie-option { padding:.65rem .8rem; cursor:pointer; border-bottom:1px solid #eff6ff; } .cie-option:hover { background:#eff6ff; }
     .exam-group { height:100%; border:1px solid #dbeafe; border-radius:14px; padding:1rem; background:linear-gradient(180deg,#fff,#f8fbff); }
     .exam-group h6 { color:var(--blue); font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+    .exam-group-title { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-bottom:.4rem; }
+    .exam-group-title h6 { margin:0; }
+    .exam-group-toggle { color:var(--blue); font-size:.72rem; font-weight:700; white-space:nowrap; }
     .exam-check { display:flex; gap:.6rem; padding:.42rem; border-radius:8px; } .exam-check:hover { background:#e0f2fe; }
 </style>
 <div class="container-fluid clinical-shell">
@@ -55,7 +58,7 @@
 
         <section id="exams" class="clinical-panel">
             <div class="card section-card shadow-sm mb-3"><div class="card-body"><h5 class="section-title text-center mb-4">Exámenes auxiliares — se solicita</h5><div class="row g-3">
-                @foreach($examGroups as $frequency => $exams)<div class="col-xl-3 col-md-6"><div class="exam-group"><h6><i class="bi bi-calendar-check me-1"></i>{{ $frequency }}</h6>@foreach($exams as $exam)<label class="exam-check"><input class="form-check-input" type="checkbox" name="auxiliary_exams[]" value="{{ $frequency }}|{{ $exam }}" @checked(in_array($frequency.'|'.$exam, $savedExams))><span>{{ $exam }}</span></label>@endforeach</div></div>@endforeach
+                @foreach($examGroups as $frequency => $exams)<div class="col-xl-3 col-md-6"><div class="exam-group" data-exam-group><div class="exam-group-title"><h6><i class="bi bi-calendar-check me-1"></i>{{ $frequency }}</h6><label class="exam-group-toggle"><input class="form-check-input me-1" type="checkbox" data-select-exam-group>Todo el bloque</label></div>@foreach($exams as $exam)<label class="exam-check"><input class="form-check-input" type="checkbox" name="auxiliary_exams[]" value="{{ $frequency }}|{{ $exam }}" data-exam-item @checked(in_array($frequency.'|'.$exam, $savedExams))><span>{{ $exam }}</span></label>@endforeach</div></div>@endforeach
             </div><div class="row g-3 mt-2"><div class="col-md-6"><label class="form-label">Fecha próximo laboratorio</label><input type="date" class="form-control" name="next_laboratory_date" value="{{ old('next_laboratory_date', optional($consultation->next_laboratory_date)->format('Y-m-d')) }}"></div><div class="col-md-6"><label class="form-label">Fecha próxima cita</label><input type="date" class="form-control" name="next_appointment_date" value="{{ old('next_appointment_date', optional($consultation->next_appointment_date)->format('Y-m-d')) }}"></div></div></div></div>
         </section>
         <div class="d-flex gap-2 justify-content-end sticky-bottom bg-light py-3"><button class="btn btn-success btn-lg px-4"><i class="bi bi-check2-circle me-1"></i> Guardar consulta</button>@if($editing)<a target="_blank" href="{{ route('consultations.prescription.pdf', $consultation) }}" class="btn btn-danger btn-lg">Generar receta PDF</a>@endif</div>
@@ -64,6 +67,14 @@
 @endsection
 @push('scripts')<script>
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-exam-group]').forEach(group => {
+        const toggle = group.querySelector('[data-select-exam-group]');
+        const items = [...group.querySelectorAll('[data-exam-item]')];
+        const sync = () => { const count = items.filter(item => item.checked).length; toggle.checked = count === items.length; toggle.indeterminate = count > 0 && count < items.length; };
+        toggle.addEventListener('change', () => items.forEach(item => { item.checked = toggle.checked; }));
+        items.forEach(item => item.addEventListener('change', sync));
+        sync();
+    });
     document.querySelectorAll('.clinical-tab').forEach(button => button.addEventListener('click', () => {
         document.querySelectorAll('.clinical-tab,.clinical-panel').forEach(item => item.classList.remove('active'));
         button.classList.add('active'); document.getElementById(button.dataset.tab).classList.add('active');
