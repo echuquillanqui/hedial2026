@@ -136,7 +136,22 @@ class FuaController extends Controller
             $rows[] = ['code' => '84520', 'description' => 'Nitrógeno ureico; cuantitativo (Urea sérica)', 'quantity' => $urea->sum(fn ($item) => $item->test?->fua_quantity ?? 1)];
         }
 
-        foreach ($items->reject(fn ($item) => str_contains(mb_strtolower($item->test?->name ?? ''), 'urea')) as $item) {
+        $electrolyteNames = ['sodio', 'potasio', 'cloro'];
+        $electrolytes = $items->filter(fn ($item) => in_array(mb_strtolower(trim($item->test?->name ?? '')), $electrolyteNames, true));
+
+        if ($electrolytes->isNotEmpty()) {
+            $rows[] = [
+                'code' => $electrolytes->first()->test?->code ?? '',
+                'description' => 'Perfil de electrolitos (sodio, potasio y cloro)',
+                'quantity' => 1,
+            ];
+        }
+
+        foreach ($items->reject(function ($item) use ($electrolyteNames) {
+            $name = mb_strtolower(trim($item->test?->name ?? ''));
+
+            return str_contains($name, 'urea') || in_array($name, $electrolyteNames, true);
+        }) as $item) {
             $rows[] = [
                 'code' => $item->test?->code ?? '',
                 'description' => $item->test?->name ?? '',

@@ -32,27 +32,49 @@ class LaboratoryOrderController extends Controller
             'patient_ids' => 'required|array|min:1',
             'patient_ids.*' => 'integer|exists:patients,id',
             'requested_by' => 'nullable|string|max:120',
-            'period' => 'required|in:M,B,T,S',
-            'sampled_at' => 'required|date',
-            'test_ids' => 'required|array|min:1',
-            'test_ids.*' => 'integer|exists:tests,id',
+            'schedules' => 'required|array|min:1',
+            'schedules.*.sampled_at' => 'required|date',
+            'schedules.*.period' => 'required|in:M,B,T,S',
         ]);
 
         DB::transaction(function () use ($data) {
             Patient::whereIn('id', $data['patient_ids'])->get()->each(function (Patient $patient) use ($data) {
-                $order = LaboratoryOrder::create([
-                    'patient_id' => $patient->id,
-                    'patient_name' => $patient->full_name,
-                    'requested_by' => $data['requested_by'] ?? null,
-                    'period' => $data['period'],
-                    'sampled_at' => $data['sampled_at'],
-                    'provenance' => 'FISSAL',
-                ]);
-                $order->items()->createMany(collect($data['test_ids'])->unique()->map(fn ($id) => ['test_id' => $id])->all());
+                foreach (collect($data['schedules'])->unique(fn (array $schedule) => $schedule['sampled_at'].'-'.$schedule['period']) as $schedule) {
+                    $order = LaboratoryOrder::create([
+                        'patient_id' => $patient->id,
+                        'patient_name' => $patient->full_name,
+                        'requested_by' => $data['requested_by'] ?? null,
+                        'period' => $schedule['period'],
+                        'sampled_at' => $schedule['sampled_at'],
+                        'provenance' => 'FISSAL',
+                    ]);
+
+                    $frequencies = $this->includedFrequencies($schedule['period']);
+                    $items = Test::where('is_fissal', true)
+                        ->whereIn('frequency', $frequencies)
+                        ->pluck('id')
+                        ->map(fn ($id) => ['test_id' => $id])
+                        ->all();
+                    $order->items()->createMany($items);
+                }
             });
         });
 
-        return redirect()->route('laboratory.results.index')->with('success', 'Orden de laboratorio registrada correctamente.');
+        $total = count(array_unique($data['patient_ids'])) * collect($data['schedules'])
+            ->unique(fn (array $schedule) => $schedule['sampled_at'].'-'.$schedule['period'])
+            ->count();
+
+        return redirect()->route('laboratory.results.index')->with('success', "Se generaron {$total} órdenes de laboratorio.");
+    }
+
+    private function includedFrequencies(string $period): array
+    {
+        return match ($period) {
+            'M' => ['M'],
+            'B' => ['M', 'B'],
+            'T' => ['M', 'B', 'T'],
+            'S' => ['M', 'B', 'T', 'S'],
+        };
     }
 
     public function import(Request $request)
