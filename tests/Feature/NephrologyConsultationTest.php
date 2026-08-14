@@ -58,8 +58,9 @@ class NephrologyConsultationTest extends TestCase
 
         $response->assertRedirect(route('consultations.index'));
         $consultation = NephrologyConsultation::with('medications')->firstOrFail();
-        $this->assertSame(5, $consultation->medications->count());
-        $this->assertSame('3107', $consultation->medications->first()->fua_code);
+        $this->assertSame(6, $consultation->medications->count());
+        $this->assertSame('06127', $consultation->medications->first()->fua_code);
+        $this->assertSame('13.00', $consultation->medications->firstWhere('fua_code', '3107')->prescribed_quantity);
     }
 
     public function test_prescription_pdf_is_available(): void

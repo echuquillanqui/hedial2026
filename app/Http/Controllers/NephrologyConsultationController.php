@@ -14,11 +14,19 @@ use Illuminate\Support\Facades\DB;
 class NephrologyConsultationController extends Controller
 {
     public const DEFAULT_MEDICATIONS = [
-        ['fua_code' => '3107', 'description' => 'Epoetina alfa 2 000 UI/ml, inyectable', 'c' => '2 000 UI/ml'],
-        ['fua_code' => '3113', 'description' => 'Epoetina alfa 4 000 UI/ml, inyectable', 'c' => '4 000 UI/ml'],
-        ['fua_code' => '3979', 'description' => 'Hidroxicobalamina (vitamina B12), inyectable', 'c' => '1 mg/ml'],
-        ['fua_code' => '19238', 'description' => 'Hierro sacarato, inyectable', 'c' => '20 mg Fe/ml'],
-        ['fua_code' => '01502', 'description' => 'Calcitriol, inyectable', 'c' => '1 mcg/ml'],
+        ['fua_code' => '06127', 'description' => 'Tiamina 100 mg tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
+        ['fua_code' => '05491', 'description' => 'Piridoxina 50 mg tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
+        ['fua_code' => '00200', 'description' => 'Ácido fólico 500 mcg (0,5 mg) tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
+        ['fua_code' => '3107', 'description' => 'Epoetina alfa 2 000 UI/ml, inyectable', 'c' => 'Según esquema de hemodiálisis', 'prescribed_quantity' => 13, 'delivered_quantity' => 13],
+        ['fua_code' => '3979', 'description' => 'Vitamina B12, inyectable', 'c' => 'Según indicación médica', 'prescribed_quantity' => 13, 'delivered_quantity' => 13],
+        ['fua_code' => '19238', 'description' => 'Hierro sacarato, inyectable', 'c' => 'Según indicación médica', 'prescribed_quantity' => 4, 'delivered_quantity' => 4],
+    ];
+
+    public const AUXILIARY_EXAMS = [
+        'Mensual' => ['Hemograma completo', 'Urea prediálisis', 'Urea postdiálisis', 'Creatinina', 'Potasio', 'Calcio', 'Fósforo', 'Albúmina'],
+        'Bimestral' => ['Transaminasas TGO/TGP', 'Fosfatasa alcalina', 'Bilirrubinas', 'Proteínas totales', 'Glucosa', 'Perfil lipídico'],
+        'Trimestral' => ['Ferritina', 'Hierro sérico', 'Saturación de transferrina', 'PTH intacta', 'Kt/V', 'PCR'],
+        'Semestral' => ['HBsAg', 'Anti-HBs', 'Anti-HCV', 'VIH', 'Radiografía de tórax', 'Electrocardiograma'],
     ];
 
     public function index(Request $request)
@@ -41,12 +49,14 @@ class NephrologyConsultationController extends Controller
             'patients' => Patient::when(CurrentSede::id(), fn ($q, $sede) => $q->where('sede_id', $sede))->orderBy('surname')->get(),
             'doctors' => User::where('profession', 'like', '%MEDIC%')->orderBy('name')->get(),
             'medications' => collect(self::DEFAULT_MEDICATIONS),
+            'examGroups' => self::AUXILIARY_EXAMS,
         ]);
     }
 
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $data['diagnosis'] = $this->diagnosisSummary($data);
         DB::transaction(function () use ($data) {
             $medications = $data['medications']; unset($data['medications']);
             $data['sede_id'] = CurrentSede::id();
@@ -71,12 +81,14 @@ class NephrologyConsultationController extends Controller
             'patients' => Patient::when(CurrentSede::id(), fn ($q, $sede) => $q->where('sede_id', $sede))->orderBy('surname')->get(),
             'doctors' => User::where('profession', 'like', '%MEDIC%')->orderBy('name')->get(),
             'medications' => $medications,
+            'examGroups' => self::AUXILIARY_EXAMS,
         ]);
     }
 
     public function update(Request $request, NephrologyConsultation $consultation)
     {
         $this->authorizeSede($consultation); $data = $this->validated($request);
+        $data['diagnosis'] = $this->diagnosisSummary($data);
         DB::transaction(function () use ($data, $consultation) {
             $medications = $data['medications']; unset($data['medications']);
             $consultation->update($data); $consultation->medications()->delete();
@@ -102,6 +114,11 @@ class NephrologyConsultationController extends Controller
             'heart_rate' => ['nullable', 'integer', 'between:1,300'], 'oxygen_saturation' => ['nullable', 'integer', 'between:1,100'],
             'reason' => ['nullable', 'string'], 'current_illness' => ['nullable', 'string'], 'history' => ['nullable', 'string'],
             'physical_exam' => ['nullable', 'string'], 'diagnosis' => ['nullable', 'string'], 'treatment_plan' => ['nullable', 'string'], 'observations' => ['nullable', 'string'],
+            'diagnoses' => ['nullable', 'array', 'max:10'], 'diagnoses.*.cie10_id' => ['nullable', 'exists:cie10s,id'],
+            'diagnoses.*.codigo' => ['required_with:diagnoses.*.descripcion', 'nullable', 'string', 'max:20'],
+            'diagnoses.*.descripcion' => ['required_with:diagnoses.*.codigo', 'nullable', 'string', 'max:255'],
+            'auxiliary_exams' => ['nullable', 'array'], 'auxiliary_exams.*' => ['string', 'max:100'],
+            'next_laboratory_date' => ['nullable', 'date'], 'next_appointment_date' => ['nullable', 'date'],
             'medications' => ['required', 'array', 'min:1'], 'medications.*.fua_code' => ['nullable', 'string', 'max:30'],
             'medications.*.description' => ['required', 'string', 'max:255'], 'medications.*.c' => ['nullable', 'string', 'max:50'],
             'medications.*.prescribed_quantity' => ['nullable', 'numeric', 'min:0'], 'medications.*.delivered_quantity' => ['nullable', 'numeric', 'min:0'],
@@ -111,5 +128,17 @@ class NephrologyConsultationController extends Controller
     private function authorizeSede(NephrologyConsultation $consultation): void
     {
         abort_if(CurrentSede::id() && (int) $consultation->sede_id !== (int) CurrentSede::id(), 403, 'Consulta fuera de la sede activa.');
+    }
+
+    private function diagnosisSummary(array $data): ?string
+    {
+        if (! empty($data['diagnoses'])) {
+            return collect($data['diagnoses'])
+                ->filter(fn ($item) => ! empty($item['codigo']) && ! empty($item['descripcion']))
+                ->map(fn ($item) => "{$item['descripcion']} ({$item['codigo']})")
+                ->implode('; ');
+        }
+
+        return $data['diagnosis'] ?? null;
     }
 }
