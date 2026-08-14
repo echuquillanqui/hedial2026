@@ -107,7 +107,7 @@
 
     @if($canViewCatalog)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('catalog.*', 'orders.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('catalog.*', 'laboratory.*', 'fuas.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-journal-medical me-1"></i> Laboratorio
         </button>
@@ -118,11 +118,21 @@
                 </a>
             </li>
             <li>
+                <a class="dropdown-item {{ request()->routeIs('laboratory.orders.*') ? 'active' : '' }}" href="{{ route('laboratory.orders.create') }}">
+                    <i class="bi bi-clipboard2-plus me-2"></i> Nueva orden de laboratorio
+                </a>
+            </li>
+            <li>
                 <a class="dropdown-item {{ request()->routeIs('laboratory.results.*') ? 'active' : '' }}" href="{{ route('laboratory.results.index') }}">
                     <i class="bi bi-clipboard2-pulse me-2"></i> Resultados
                 </a>
             </li>
             <li><hr class="dropdown-divider"></li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active' : '' }}" href="{{ route('fuas.index') }}">
+                    <i class="bi bi-files me-2"></i> FUA generadas
+                </a>
+            </li>
             <li>
                 <a class="dropdown-item {{ request()->routeIs('fuas.*') ? 'active' : '' }}" href="{{ route('fuas.configuration.edit') }}">
                     <i class="bi bi-file-earmark-medical me-2"></i> Configuración FUA

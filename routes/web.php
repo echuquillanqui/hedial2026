@@ -14,6 +14,7 @@ use App\Http\Controllers\OperationalAreaController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\LaboratoryOrderController;
 use App\Http\Controllers\FuaConfigurationController;
+use App\Http\Controllers\FuaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -54,6 +55,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::put('catalogo', [CatalogController::class, 'update'])->name('catalog.update');
     Route::get('fuas/configuracion', [FuaConfigurationController::class, 'edit'])->name('fuas.configuration.edit');
     Route::put('fuas/configuracion', [FuaConfigurationController::class, 'update'])->name('fuas.configuration.update');
+    Route::get('fuas', [FuaController::class, 'index'])->name('fuas.index');
+    Route::get('fuas/{fua}/vista-previa', [FuaController::class, 'preview'])->name('fuas.preview');
+    Route::get('fuas/{fua}/pdf', [FuaController::class, 'pdf'])->name('fuas.pdf');
     Route::get('catalogo/listado', [CatalogController::class, 'list'])->name('catalog.list');
     Route::get('catalogo/areas/{area}/editar', [CatalogController::class, 'editArea'])->name('catalog.areas.edit');
     Route::put('catalogo/areas/{area}', [CatalogController::class, 'updateArea'])->name('catalog.areas.update');
