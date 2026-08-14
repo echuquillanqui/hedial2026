@@ -12,6 +12,7 @@ class LaboratoryOrder extends Model
 
     protected $fillable = [
         'patient_name',
+        'order_id',
         'patient_id',
         'requested_by',
         'period',
@@ -25,6 +26,11 @@ class LaboratoryOrder extends Model
     public function patient()
     {
         return $this->belongsTo(Patient::class);
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 
     public function items(): HasMany

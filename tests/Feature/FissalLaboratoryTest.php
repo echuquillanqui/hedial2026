@@ -66,4 +66,50 @@ class FissalLaboratoryTest extends TestCase
                 && $loadedProfile->tests->contains($fissalTest);
         });
     }
+
+    public function test_individual_dialysis_order_generates_the_selected_laboratory_sheet(): void
+    {
+        $this->seed(FissalLaboratorySeeder::class);
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->post(route('orders.store'), [
+            'patient_id' => $patient->id,
+            'sala' => 'MODULO 1',
+            'turno' => '1',
+            'horas_dialisis' => 3.5,
+            'fecha_orden' => '2026-08-14',
+            'laboratory_period' => 'T',
+        ]);
+
+        $response->assertRedirect(route('orders.index'));
+        $laboratoryOrder = LaboratoryOrder::with('items.test')->firstOrFail();
+        $this->assertSame('T', $laboratoryOrder->period);
+        $this->assertSame($patient->id, $laboratoryOrder->patient_id);
+        $this->assertNotNull($laboratoryOrder->order_id);
+        $this->assertNotEmpty($laboratoryOrder->items);
+        $this->assertTrue($laboratoryOrder->items->every(fn ($item) => $item->test->frequency === 'T'));
+    }
+
+    public function test_bulk_dialysis_orders_allow_a_different_laboratory_period_per_patient(): void
+    {
+        $this->seed(FissalLaboratorySeeder::class);
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(2)->create(['turno' => '1']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->post(route('orders.store_bulk'), [
+            'patient_ids' => $patients->pluck('id')->all(),
+            'sala' => 'MODULO 1',
+            'fecha_orden' => '2026-08-14',
+            'horas_individual' => $patients->mapWithKeys(fn ($patient) => [$patient->id => 3.5])->all(),
+            'laboratory_periods' => [
+                $patients[0]->id => 'M',
+                $patients[1]->id => 'S',
+            ],
+        ]);
+
+        $response->assertRedirect(route('orders.index'));
+        $this->assertEqualsCanonicalizing(['M', 'S'], LaboratoryOrder::pluck('period')->all());
+        $this->assertSame(2, LaboratoryOrder::whereNotNull('order_id')->count());
+    }
 }

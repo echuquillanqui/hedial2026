@@ -23,6 +23,7 @@ class Order extends Model
         'sala',
         'turno',
         'es_covid',
+        'laboratory_period',
         'horas_dialisis',
         'fecha_orden'
     ];
@@ -41,6 +42,11 @@ class Order extends Model
     public function medical() 
     {
         return $this->hasOne(Medical::class, 'order_id');
+    }
+
+    public function laboratoryOrder()
+    {
+        return $this->hasOne(LaboratoryOrder::class);
     }
 
     public function nurse() 
