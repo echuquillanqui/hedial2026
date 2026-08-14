@@ -100,6 +100,11 @@
                             </td>
                             <td>
                                 <div class="d-flex justify-content-center gap-2">
+                                    @if($order->fua)
+                                    <a href="{{ route('fuas.preview', $order->fua) }}" class="btn btn-sm btn-outline-secondary" title="Vista previa de FUA">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </a>
+                                    @endif
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editOrderModal"
                                             data-id="{{ $order->id }}" data-paciente="{{ $order->patient->surname }} {{ $order->patient->first_name }}"
                                             data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}" data-attention-type="{{ $order->attention_type }}">

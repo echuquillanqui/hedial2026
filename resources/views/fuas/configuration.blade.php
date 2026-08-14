@@ -7,7 +7,7 @@
             <h3 class="mb-1">Configuración global de FUA</h3>
             <p class="text-muted mb-0">Estos datos comunes y series se aplicarán automáticamente a las nuevas FUA.</p>
         </div>
-        <a href="{{ route('orders.index') }}" class="btn btn-outline-secondary">Volver a órdenes</a>
+        <a href="{{ route('fuas.index') }}" class="btn btn-outline-secondary"><i class="bi bi-files me-1"></i>Ver FUA generadas</a>
     </div>
 
     @if(session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif
