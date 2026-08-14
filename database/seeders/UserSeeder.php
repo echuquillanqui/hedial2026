@@ -2,10 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
+use App\Models\Sede;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
 class UserSeeder extends Seeder
 {
@@ -14,7 +15,13 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
+        $huancayo = Sede::query()->where('name', 'Huancayo')->first();
+
+        if (! $huancayo) {
+            throw new RuntimeException('Debe ejecutar SedeSeeder antes de UserSeeder.');
+        }
+
+        $admin = User::create([
             'name' => 'Raúl Eduardo Chuquillanqui Yupanqui',
             'username' => 'rchuquillanqui',
             'dni' => '46589634',
@@ -35,7 +42,7 @@ class UserSeeder extends Seeder
         ]);*/
 
         // Usuario Enfermería
-        User::create([
+        $nurse = User::create([
             'name' => 'Lic. Ana Martínez',
             'username' => 'amartinez',
             'dni' => '87654321',
@@ -44,5 +51,8 @@ class UserSeeder extends Seeder
             'license_number' => 'CEP 54321',
             'profession' => 'ENFERMERA',
         ]);
+
+        $admin->sedes()->attach($huancayo);
+        $nurse->sedes()->attach($huancayo);
     }
 }
