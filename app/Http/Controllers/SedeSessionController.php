@@ -31,10 +31,13 @@ class SedeSessionController extends Controller
             'sede_id' => 'required|exists:sedes,id',
         ]);
 
-        $sede = auth()->user()->sedes()->whereKey($request->integer('sede_id'))->first();
+        $sede = auth()->user()->sedes()
+            ->whereKey($request->integer('sede_id'))
+            ->where('is_active', true)
+            ->first();
 
         if (! $sede instanceof Sede) {
-            return back()->withErrors(['sede_id' => 'La sede seleccionada no está asignada a su usuario.']);
+            return back()->withErrors(['sede_id' => 'La sede seleccionada no está activa o no está asignada a su usuario.']);
         }
 
         CurrentSede::set($sede);

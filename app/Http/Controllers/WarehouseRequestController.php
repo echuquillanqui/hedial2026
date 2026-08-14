@@ -484,6 +484,8 @@ class WarehouseRequestController extends Controller
 
     public function updateStatus(Request $request, WarehouseRequest $warehouseRequest)
     {
+        $this->ensureRequestBelongsToCurrentWarehouse($warehouseRequest);
+
         $validated = $request->validate([
             'status' => 'required|in:draft,submitted,received_by_warehouse,approved,rejected,cancelled',
             'comment' => 'nullable|string|max:500',
@@ -508,6 +510,11 @@ class WarehouseRequestController extends Controller
 
     public function dispatch(Request $request, WarehouseRequest $warehouseRequest)
     {
+        abort_unless(
+            $warehouseRequest->to_warehouse_id === $this->currentWarehouseOrFail()->id,
+            403,
+            'Solo el almacén de destino puede despachar esta solicitud.'
+        );
         abort_unless(in_array($warehouseRequest->status, ['approved', 'partially_dispatched'], true), 422, 'Solo se puede despachar solicitudes aprobadas.');
 
         $validated = $request->validate([
@@ -518,21 +525,21 @@ class WarehouseRequestController extends Controller
         ]);
 
         DB::transaction(function () use ($warehouseRequest, $validated) {
-            $allComplete = true;
-
             foreach ($validated['items'] as $line) {
-                $item = $warehouseRequest->items()->with('material')->findOrFail($line['id']);
+                $item = $warehouseRequest->items()->with('material')->lockForUpdate()->findOrFail($line['id']);
                 $qtySent = (float) $line['qty_sent'];
                 $qtyApproved = (float) $item->qty_approved;
                 $qtyRequested = (float) $item->qty_requested;
+                $previousQtySent = (float) $item->qty_sent;
+
+                abort_if($qtySent < $previousQtySent, 422, 'La cantidad despachada no puede reducirse.');
+                abort_if($qtySent > $qtyApproved, 422, 'La cantidad despachada no puede superar la cantidad aprobada.');
 
                 $status = 'pending';
                 if ($qtySent <= 0) {
                     $status = 'not_sent';
-                    $allComplete = false;
                 } elseif ($qtySent < $qtyApproved || $qtySent < $qtyRequested) {
                     $status = 'partial';
-                    $allComplete = false;
                 } else {
                     $status = 'complete';
                 }
@@ -543,18 +550,22 @@ class WarehouseRequestController extends Controller
                     'not_sent_reason' => $line['not_sent_reason'] ?? null,
                 ]);
 
-                if ($qtySent > 0) {
+                $qtyToMove = $qtySent - $previousQtySent;
+                if ($qtyToMove > 0) {
                     $this->applyStockMovement(
                         $warehouseRequest->to_warehouse_id,
                         $item->warehouse_material_id,
                         'out',
-                        $qtySent,
+                        $qtyToMove,
                         $warehouseRequest->id,
                         'Despacho de solicitud ' . $warehouseRequest->request_code
                     );
                 }
             }
 
+            $allComplete = ! $warehouseRequest->items()
+                ->whereColumn('qty_sent', '<', 'qty_approved')
+                ->exists();
             $newStatus = $allComplete ? 'dispatched' : 'partially_dispatched';
             $old = $warehouseRequest->status;
             $warehouseRequest->update([
@@ -571,6 +582,11 @@ class WarehouseRequestController extends Controller
 
     public function receive(Request $request, WarehouseRequest $warehouseRequest)
     {
+        abort_unless(
+            $warehouseRequest->from_warehouse_id === $this->currentWarehouseOrFail()->id,
+            403,
+            'Solo el almacén solicitante puede recepcionar esta solicitud.'
+        );
         abort_unless(in_array($warehouseRequest->status, ['dispatched', 'partially_dispatched', 'partially_received'], true), 422, 'Solo se puede recepcionar solicitudes despachadas.');
 
         $validated = $request->validate([
@@ -582,11 +598,10 @@ class WarehouseRequestController extends Controller
         ]);
 
         DB::transaction(function () use ($warehouseRequest, $validated) {
-            $allReceived = true;
-
             foreach ($validated['items'] as $line) {
-                $item = $warehouseRequest->items()->findOrFail($line['id']);
+                $item = $warehouseRequest->items()->with('material')->lockForUpdate()->findOrFail($line['id']);
                 $qtySent = (float) $item->qty_sent;
+                $previousQtyReceived = (float) $item->qty_received;
                 $receiveStatus = $line['receive_status'];
                 $rawQtyReceived = (float) ($line['qty_received'] ?? 0);
 
@@ -603,31 +618,31 @@ class WarehouseRequestController extends Controller
                 };
                 $qtyReceived = min($qtySent, max(0, $qtyReceived));
 
+                abort_if($qtyReceived < $previousQtyReceived, 422, 'La cantidad recepcionada no puede reducirse.');
+
                 $item->update([
                     'qty_received' => $qtyReceived,
                     'receive_status' => $receiveStatus,
                     'not_received_reason' => $line['not_received_reason'] ?? null,
                 ]);
 
-                if ($qtyReceived > 0) {
+                $qtyToMove = $qtyReceived - $previousQtyReceived;
+                if ($qtyToMove > 0) {
                     $this->applyStockMovement(
                         $warehouseRequest->from_warehouse_id,
                         $item->warehouse_material_id,
                         'in',
-                        $qtyReceived,
+                        $qtyToMove,
                         $warehouseRequest->id,
                         'Recepción de solicitud ' . $warehouseRequest->request_code
                     );
                 }
 
-                if ($qtyReceived < $qtySent) {
-                    $allReceived = false;
-                }
-                if ($receiveStatus === 'not_received' || $receiveStatus === 'pending') {
-                    $allReceived = false;
-                }
             }
 
+            $allReceived = ! $warehouseRequest->items()
+                ->whereColumn('qty_received', '<', 'qty_sent')
+                ->exists();
             $newStatus = $allReceived ? 'received' : 'partially_received';
             $old = $warehouseRequest->status;
 
@@ -645,6 +660,7 @@ class WarehouseRequestController extends Controller
 
     public function printRequest(WarehouseRequest $warehouseRequest)
     {
+        $this->ensureRequestBelongsToCurrentWarehouse($warehouseRequest);
         $warehouseRequest->load(['items.material.category', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
 
         $pdf = Pdf::loadView('warehouse.requests.print_request', [
@@ -657,6 +673,7 @@ class WarehouseRequestController extends Controller
 
     public function printDispatch(WarehouseRequest $warehouseRequest)
     {
+        $this->ensureRequestBelongsToCurrentWarehouse($warehouseRequest);
         abort_unless(in_array($warehouseRequest->status, ['approved', 'partially_dispatched', 'dispatched', 'partially_received', 'received'], true), 422, 'El pedido debe estar aprobado para imprimir despacho.');
 
         $warehouseRequest->load(['items.material.category', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
@@ -741,9 +758,16 @@ class WarehouseRequestController extends Controller
             'current_qty' => 0,
             'min_qty' => 0,
         ]);
+        $stock = WarehouseStock::query()->lockForUpdate()->findOrFail($stock->id);
+
+        abort_if(
+            $type === 'out' && $qty > (float) $stock->current_qty,
+            422,
+            'No existe stock suficiente para completar el despacho.'
+        );
 
         $newQty = $type === 'out'
-            ? max(0, (float) $stock->current_qty - $qty)
+            ? (float) $stock->current_qty - $qty
             : (float) $stock->current_qty + $qty;
 
         $stock->update(['current_qty' => $newQty]);
@@ -812,6 +836,17 @@ class WarehouseRequestController extends Controller
             !$this->isCurrentWarehousePrincipal(),
             403,
             'Solo la sede principal puede registrar categorías y materiales.'
+        );
+    }
+
+    private function ensureRequestBelongsToCurrentWarehouse(WarehouseRequest $warehouseRequest): void
+    {
+        $warehouseId = $this->currentWarehouseOrFail()->id;
+
+        abort_unless(
+            in_array($warehouseId, [$warehouseRequest->from_warehouse_id, $warehouseRequest->to_warehouse_id], true),
+            403,
+            'La solicitud no pertenece a la sede activa.'
         );
     }
 }

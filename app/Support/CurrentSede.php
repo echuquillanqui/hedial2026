@@ -47,7 +47,7 @@ class CurrentSede
         $selectedId = self::id();
 
         if ($selectedId) {
-            $selected = $user->sedes()->whereKey($selectedId)->first();
+            $selected = $user->sedes()->whereKey($selectedId)->where('is_active', true)->first();
             if ($selected) {
                 return $selected;
             }
