@@ -4,43 +4,48 @@ namespace App\Http\Controllers;
 
 use App\Models\LaboratoryOrder;
 use App\Models\LaboratoryOrderItem;
-use App\Models\Profile;
+use App\Models\Patient;
 use App\Models\Test;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use ZipArchive;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaboratoryOrderController extends Controller
 {
     public function create()
     {
-        $tests = Test::orderBy('name')->get(['id', 'name']);
-        $profiles = Profile::with('tests:id,name')->orderBy('name')->get();
+        $tests = Test::with('area:id,name')->where('is_fissal', true)->orderBy('area_id')->orderBy('name')->get();
+        $patients = Patient::orderBy('surname')->orderBy('first_name')->get();
 
-        return view('laboratory.orders.create', compact('tests', 'profiles'));
+        return view('laboratory.orders.create', compact('tests', 'patients'));
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'patient_name' => 'required|string|max:255',
+            'patient_ids' => 'required|array|min:1',
+            'patient_ids.*' => 'integer|exists:patients,id',
             'requested_by' => 'nullable|string|max:120',
+            'period' => 'required|in:M,B,T,S',
+            'sampled_at' => 'required|date',
             'test_ids' => 'required|array|min:1',
             'test_ids.*' => 'integer|exists:tests,id',
         ]);
 
         DB::transaction(function () use ($data) {
-            $order = LaboratoryOrder::create([
-                'patient_name' => $data['patient_name'],
-                'requested_by' => $data['requested_by'] ?? null,
-            ]);
-
-            $items = collect($data['test_ids'])->unique()->map(fn ($testId) => [
-                'test_id' => $testId,
-            ])->values()->all();
-
-            $order->items()->createMany($items);
+            Patient::whereIn('id', $data['patient_ids'])->get()->each(function (Patient $patient) use ($data) {
+                $order = LaboratoryOrder::create([
+                    'patient_id' => $patient->id,
+                    'patient_name' => $patient->full_name,
+                    'requested_by' => $data['requested_by'] ?? null,
+                    'period' => $data['period'],
+                    'sampled_at' => $data['sampled_at'],
+                    'provenance' => 'FISSAL',
+                ]);
+                $order->items()->createMany(collect($data['test_ids'])->unique()->map(fn ($id) => ['test_id' => $id])->all());
+            });
         });
 
         return redirect()->route('laboratory.results.index')->with('success', 'Orden de laboratorio registrada correctamente.');
@@ -110,13 +115,36 @@ class LaboratoryOrderController extends Controller
         return back()->with('success', "Importación completada: {$imported} pacientes importados, {$skipped} filas omitidas.");
     }
 
-    public function results()
+    public function results(Request $request)
     {
-        $orders = LaboratoryOrder::with(['items.test'])
+        $orders = LaboratoryOrder::with(['patient', 'items.test.area'])
+            ->when($request->filled('q'), fn ($query) => $query->where('patient_name', 'like', '%'.$request->q.'%'))
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
+            ->when($request->filled('period'), fn ($query) => $query->where('period', $request->period))
             ->latest()
-            ->get();
+            ->paginate(15)->withQueryString();
 
         return view('laboratory.results.index', compact('orders'));
+    }
+
+    public function show(LaboratoryOrder $laboratoryOrder)
+    {
+        $laboratoryOrder->load(['patient', 'items.test.area']);
+        return view('laboratory.results.show', ['order' => $laboratoryOrder]);
+    }
+
+    public function pdf(LaboratoryOrder $laboratoryOrder)
+    {
+        $laboratoryOrder->load(['patient', 'items.test.area']);
+        return Pdf::loadView('laboratory.results.pdf', ['orders' => collect([$laboratoryOrder])])
+            ->setPaper('a4')->stream('laboratorio-'.$laboratoryOrder->id.'.pdf');
+    }
+
+    public function bulkPdf(Request $request)
+    {
+        $data = $request->validate(['order_ids' => 'required|array|min:1', 'order_ids.*' => 'exists:laboratory_orders,id']);
+        $orders = LaboratoryOrder::with(['patient', 'items.test.area'])->whereIn('id', $data['order_ids'])->get();
+        return Pdf::loadView('laboratory.results.pdf', compact('orders'))->setPaper('a4')->stream('laboratorios-fissal.pdf');
     }
 
     public function updateResults(Request $request, LaboratoryOrder $laboratoryOrder)

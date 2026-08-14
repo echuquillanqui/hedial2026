@@ -62,6 +62,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('laboratory/orders', [LaboratoryOrderController::class, 'store'])->name('laboratory.orders.store');
     Route::post('laboratory/orders/import', [LaboratoryOrderController::class, 'import'])->name('laboratory.orders.import');
     Route::get('laboratory/results', [LaboratoryOrderController::class, 'results'])->name('laboratory.results.index');
+    Route::get('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'show'])->name('laboratory.results.show');
+    Route::get('laboratory/results/{laboratoryOrder}/pdf', [LaboratoryOrderController::class, 'pdf'])->name('laboratory.results.pdf');
+    Route::post('laboratory/results/pdf/bulk', [LaboratoryOrderController::class, 'bulkPdf'])->name('laboratory.results.bulk-pdf');
     Route::put('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'updateResults'])->name('laboratory.results.update');
 
     Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');

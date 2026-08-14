@@ -35,6 +35,16 @@ class Patient extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function laboratoryOrders(): HasMany
+    {
+        return $this->hasMany(LaboratoryOrder::class);
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return trim(collect([$this->surname, $this->last_name, $this->first_name, $this->other_names])->filter()->join(' '));
+    }
+
     public function latestMedicalRecord()
     {
         return $this->hasOneThrough(

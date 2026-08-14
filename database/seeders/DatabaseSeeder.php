@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             TestSeeder::class,
             TestOptionSeeder::class,
             ProfileSeeder::class,
+            FissalLaboratorySeeder::class,
         ]);
     }
 }
