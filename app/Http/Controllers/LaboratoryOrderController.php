@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LaboratoryOrder;
 use App\Models\LaboratoryOrderItem;
 use App\Models\Patient;
+use App\Models\Profile;
 use App\Models\Test;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,8 +19,11 @@ class LaboratoryOrderController extends Controller
     {
         $tests = Test::with('area:id,name')->where('is_fissal', true)->orderBy('area_id')->orderBy('name')->get();
         $patients = Patient::orderBy('surname')->orderBy('first_name')->get();
+        $profiles = Profile::with(['tests' => fn ($query) => $query->where('is_fissal', true)])
+            ->orderBy('name')
+            ->get();
 
-        return view('laboratory.orders.create', compact('tests', 'patients'));
+        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles'));
     }
 
     public function store(Request $request)
