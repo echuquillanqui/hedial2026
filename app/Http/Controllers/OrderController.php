@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Support\CurrentSede;
 use App\Models\Fua;
+use App\Models\NephrologyConsultation;
 use App\Services\FuaNumberService;
 
 class OrderController extends Controller
@@ -255,6 +256,15 @@ class OrderController extends Controller
                 ]);
 
                 app(FuaNumberService::class)->createForOrder($order);
+
+                // La orden agenda la atención; debe quedar disponible de inmediato
+                // en el módulo donde el nefrólogo completa la historia clínica.
+                NephrologyConsultation::create([
+                    'order_id' => $order->id,
+                    'sede_id' => $patient->sede_id,
+                    'patient_id' => $patient->id,
+                    'consultation_date' => $data['fecha_orden'],
+                ]);
             });
         });
 

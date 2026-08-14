@@ -60,11 +60,17 @@ class NephrologyConsultationController extends Controller
     public function edit(NephrologyConsultation $consultation)
     {
         $this->authorizeSede($consultation);
+        $medications = $consultation->medications;
+
+        if ($medications->isEmpty()) {
+            $medications = collect(self::DEFAULT_MEDICATIONS);
+        }
+
         return view('consultations.form', [
             'consultation' => $consultation,
             'patients' => Patient::when(CurrentSede::id(), fn ($q, $sede) => $q->where('sede_id', $sede))->orderBy('surname')->get(),
             'doctors' => User::where('profession', 'like', '%MEDIC%')->orderBy('name')->get(),
-            'medications' => $consultation->medications,
+            'medications' => $medications,
         ]);
     }
 

@@ -15,5 +15,6 @@ class NephrologyConsultation extends Model
     public function patient(): BelongsTo { return $this->belongsTo(Patient::class); }
     public function doctor(): BelongsTo { return $this->belongsTo(User::class, 'doctor_id'); }
     public function sede(): BelongsTo { return $this->belongsTo(Sede::class); }
+    public function order(): BelongsTo { return $this->belongsTo(Order::class); }
     public function medications(): HasMany { return $this->hasMany(Medication::class); }
 }
