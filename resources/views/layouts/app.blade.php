@@ -118,11 +118,6 @@
                 </a>
             </li>
             <li>
-                <a class="dropdown-item {{ request()->routeIs('laboratory.orders.*') ? 'active' : '' }}" href="{{ route('laboratory.orders.create') }}">
-                    <i class="bi bi-clipboard2-plus me-2"></i> Nueva orden de laboratorio
-                </a>
-            </li>
-            <li>
                 <a class="dropdown-item {{ request()->routeIs('laboratory.results.*') ? 'active' : '' }}" href="{{ route('laboratory.results.index') }}">
                     <i class="bi bi-clipboard2-pulse me-2"></i> Resultados
                 </a>
