@@ -152,7 +152,7 @@
 
     @if($canSeeClinicalArea)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.*', 'medicals.*', 'nurses.*', 'extra-materials.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.*', 'medicals.*', 'consultations.*', 'nurses.*', 'extra-materials.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-clipboard2-pulse-fill me-1"></i> Área Clínica
         </button>
@@ -171,6 +171,11 @@
             <li>
                 <a class="dropdown-item {{ request()->routeIs('medicals.*') ? 'active' : '' }}" href="{{ route('medicals.index') }}">
                     <i class="bi bi-person-vcard me-2"></i> Medicina
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}">
+                    <i class="bi bi-journal-medical me-2"></i> Consultas nefrológicas
                 </a>
             </li>
             @endif

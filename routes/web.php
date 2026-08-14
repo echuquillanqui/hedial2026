@@ -15,6 +15,7 @@ use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\LaboratoryOrderController;
 use App\Http\Controllers\FuaConfigurationController;
 use App\Http\Controllers\FuaController;
+use App\Http\Controllers\NephrologyConsultationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -97,6 +98,11 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
         ->name('orders.store_bulk');
         
     Route::resource('medicals', App\Http\Controllers\MedicalController::class);
+    Route::get('consultas/{consultation}/receta.pdf', [NephrologyConsultationController::class, 'prescriptionPdf'])->name('consultations.prescription.pdf');
+    Route::resource('consultas', NephrologyConsultationController::class)
+        ->except(['show', 'destroy'])
+        ->parameters(['consultas' => 'consultation'])
+        ->names('consultations');
     Route::resource('nurses', NurseController::class);
     Route::get('/enfermeria/imprimir/{id}', [NurseController::class, 'printSingle'])->name('enfermeria.print.single');
 
