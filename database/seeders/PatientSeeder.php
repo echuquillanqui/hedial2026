@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Patient;
+use App\Models\Sede;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class PatientSeeder extends Seeder
 {
@@ -12,6 +14,20 @@ class PatientSeeder extends Seeder
      */
     public function run(): void
     {
-        \App\Models\Patient::factory(50)->create();
+        $sedeIds = Sede::query()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->pluck('id');
+
+        if ($sedeIds->isEmpty()) {
+            throw new RuntimeException('Debe ejecutar SedeSeeder antes de PatientSeeder.');
+        }
+
+        Patient::factory()
+            ->count(50)
+            ->sequence(fn ($sequence) => [
+                'sede_id' => $sedeIds[$sequence->index % $sedeIds->count()],
+            ])
+            ->create();
     }
 }
