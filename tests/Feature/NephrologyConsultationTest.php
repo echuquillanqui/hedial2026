@@ -13,6 +13,34 @@ class NephrologyConsultationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_generating_nephrology_orders_adds_them_to_the_consultation_index(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(2)->create();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(),
+            'fecha_orden' => '2026-08-14',
+        ]);
+
+        $response->assertRedirect(route('orders.index'));
+        $this->assertDatabaseCount('nephrology_consultations', 2);
+        $this->assertDatabaseCount('orders', 2);
+        $this->assertDatabaseCount('fuas', 2);
+
+        foreach ($patients as $patient) {
+            $this->assertDatabaseHas('nephrology_consultations', [
+                'patient_id' => $patient->id,
+                'consultation_date' => '2026-08-14',
+            ]);
+        }
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
+            ->assertOk()
+            ->assertSee($patients[0]->full_name)
+            ->assertSee($patients[1]->full_name);
+    }
+
     public function test_consultation_stores_default_prescription_rows(): void
     {
         $user = User::factory()->create();
