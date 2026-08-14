@@ -11,7 +11,7 @@ class Fua extends Model
     public const NEPHROLOGY = 'NEPHROLOGY';
     public const CORRECTION = 'CORRECTION';
 
-    protected $fillable = ['order_id', 'type', 'series', 'correlative', 'number', 'corrects_fua_id', 'status'];
+    protected $fillable = ['order_id', 'responsible_user_id', 'type', 'series', 'correlative', 'number', 'corrects_fua_id', 'status'];
 
     public function order(): BelongsTo
     {
@@ -21,5 +21,10 @@ class Fua extends Model
     public function correctedFua(): BelongsTo
     {
         return $this->belongsTo(self::class, 'corrects_fua_id');
+    }
+
+    public function responsibleUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsible_user_id');
     }
 }

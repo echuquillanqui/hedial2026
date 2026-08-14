@@ -57,6 +57,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::put('fuas/configuracion', [FuaConfigurationController::class, 'update'])->name('fuas.configuration.update');
     Route::get('fuas', [FuaController::class, 'index'])->name('fuas.index');
     Route::get('fuas/{fua}/vista-previa', [FuaController::class, 'preview'])->name('fuas.preview');
+    Route::put('fuas/{fua}/responsable', [FuaController::class, 'updateResponsible'])->name('fuas.responsible.update');
     Route::get('fuas/{fua}/pdf', [FuaController::class, 'pdf'])->name('fuas.pdf');
     Route::get('catalogo/listado', [CatalogController::class, 'list'])->name('catalog.list');
     Route::get('catalogo/areas/{area}/editar', [CatalogController::class, 'editArea'])->name('catalog.areas.edit');
