@@ -10,7 +10,13 @@ class NephrologyConsultation extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['consultation_date' => 'date'];
+    protected $casts = [
+        'consultation_date' => 'date',
+        'diagnoses' => 'array',
+        'auxiliary_exams' => 'array',
+        'next_laboratory_date' => 'date',
+        'next_appointment_date' => 'date',
+    ];
 
     public function patient(): BelongsTo { return $this->belongsTo(Patient::class); }
     public function doctor(): BelongsTo { return $this->belongsTo(User::class, 'doctor_id'); }
