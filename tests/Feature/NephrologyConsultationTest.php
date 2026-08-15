@@ -117,6 +117,8 @@ class NephrologyConsultationTest extends TestCase
         $this->assertSame(2, substr_count($document, 'alt="Logo de la empresa"'));
         $this->assertSame(2, substr_count($document, 'Firma y huella del paciente / responsable'));
         $this->assertSame(2, substr_count($document, 'Sello y firma del médico'));
+        $this->assertSame(4, substr_count($document, 'class="signature-space"'));
+        $this->assertStringNotContainsString('overflow: hidden', $document);
         $this->assertStringNotContainsString('Receta generada el', $document);
         $this->assertStringNotContainsString($configuration->company_name, $document);
         $this->assertStringNotContainsString('Consulta nefrológica', $document);
