@@ -15,7 +15,8 @@
         .prescription + .prescription { page-break-before: avoid; }
         .prescription:first-child { border-bottom: 1px dashed #8a96a3; }
         .prescription:last-child { padding-top: 5mm; }
-        .header { text-align: center; border-bottom: 2px solid #183b6b; padding-bottom: 4px; }
+        .header { position: relative; min-height: 34px; text-align: center; border-bottom: 2px solid #183b6b; padding: 0 80px 4px; }
+        .company-logo { position: absolute; top: 0; left: 4px; width: 70px; height: 30px; object-fit: contain; }
         .header h1 { margin: 0; color: #183b6b; font-size: 14px; }
         .header p { margin: 1px; }
         .meta { width: 100%; margin: 5px 0; border-collapse: collapse; }
@@ -37,9 +38,11 @@
 @for ($copy = 0; $copy < 2; $copy++)
     <section class="prescription">
         <div class="header">
+            @if($logoData ?? null)
+                <img class="company-logo" src="{{ $logoData }}" alt="Logo de la empresa">
+            @endif
             <h1>RECETA MÉDICA</h1>
-            <p><strong>Consulta nefrológica</strong></p>
-            <p>{{ $consultation->sede?->name }}</p>
+            <p>{{ ($configuration ?? null)?->company_name ?: $consultation->sede?->name }}</p>
         </div>
 
         <table class="meta">
