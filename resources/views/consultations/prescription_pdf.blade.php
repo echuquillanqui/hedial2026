@@ -1,10 +1,76 @@
-<!doctype html><html><head><meta charset="utf-8"><style>
-@page{margin:30px 36px}body{font-family:DejaVu Sans,sans-serif;font-size:11px;color:#172033}.header{text-align:center;border-bottom:2px solid #183b6b;padding-bottom:12px}.header h1{font-size:20px;margin:0;color:#183b6b}.header p{margin:4px}.meta{width:100%;margin:18px 0;border-collapse:collapse}.meta td{padding:5px;border:1px solid #ccd5df}.label{font-weight:bold;background:#eef3f8;width:18%}table.meds{width:100%;border-collapse:collapse;margin-top:10px}.meds th,.meds td{border:1px solid #60758d;padding:7px}.meds th{background:#183b6b;color:white;text-transform:uppercase;font-size:9px}.num{text-align:center}.section{font-weight:bold;color:#183b6b;margin-top:20px}.box{border:1px solid #ccd5df;min-height:55px;padding:8px;white-space:pre-line}.signatures{margin-top:70px;width:100%;text-align:center}.signatures td{width:50%}.line{border-top:1px solid #222;padding-top:5px;margin:0 30px}.footer{position:fixed;bottom:0;text-align:center;width:100%;font-size:8px;color:#667}
-</style></head><body>
-<div class="header"><h1>RECETA MÉDICA</h1><p><strong>Consulta nefrológica</strong></p><p>{{ $consultation->sede?->name }}</p></div>
-<table class="meta"><tr><td class="label">Paciente</td><td>{{ $consultation->patient->full_name }}</td><td class="label">Fecha</td><td>{{ $consultation->consultation_date->format('d/m/Y') }}</td></tr><tr><td class="label">DNI</td><td>{{ $consultation->patient->dni ?: '—' }}</td><td class="label">H. clínica</td><td>{{ $consultation->patient->medical_history_number ?: '—' }}</td></tr><tr><td class="label">Diagnóstico</td><td colspan="3">{{ $consultation->diagnosis ?: '—' }}</td></tr></table>
-<div class="section">Rp.</div><table class="meds"><thead><tr><th>Código FUA</th><th>Descripción</th><th>C</th><th>Prescrita</th><th>Cantidad entregada</th></tr></thead><tbody>@foreach($consultation->medications as $medication)<tr><td class="num">{{ $medication->fua_code }}</td><td>{{ $medication->description }}</td><td class="num">{{ $medication->c }}</td><td class="num">{{ rtrim(rtrim(number_format($medication->prescribed_quantity, 2, '.', ''), '0'), '.') }}</td><td class="num">{{ rtrim(rtrim(number_format($medication->delivered_quantity, 2, '.', ''), '0'), '.') }}</td></tr>@endforeach</tbody></table>
-<div class="section">Indicaciones</div><div class="box">{{ $consultation->treatment_plan ?: 'Sin indicaciones adicionales.' }}</div>
-<table class="signatures"><tr><td><div class="line">Firma del paciente / responsable</div></td><td><div class="line"><strong>{{ $consultation->doctor?->name ?: 'Médico tratante' }}</strong><br>CMP: {{ $consultation->doctor?->license_number ?: '________' }} &nbsp; RNE: {{ $consultation->doctor?->specialty_number ?: '________' }}<br>Firma y sello</div></td></tr></table>
-<div class="footer">Receta generada el {{ now()->format('d/m/Y H:i') }} — Consulta N.° {{ $consultation->id }}</div>
-</body></html>
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page { margin: 8mm 10mm; }
+        body { margin: 0; font-family: DejaVu Sans, sans-serif; font-size: 8px; color: #172033; }
+        .prescription { position: relative; box-sizing: border-box; height: 139mm; padding: 4mm 1mm 3mm; overflow: hidden; }
+        .prescription:first-child { border-bottom: 1px dashed #8a96a3; }
+        .prescription:last-child { padding-top: 5mm; }
+        .header { text-align: center; border-bottom: 2px solid #183b6b; padding-bottom: 4px; }
+        .header h1 { margin: 0; color: #183b6b; font-size: 14px; }
+        .header p { margin: 1px; }
+        .meta { width: 100%; margin: 5px 0; border-collapse: collapse; }
+        .meta td { padding: 2px 4px; border: 1px solid #ccd5df; }
+        .label { width: 18%; background: #eef3f8; font-weight: bold; }
+        .section { margin-top: 5px; color: #183b6b; font-weight: bold; }
+        .meds { width: 100%; margin-top: 3px; border-collapse: collapse; }
+        .meds th, .meds td { padding: 2px 4px; border: 1px solid #60758d; }
+        .meds th { background: #183b6b; color: white; font-size: 7px; text-transform: uppercase; }
+        .num { text-align: center; }
+        .box { min-height: 18px; padding: 3px 4px; border: 1px solid #ccd5df; white-space: pre-line; }
+        .signatures { position: absolute; right: 1mm; bottom: 9mm; left: 1mm; width: calc(100% - 2mm); text-align: center; }
+        .signatures td { width: 50%; padding: 0 14px; vertical-align: top; }
+        .line { margin-top: 12px; padding-top: 3px; border-top: 1px solid #222; }
+        .footer { position: absolute; right: 1mm; bottom: 3mm; left: 1mm; color: #667; font-size: 6px; text-align: center; }
+    </style>
+</head>
+<body>
+@for ($copy = 0; $copy < 2; $copy++)
+    <section class="prescription">
+        <div class="header">
+            <h1>RECETA MÉDICA</h1>
+            <p><strong>Consulta nefrológica</strong></p>
+            <p>{{ $consultation->sede?->name }}</p>
+        </div>
+
+        <table class="meta">
+            <tr>
+                <td class="label">Paciente</td><td>{{ $consultation->patient->full_name }}</td>
+                <td class="label">Fecha</td><td>{{ $consultation->consultation_date->format('d/m/Y') }}</td>
+            </tr>
+            <tr>
+                <td class="label">DNI</td><td>{{ $consultation->patient->dni ?: '—' }}</td>
+                <td class="label">H. clínica</td><td>{{ $consultation->patient->medical_history_number ?: '—' }}</td>
+            </tr>
+            <tr><td class="label">Diagnóstico</td><td colspan="3">{{ $consultation->diagnosis ?: '—' }}</td></tr>
+        </table>
+
+        <div class="section">Rp.</div>
+        <table class="meds">
+            <thead><tr><th>Código FUA</th><th>Descripción</th><th>C</th><th>Prescrita</th><th>Cantidad entregada</th></tr></thead>
+            <tbody>
+            @foreach($consultation->medications as $medication)
+                <tr>
+                    <td class="num">{{ $medication->fua_code }}</td><td>{{ $medication->description }}</td>
+                    <td class="num">{{ $medication->c }}</td>
+                    <td class="num">{{ rtrim(rtrim(number_format($medication->prescribed_quantity, 2, '.', ''), '0'), '.') }}</td>
+                    <td class="num">{{ rtrim(rtrim(number_format($medication->delivered_quantity, 2, '.', ''), '0'), '.') }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+
+        <div class="section">Indicaciones</div>
+        <div class="box">{{ $consultation->treatment_plan ?: 'Sin indicaciones adicionales.' }}</div>
+
+        <table class="signatures"><tr>
+            <td><div class="line">Firma del paciente / responsable</div></td>
+            <td><div class="line"><strong>{{ $consultation->doctor?->name ?: 'Médico tratante' }}</strong><br>CMP: {{ $consultation->doctor?->license_number ?: '________' }} &nbsp; RNE: {{ $consultation->doctor?->specialty_number ?: '________' }}<br>Firma y sello</div></td>
+        </tr></table>
+        <div class="footer">Receta generada el {{ now()->format('d/m/Y H:i') }} — Consulta N.° {{ $consultation->id }}</div>
+    </section>
+@endfor
+</body>
+</html>

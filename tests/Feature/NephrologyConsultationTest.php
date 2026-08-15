@@ -101,6 +101,16 @@ class NephrologyConsultationTest extends TestCase
 
         $response = $this->actingAs($user)->withoutMiddleware()->get(route('consultations.prescription.pdf', $consultation));
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertSame(
+            1,
+            preg_match_all('/\/Type\s*\/Page\b/', $response->getContent()),
+            'Las dos copias de la receta deben generarse en una sola hoja A4.'
+        );
+
+        $consultation->load(['patient', 'doctor', 'sede', 'medications']);
+        $document = view('consultations.prescription_pdf', compact('consultation'))->render();
+        $this->assertSame(2, substr_count($document, 'class="prescription"'));
+        $this->assertSame(2, substr_count($document, 'RECETA MÉDICA'));
     }
 
     public function test_nephrology_consultation_pdf_is_available(): void
