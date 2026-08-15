@@ -98,6 +98,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
         ->name('orders.store_bulk');
         
     Route::resource('medicals', App\Http\Controllers\MedicalController::class);
+    Route::get('consultas/{consultation}/consulta.pdf', [NephrologyConsultationController::class, 'consultationPdf'])->name('consultations.pdf');
     Route::get('consultas/{consultation}/receta.pdf', [NephrologyConsultationController::class, 'prescriptionPdf'])->name('consultations.prescription.pdf');
     Route::resource('consultas', NephrologyConsultationController::class)
         ->except(['show', 'destroy'])

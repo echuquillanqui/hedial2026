@@ -54,7 +54,8 @@
                         $canManageUsers = auth()->user()->can('users.view');
                         $canManagePatients = auth()->user()->can('patients.view');
                         $canManageSedes = auth()->user()->can('users.view');
-                        $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSedes;
+                        $canManageFuaConfiguration = auth()->user()->can('orders.view');
+                        $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSedes || $canManageFuaConfiguration;
 
                         $canViewReferrals = auth()->user()->can('referrals.view');
 
@@ -70,7 +71,7 @@
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*', 'fuas.configuration.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-people-fill me-1"></i> Gestión
         </button>
@@ -101,13 +102,20 @@
                 </a>
             </li>
             @endif
+            @if($canManageFuaConfiguration)
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('fuas.configuration.*') ? 'active' : '' }}" href="{{ route('fuas.configuration.edit') }}">
+                    <i class="bi bi-file-earmark-medical me-2"></i> Configuración FUA
+                </a>
+            </li>
+            @endif
         </ul>
     </li>
     @endif
 
     @if($canViewCatalog)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('catalog.*', 'laboratory.*', 'fuas.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('catalog.*', 'laboratory.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-journal-medical me-1"></i> Laboratorio
         </button>
@@ -127,17 +135,6 @@
                     <i class="bi bi-clipboard2-pulse me-2"></i> Resultados
                 </a>
             </li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-                <a class="dropdown-item {{ request()->routeIs('fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active' : '' }}" href="{{ route('fuas.index') }}">
-                    <i class="bi bi-files me-2"></i> FUA generadas
-                </a>
-            </li>
-            <li>
-                <a class="dropdown-item {{ request()->routeIs('fuas.*') ? 'active' : '' }}" href="{{ route('fuas.configuration.edit') }}">
-                    <i class="bi bi-file-earmark-medical me-2"></i> Configuración FUA
-                </a>
-            </li>
         </ul>
     </li>
     @endif
@@ -152,7 +149,7 @@
 
     @if($canSeeClinicalArea)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.*', 'medicals.*', 'consultations.*', 'nurses.*', 'extra-materials.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.*', 'medicals.*', 'consultations.*', 'nurses.*', 'extra-materials.*', 'fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-clipboard2-pulse-fill me-1"></i> Área Clínica
         </button>
@@ -161,6 +158,11 @@
             <li>
                 <a class="dropdown-item {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">
                     <i class="bi bi-list-check me-2"></i> Ordenes
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active' : '' }}" href="{{ route('fuas.index') }}">
+                    <i class="bi bi-files me-2"></i> FUA generadas
                 </a>
             </li>
             @endif
@@ -173,16 +175,18 @@
                     <i class="bi bi-person-vcard me-2"></i> Medicina
                 </a>
             </li>
-            <li>
-                <a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}">
-                    <i class="bi bi-journal-medical me-2"></i> Consultas nefrológicas
-                </a>
-            </li>
             @endif
             @if($canViewNurses)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('nurses.*') ? 'active' : '' }}" href="{{ route('nurses.index') }}">
                     <i class="bi bi-clipboard-pulse me-2"></i> Enfermería
+                </a>
+            </li>
+            @endif
+            @if($canViewMedicals)
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}">
+                    <i class="bi bi-journal-medical me-2"></i> Consultas nefrológicas
                 </a>
             </li>
             @endif

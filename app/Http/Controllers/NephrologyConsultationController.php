@@ -105,6 +105,15 @@ class NephrologyConsultationController extends Controller
             ->stream('receta-nefrologia-'.$consultation->id.'.pdf');
     }
 
+    public function consultationPdf(NephrologyConsultation $consultation)
+    {
+        $this->authorizeSede($consultation);
+        $consultation->load(['patient', 'doctor', 'sede', 'medications']);
+
+        return Pdf::loadView('consultations.consultation_pdf', compact('consultation'))->setPaper('a4')
+            ->stream('consulta-nefrologica-'.$consultation->id.'.pdf');
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
