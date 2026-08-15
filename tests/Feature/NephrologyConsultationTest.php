@@ -138,6 +138,10 @@ class NephrologyConsultationTest extends TestCase
         $document = view('consultations.consultation_pdf', compact('consultation'))->render();
 
         $this->assertStringContainsString('<table class="exam-grid">', $document);
+        $this->assertStringContainsString('height: 270mm', $document);
+        $this->assertStringContainsString('table-layout: fixed', $document);
+        $this->assertStringContainsString('<col style="width:17%"><col style="width:27%">', $document);
+        $this->assertStringContainsString('white-space: nowrap', $document);
         $this->assertSame(4, substr_count($document, '( X )'));
         $this->assertStringContainsString('( X ) Hematocrito', $document);
         $this->assertStringNotContainsString('Mensual|', $document);
