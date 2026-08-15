@@ -78,4 +78,19 @@ class NephrologyConsultationTest extends TestCase
         $response = $this->actingAs($user)->withoutMiddleware()->get(route('consultations.prescription.pdf', $consultation));
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
     }
+
+    public function test_nephrology_consultation_pdf_is_available(): void
+    {
+        $user = User::factory()->create();
+        $consultation = NephrologyConsultation::create([
+            'patient_id' => Patient::factory()->create()->id,
+            'doctor_id' => $user->id,
+            'consultation_date' => '2026-08-14',
+            'reason' => 'Control mensual',
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('consultations.pdf', $consultation));
+
+        $response->assertOk()->assertHeader('content-type', 'application/pdf');
+    }
 }
