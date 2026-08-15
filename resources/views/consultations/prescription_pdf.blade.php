@@ -11,7 +11,7 @@
          * 139 mm overflow the printable area and pushed the second copy to a new
          * page.
          */
-        .prescription { position: relative; box-sizing: border-box; height: 130mm; padding: 4mm 1mm 3mm; overflow: hidden; page-break-inside: avoid; }
+        .prescription { position: relative; box-sizing: border-box; height: 130mm; padding: 4mm 1mm 3mm; page-break-inside: avoid; }
         .prescription + .prescription { page-break-before: avoid; }
         .prescription:first-child { border-bottom: 1px dashed #8a96a3; }
         .prescription:last-child { padding-top: 5mm; }
@@ -28,9 +28,11 @@
         .meds th { background: #183b6b; color: white; font-size: 7px; text-transform: uppercase; }
         .num { text-align: center; }
         .box { min-height: 18px; padding: 3px 4px; border: 1px solid #ccd5df; white-space: pre-line; }
-        .signatures { position: absolute; right: 1mm; bottom: 3mm; left: 1mm; width: calc(100% - 2mm); text-align: center; }
-        .signatures td { width: 50%; padding: 0 14px; vertical-align: top; }
-        .line { margin-top: 30px; padding-top: 3px; border-top: 1px solid #222; }
+        .signatures { position: absolute; right: 1mm; bottom: 4mm; left: 1mm; }
+        .signatures table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: center; }
+        .signatures td { width: 50%; padding: 0 14px; vertical-align: bottom; }
+        .signature-space { height: 29px; border-bottom: 1px solid #222; }
+        .signature-label { padding-top: 3px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -73,10 +75,18 @@
         <div class="section">Indicaciones</div>
         <div class="box">{{ $consultation->treatment_plan ?: 'Sin indicaciones adicionales.' }}</div>
 
-        <table class="signatures"><tr>
-            <td><div class="line">Firma y huella del paciente / responsable</div></td>
-            <td><div class="line">Sello y firma del médico</div></td>
-        </tr></table>
+        <div class="signatures">
+            <table><tr>
+                <td>
+                    <div class="signature-space">&nbsp;</div>
+                    <div class="signature-label">Firma y huella del paciente / responsable</div>
+                </td>
+                <td>
+                    <div class="signature-space">&nbsp;</div>
+                    <div class="signature-label">Sello y firma del médico</div>
+                </td>
+            </tr></table>
+        </div>
     </section>
 @endfor
 </body>
