@@ -102,7 +102,11 @@ class NephrologyConsultationController extends Controller
     {
         $this->authorizeSede($consultation);
         $consultation->load(['patient', 'doctor', 'sede', 'medications']);
-        return Pdf::loadView('consultations.prescription_pdf', compact('consultation'))->setPaper('a4')
+
+        $configuration = FuaConfiguration::global();
+        $logoData = $this->logoData($configuration->logo_path);
+
+        return Pdf::loadView('consultations.prescription_pdf', compact('consultation', 'configuration', 'logoData'))->setPaper('a4')
             ->stream('receta-nefrologia-'.$consultation->id.'.pdf');
     }
 

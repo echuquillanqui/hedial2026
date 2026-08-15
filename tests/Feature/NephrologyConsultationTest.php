@@ -108,9 +108,13 @@ class NephrologyConsultationTest extends TestCase
         );
 
         $consultation->load(['patient', 'doctor', 'sede', 'medications']);
-        $document = view('consultations.prescription_pdf', compact('consultation'))->render();
+        $configuration = \App\Models\FuaConfiguration::global();
+        $logoData = 'data:image/png;base64,logo-prueba';
+        $document = view('consultations.prescription_pdf', compact('consultation', 'configuration', 'logoData'))->render();
         $this->assertSame(2, substr_count($document, 'class="prescription"'));
         $this->assertSame(2, substr_count($document, 'RECETA MÉDICA'));
+        $this->assertSame(2, substr_count($document, 'alt="Logo de la empresa"'));
+        $this->assertStringNotContainsString('Consulta nefrológica', $document);
     }
 
     public function test_nephrology_consultation_pdf_is_available(): void
