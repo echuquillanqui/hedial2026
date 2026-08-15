@@ -6,7 +6,7 @@
         @page { size: A4 portrait; margin: 10mm 15mm; }
         * { box-sizing: border-box; }
         body { color: #172033; font-family: DejaVu Sans, sans-serif; font-size: 8px; line-height: 1.12; margin: 0; }
-        .sheet { border: 1px solid #cbd5e1; border-top: 5px solid #2563eb; height: 277mm; overflow: hidden; padding: 3mm 4mm; position: relative; }
+        .sheet { border: 1px solid #cbd5e1; border-top: 5px solid #2563eb; height: 270mm; overflow: hidden; padding: 3mm 4mm; position: relative; }
         table { border-collapse: collapse; width: 100%; }
         td { padding: 1.5px 3px; vertical-align: top; }
         .header { background: #eff6ff; border: 0; border-radius: 8px; height: 66px; margin-bottom: 4px; }
@@ -17,6 +17,8 @@
         .label, .section-title { font-weight: bold; text-transform: uppercase; }
         .section-title { background: #172554; border-left: 5px solid #38bdf8; color:#fff; font-size: 8px; letter-spacing:.35px; margin: 4px 0 2px; padding: 3px 6px; }
         .data td { padding: 2px 3px; }
+        .data { table-layout: fixed; }
+        .data .label { white-space: nowrap; }
         .line { min-height: 12px; padding: 1.5px 3px; }
         .vitals td { font-weight: bold; white-space: nowrap; }
         .diagnoses td { padding: 1px 3px; }
@@ -58,7 +60,11 @@
     </tr></table>
 
     <table class="data">
-        <tr><td class="label" style="width:19%">Nombres y apellidos:</td><td style="width:31%">{{ $patient->full_name ?: '—' }}</td><td class="label" style="width:7%">DNI:</td><td style="width:12%">{{ $patient->dni ?: '—' }}</td><td class="label" style="width:17%">Fecha de nacimiento:</td><td>{{ $birthDate?->format('Y-m-d') ?: '—' }}</td><td class="label">Edad:</td><td>{{ $age !== null ? $age.' años' : '—' }}</td></tr>
+        <colgroup>
+            <col style="width:17%"><col style="width:27%"><col style="width:6%"><col style="width:11%">
+            <col style="width:17%"><col style="width:10%"><col style="width:5%"><col style="width:7%">
+        </colgroup>
+        <tr><td class="label">Nombres y apellidos:</td><td>{{ $patient->full_name ?: '—' }}</td><td class="label">DNI:</td><td>{{ $patient->dni ?: '—' }}</td><td class="label">Fecha de nacimiento:</td><td>{{ $birthDate?->format('Y-m-d') ?: '—' }}</td><td class="label">Edad:</td><td>{{ $age !== null ? $age.' años' : '—' }}</td></tr>
         <tr><td class="label">Fecha de atención:</td><td>{{ $consultation->consultation_date?->format('Y-m-d') ?: '—' }}</td><td class="label">Hora:</td><td>{{ $consultation->consultation_time ?: '—' }}</td><td class="label">Motivo de consulta:</td><td colspan="3">{{ $consultation->reason ?: '—' }}</td></tr>
         <tr><td class="label">Tiempo de enfermedad:</td><td>{{ $consultation->disease_duration ?: '—' }}</td><td class="label" colspan="2">Fecha de inicio de diálisis:</td><td colspan="4">{{ $consultation->dialysis_start_date?->format('Y-m-d') ?: '—' }}</td></tr>
     </table>
