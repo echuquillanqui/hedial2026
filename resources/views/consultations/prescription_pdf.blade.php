@@ -5,7 +5,14 @@
     <style>
         @page { margin: 8mm 10mm; }
         body { margin: 0; font-family: DejaVu Sans, sans-serif; font-size: 8px; color: #172033; }
-        .prescription { position: relative; box-sizing: border-box; height: 139mm; padding: 4mm 1mm 3mm; overflow: hidden; }
+        /*
+         * Leave room for both copies plus their padding. Dompdf can calculate the
+         * declared height as content-box even with box-sizing, which made 2 x
+         * 139 mm overflow the printable area and pushed the second copy to a new
+         * page.
+         */
+        .prescription { position: relative; box-sizing: border-box; height: 130mm; padding: 4mm 1mm 3mm; overflow: hidden; page-break-inside: avoid; }
+        .prescription + .prescription { page-break-before: avoid; }
         .prescription:first-child { border-bottom: 1px dashed #8a96a3; }
         .prescription:last-child { padding-top: 5mm; }
         .header { text-align: center; border-bottom: 2px solid #183b6b; padding-bottom: 4px; }
