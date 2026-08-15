@@ -67,13 +67,14 @@ class OrderController extends Controller
         $patients = collect();
         $searchedPatients = collect();
 
-        // Flujo de generación en bloque por secuencia/turno/módulo.
-        if ($request->filled('secuencia') && $request->filled('turno') && $request->filled('modulo')) {
+        // Flujo de generación en bloque. Cada criterio es opcional para poder
+        // listar toda la sede o combinar únicamente los filtros necesarios.
+        if ($request->boolean('filter_patients') || $request->filled(['secuencia', 'turno', 'modulo'])) {
             $patients = Patient::query()
                 ->when(CurrentSede::id(), fn ($q) => $q->where('sede_id', CurrentSede::id()))
-                ->where('secuencia', $request->secuencia)
-                ->where('turno', $request->turno)
-                ->where('modulo', $request->modulo)
+                ->when($request->filled('secuencia'), fn ($q) => $q->where('secuencia', $request->secuencia))
+                ->when($request->filled('turno'), fn ($q) => $q->where('turno', $request->turno))
+                ->when($request->filled('modulo'), fn ($q) => $q->where('modulo', $request->modulo))
                 ->orderBy('surname')
                 ->orderBy('last_name')
                 ->get();
@@ -208,6 +209,9 @@ class OrderController extends Controller
     {
         $patients = Patient::query()
             ->when(CurrentSede::id(), fn ($query) => $query->where('sede_id', CurrentSede::id()))
+            ->when($request->filled('secuencia'), fn ($query) => $query->where('secuencia', $request->secuencia))
+            ->when($request->filled('turno'), fn ($query) => $query->where('turno', $request->turno))
+            ->when($request->filled('modulo'), fn ($query) => $query->where('modulo', $request->modulo))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim((string) $request->search);
                 $query->where(function ($patientQuery) use ($search) {
@@ -220,8 +224,7 @@ class OrderController extends Controller
             })
             ->orderBy('surname')
             ->orderBy('last_name')
-            ->paginate(25)
-            ->withQueryString();
+            ->get();
 
         return view('atenciones.ordenes.create_nephrology', compact('patients'));
     }

@@ -13,6 +13,30 @@ class NephrologyConsultationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_nephrology_order_form_filters_patients_by_schedule_and_search(): void
+    {
+        $user = User::factory()->create();
+        $expected = Patient::factory()->create([
+            'surname' => 'QUISPE',
+            'secuencia' => 'L-M-V',
+            'turno' => '2',
+            'modulo' => '3',
+        ]);
+        Patient::factory()->create(['surname' => 'QUISPE', 'secuencia' => 'M-J-S', 'turno' => '2', 'modulo' => '3']);
+        Patient::factory()->create(['surname' => 'RAMOS', 'secuencia' => 'L-M-V', 'turno' => '2', 'modulo' => '3']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.nephrology.create', [
+            'secuencia' => 'L-M-V',
+            'turno' => '2',
+            'modulo' => '3',
+            'search' => 'QUISPE',
+        ]));
+
+        $response->assertOk();
+        $response->assertViewHas('patients', fn ($patients): bool => $patients->count() === 1
+            && $patients->first()->is($expected));
+    }
+
     public function test_generating_nephrology_orders_adds_them_to_the_consultation_index(): void
     {
         $user = User::factory()->create();
