@@ -261,6 +261,29 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame(0, LaboratoryOrder::count());
     }
 
+    public function test_bulk_dialysis_form_allows_partial_or_all_patient_filters(): void
+    {
+        $user = User::factory()->create();
+        $expectedPatients = Patient::factory()->count(2)->create(['turno' => '4']);
+        Patient::factory()->create(['turno' => '1']);
+
+        $filteredResponse = $this->actingAs($user)->withoutMiddleware()->get(route('orders.create', [
+            'filter_patients' => 1,
+            'turno' => '4',
+        ]));
+
+        $filteredResponse->assertOk();
+        $filteredResponse->assertViewHas('patients', fn ($patients): bool => $patients->pluck('id')->sort()->values()->all()
+            === $expectedPatients->pluck('id')->sort()->values()->all());
+
+        $allResponse = $this->actingAs($user)->withoutMiddleware()->get(route('orders.create', [
+            'filter_patients' => 1,
+        ]));
+
+        $allResponse->assertOk();
+        $allResponse->assertViewHas('patients', fn ($patients): bool => $patients->count() === 3);
+    }
+
     public function test_bulk_dialysis_orders_allow_a_different_laboratory_period_per_patient(): void
     {
         $this->seed(FissalLaboratorySeeder::class);

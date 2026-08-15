@@ -22,10 +22,11 @@
             </div>
 
             <form action="{{ route('orders.create') }}" method="GET" class="row g-2 align-items-end">
+                <input type="hidden" name="filter_patients" value="1">
                 <div class="col-md-2">
                     <label class="data-title text-success">Secuencia Programada</label>
                     <select name="secuencia" class="form-select border-success shadow-sm">
-                        <option value="">-- SELECCIONAR --</option>
+                        <option value="">TODAS LAS SECUENCIAS</option>
                         <option value="L-M-V" {{ request('secuencia') == 'L-M-V' ? 'selected' : '' }}>L-M-V</option>
                         <option value="M-J-S" {{ request('secuencia') == 'M-J-S' ? 'selected' : '' }}>M-J-S</option>
                     </select>
@@ -33,7 +34,7 @@
                 <div class="col-md-3">
                     <label class="data-title text-success">Turno</label>
                     <select name="turno" class="form-select border-success shadow-sm">
-                        <option value="">-- SELECCIONAR --</option>
+                        <option value="">TODOS LOS TURNOS</option>
                         <option value="1" {{ request('turno') == '1' ? 'selected' : '' }}>1ER TURNO</option>
                         <option value="2" {{ request('turno') == '2' ? 'selected' : '' }}>2DO TURNO</option>
                         <option value="3" {{ request('turno') == '3' ? 'selected' : '' }}>3ER TURNO</option>
@@ -43,7 +44,7 @@
                 <div class="col-md-3">
                     <label class="data-title text-success">Módulo Asignado</label>
                     <select name="modulo" class="form-select border-success shadow-sm">
-                        <option value="">-- SELECCIONAR --</option>
+                        <option value="">TODOS LOS MÓDULOS</option>
                         <option value="1" {{ request('modulo') == '1' ? 'selected' : '' }}>MÓDULO 1</option>
                         <option value="2" {{ request('modulo') == '2' ? 'selected' : '' }}>MÓDULO 2</option>
                         <option value="3" {{ request('modulo') == '3' ? 'selected' : '' }}>MÓDULO 3</option>
@@ -52,7 +53,7 @@
                 </div>
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-success w-100 fw-bold shadow-sm">
-                        <i class="bi bi-person-check-fill me-1"></i> BUSCAR BLOQUE
+                        <i class="bi bi-person-check-fill me-1"></i> FILTRAR PACIENTES
                     </button>
                 </div>
 
@@ -161,7 +162,22 @@
     </div>
 
     @if(isset($patients) && $patients->count() > 0)
-    <form action="{{ route('orders.store_bulk') }}" method="POST" x-data="{ selected: [] }">
+    <form action="{{ route('orders.store_bulk') }}" method="POST" x-data="{
+        selected: @js(collect(old('patient_ids', []))->map(fn ($id) => (string) $id)->values()),
+        patientQuery: '',
+        normalize(value) { return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); },
+        matches(value) { return this.normalize(value).includes(this.normalize(this.patientQuery)); },
+        get visibleIds() {
+            return [...document.querySelectorAll('[data-patient-search]')]
+                .filter(input => this.matches(input.dataset.patientSearch))
+                .map(input => input.value);
+        },
+        toggleVisible(checked) {
+            this.selected = checked
+                ? [...new Set([...this.selected, ...this.visibleIds])]
+                : this.selected.filter(id => !this.visibleIds.includes(id));
+        }
+    }">
         @csrf
         <div class="row">
             <div class="col-lg-3">
@@ -169,13 +185,13 @@
                     <div class="card shadow-sm border-0 mb-3">
                         <div class="card-header py-3">DATOS DE GENERACIÓN</div>
                         <div class="card-body">
-                            <input type="hidden" name="sala" value="MODULO {{ request('modulo') }}">
-
                             <div class="mb-3">
-                                <label class="data-title text-success">Ubicación Destino</label>
-                                <div class="form-control bg-light fw-bold text-center border-0">
-                                    <i class="bi bi-door-open me-2"></i>MÓDULO {{ request('modulo') }}
-                                </div>
+                                <label class="data-title text-success" for="sala">Ubicación destino</label>
+                                <select id="sala" name="sala" class="form-select border-success fw-bold" required>
+                                    @foreach(range(1, 4) as $module)
+                                        <option value="MODULO {{ $module }}" @selected(request('modulo') == $module)>MÓDULO {{ $module }}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
                             <div class="mb-4">
@@ -204,12 +220,18 @@
             <div class="col-lg-9">
                 <div class="card shadow-sm border-0">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>PACIENTES DEL TURNO {{ request('turno') }} - MÓDULO {{ request('modulo') }}</span>
+                        <span>PACIENTES FILTRADOS ({{ $patients->count() }})</span>
                         <div class="form-check m-0">
                             <input type="checkbox" class="form-check-input border-white cursor-pointer" id="checkAll"
-                                   @change="selected = $el.checked ? {{ json_encode($patients->pluck('id')) }} : []">
-                            <label class="form-check-label text-white small fw-bold cursor-pointer" for="checkAll">Seleccionar Todos</label>
+                                   @change="toggleVisible($el.checked)"
+                                   :checked="visibleIds.length > 0 && visibleIds.every(id => selected.includes(id))">
+                            <label class="form-check-label text-white small fw-bold cursor-pointer" for="checkAll">Seleccionar visibles</label>
                         </div>
+                    </div>
+                    <div class="card-body border-bottom">
+                        <label for="patientQuery" class="data-title text-success">Buscar dentro de los resultados</label>
+                        <input id="patientQuery" type="search" x-model="patientQuery" class="form-control border-success" placeholder="DNI, H.C. o nombre del paciente">
+                        <small class="text-muted">“Seleccionar visibles” aplica solamente a los pacientes que coinciden con esta búsqueda.</small>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -226,10 +248,10 @@
                                 </thead>
                                 <tbody>
                                     @foreach($patients as $patient)
-                                    <tr>
+                                    <tr x-show="matches(@js($patient->full_name.' '.$patient->dni.' '.$patient->medical_history_number))">
                                         <td class="text-center">
                                             <input type="checkbox" name="patient_ids[]" value="{{ $patient->id }}"
-                                                   x-model="selected" class="form-check-input border-success shadow-sm">
+                                                   x-model="selected" data-patient-search="{{ mb_strtolower($patient->full_name.' '.$patient->dni.' '.$patient->medical_history_number) }}" class="form-check-input border-success shadow-sm">
                                         </td>
                                         <td>
                                             <div class="fw-bold text-uppercase small text-dark">{{ $patient->surname }} {{ $patient->last_name }}, {{ $patient->first_name }} {{ $patient->other_names }}</div>
@@ -270,11 +292,11 @@
         </div>
     </form>
     @else
-        @if(request()->filled('modulo') && request()->filled('secuencia') && request()->filled('turno'))
+        @if(request()->boolean('filter_patients'))
             <div class="alert alert-warning border-0 shadow-sm text-center py-5 mt-4 rounded-3">
                 <i class="bi bi-people fs-1 d-block mb-3"></i>
                 <h5 class="fw-bold">No se encontraron pacientes</h5>
-                <p class="mb-0">Verifique que los pacientes tengan asignado el <strong>Módulo {{ request('modulo') }}</strong> en su perfil clínico para este turno.</p>
+                <p class="mb-0">Pruebe seleccionando “Todos” en uno o más filtros o cambie los criterios de búsqueda.</p>
             </div>
         @endif
     @endif
