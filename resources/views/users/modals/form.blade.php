@@ -30,6 +30,10 @@
                             <input type="email" name="email" x-model="currentUser.email" class="form-control rounded-3" required>
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label small fw-bold">DNI</label>
+                            <input type="text" name="dni" x-model="currentUser.dni" class="form-control rounded-3" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" placeholder="8 dígitos">
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold">Profesión / Rol Interno</label>
                             <select name="profession" x-model="currentUser.profession" class="form-select rounded-3">
                                 <option value="">Seleccionar...</option>

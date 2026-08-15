@@ -60,6 +60,7 @@
                                     <div>
                                         <div class="fw-bold text-dark" x-text="user.name"></div>
                                         <div class="small text-muted" x-text="'@' + user.username"></div>
+                                        <div class="small text-muted" x-text="'DNI: ' + (user.dni || '---')"></div>
                                     </div>
                                 </div>
                             </td>
@@ -130,6 +131,7 @@
                 return this.users.filter(u =>
                     this.normalize(u.name).includes(q) ||
                     this.normalize(u.username).includes(q) ||
+                    this.normalize(u.dni).includes(q) ||
                     this.normalize(u.license_number).includes(q)
                 );
             },
@@ -169,7 +171,7 @@
                         sedes_selected: (user.sedes || []).map(s => String(s.id)),
                         operational_areas_selected: (user.operational_areas || []).map(a => String(a.id)),
                     }
-                    : { id: null, name: '', username: '', email: '', profession: '', license_number: '', specialty_number: '', roles_selected: [], permissions_selected: [], sedes_selected: [], operational_areas_selected: [] };
+                    : { id: null, name: '', username: '', email: '', dni: '', profession: '', license_number: '', specialty_number: '', roles_selected: [], permissions_selected: [], sedes_selected: [], operational_areas_selected: [] };
 
                 this.syncOperationalAreasWithSedes();
 

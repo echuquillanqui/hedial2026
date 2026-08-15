@@ -93,7 +93,7 @@
         <div class="content"><b>Se solicita:</b> {{ $requestedTests ?: 'Sin exámenes auxiliares registrados.' }}<br><b>Fecha de toma de muestra:</b> {{ $order?->laboratoryOrder?->created_at?->format('d/m/Y') ?? '—' }} &nbsp;&nbsp;&nbsp; <b>Próxima cita:</b> {{ $attentionDate->copy()->addMonth()->format('d/m/Y') }}</div>
     </div>
 
-    <div class="signature">{{ $doctorName ?: 'Médico responsable' }}<small>{{ $doctorSpecialty ?: 'Nefrología' }}</small><small>C.M.P. {{ $doctorLicense ?: '—' }}</small></div>
+    <div class="signature" style="border-top:0">@include('pdf.partials.digital_stamp', ['user' => $responsible, 'name' => $doctorName, 'license' => $doctorLicense, 'role' => 'doctor'])</div>
     <div class="footer">{{ $configuration->company_name ?: $configuration->ipress_name }}@if($configuration->company_address) · {{ $configuration->company_address }}@endif @if($configuration->company_phone) · Tel. {{ $configuration->company_phone }}@endif</div>
 </div>
 </body></html>
