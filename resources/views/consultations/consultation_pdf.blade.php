@@ -19,8 +19,10 @@
         .data td { padding: 2px 3px; overflow-wrap: break-word; }
         .data { table-layout: fixed; }
         .data .label { line-height: 1.05; }
-        .patient-data .value { border-right: 1px solid #dbeafe; }
-        .patient-data .value:last-child { border-right: 0; }
+        .patient-data td { border-right: 1px solid #dbeafe; }
+        .patient-data td:last-child { border-right: 0; }
+        .patient-data .label { margin-right: 3px; }
+        .patient-data .patient-name { white-space: nowrap; }
         .line { min-height: 12px; padding: 1.5px 3px; }
         .vitals td { font-weight: bold; white-space: nowrap; }
         .diagnoses td { padding: 1px 3px; }
@@ -63,12 +65,11 @@
 
     <table class="data patient-data">
         <colgroup>
-            <col style="width:16%"><col style="width:26%"><col style="width:7%"><col style="width:13%">
-            <col style="width:16%"><col style="width:10%"><col style="width:5%"><col style="width:7%">
+            <col style="width:42%"><col style="width:20%"><col style="width:26%"><col style="width:12%">
         </colgroup>
-        <tr><td class="label">Nombres y apellidos:</td><td class="value">{{ $patient->full_name ?: '—' }}</td><td class="label">DNI:</td><td class="value">{{ $patient->dni ?: '—' }}</td><td class="label">Fecha de nacimiento:</td><td class="value">{{ $birthDate?->format('d/m/Y') ?: '—' }}</td><td class="label">Edad:</td><td class="value">{{ $age !== null ? $age.' años' : '—' }}</td></tr>
-        <tr><td class="label">Fecha de atención:</td><td class="value">{{ $consultation->consultation_date?->format('d/m/Y') ?: '—' }}</td><td class="label">Hora:</td><td class="value">{{ $consultation->consultation_time ?: '—' }}</td><td class="label">Motivo de consulta:</td><td class="value" colspan="3">{{ $consultation->reason ?: '—' }}</td></tr>
-        <tr><td class="label">Tiempo de enfermedad:</td><td>{{ $consultation->disease_duration ?: '—' }}</td><td class="label" colspan="2">Fecha de inicio de diálisis:</td><td colspan="4">{{ $consultation->dialysis_start_date?->format('Y-m-d') ?: '—' }}</td></tr>
+        <tr><td class="patient-name"><span class="label">Nombres y apellidos:</span>{{ $patient->full_name ?: '—' }}</td><td><span class="label">DNI:</span>{{ $patient->dni ?: '—' }}</td><td><span class="label">Fecha de nacimiento:</span>{{ $birthDate?->format('d/m/Y') ?: '—' }}</td><td><span class="label">Edad:</span>{{ $age !== null ? $age.' años' : '—' }}</td></tr>
+        <tr><td><span class="label">Fecha de atención:</span>{{ $consultation->consultation_date?->format('d/m/Y') ?: '—' }}</td><td><span class="label">Hora:</span>{{ $consultation->consultation_time ?: '—' }}</td><td colspan="2"><span class="label">Motivo de consulta:</span>{{ $consultation->reason ?: '—' }}</td></tr>
+        <tr><td colspan="2"><span class="label">Tiempo de enfermedad:</span>{{ $consultation->disease_duration ?: '—' }}</td><td colspan="2"><span class="label">Fecha de inicio de diálisis:</span>{{ $consultation->dialysis_start_date?->format('Y-m-d') ?: '—' }}</td></tr>
     </table>
     <div class="line"><span class="label">Anamnesis:</span> {{ $consultation->current_illness ?: $consultation->history ?: '—' }}</div>
     <div class="line"><span class="label">Etiología:</span> {{ $consultation->etiology ?: '—' }} &nbsp;&nbsp;&nbsp; <span class="label">Acceso vascular actual:</span> {{ $consultation->vascular_access ?: '—' }}</div>

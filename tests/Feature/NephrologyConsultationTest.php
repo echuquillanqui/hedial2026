@@ -146,8 +146,9 @@ class NephrologyConsultationTest extends TestCase
         $this->assertStringNotContainsString('height: 270mm', $document);
         $this->assertStringNotContainsString('overflow: hidden', $document);
         $this->assertStringContainsString('table-layout: fixed', $document);
-        $this->assertStringContainsString('<col style="width:16%"><col style="width:26%">', $document);
-        $this->assertStringContainsString('class="value"', $document);
+        $this->assertStringContainsString('<col style="width:42%"><col style="width:20%">', $document);
+        $this->assertStringContainsString('class="patient-name"', $document);
+        $this->assertStringContainsString('.patient-data .patient-name { white-space: nowrap; }', $document);
         $this->assertSame(4, substr_count($document, '( X )'));
         $this->assertStringContainsString('( X ) Hematocrito', $document);
         $this->assertStringNotContainsString('Mensual|', $document);
