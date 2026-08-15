@@ -108,7 +108,7 @@ class NephrologyConsultationController extends Controller
     public function consultationPdf(NephrologyConsultation $consultation)
     {
         $this->authorizeSede($consultation);
-        $consultation->load(['patient', 'doctor', 'sede']);
+        $consultation->load(['patient', 'doctor', 'sede', 'medications']);
 
         return Pdf::loadView('consultations.consultation_pdf', compact('consultation'))->setPaper('a4')
             ->stream('consulta-nefrologica-'.$consultation->id.'.pdf');
@@ -119,10 +119,22 @@ class NephrologyConsultationController extends Controller
         return $request->validate([
             'patient_id' => ['required', 'exists:patients,id'], 'doctor_id' => ['nullable', 'exists:users,id'],
             'consultation_date' => ['required', 'date'], 'blood_pressure' => ['nullable', 'string', 'max:20'],
+            'consultation_time' => ['nullable', 'date_format:H:i'], 'dialysis_start_date' => ['nullable', 'date'],
+            'disease_duration' => ['nullable', 'string', 'max:80'], 'etiology' => ['nullable', 'string', 'max:255'],
+            'vascular_access' => ['nullable', 'string', 'max:255'], 'symptoms' => ['nullable', 'string', 'max:255'],
             'weight' => ['nullable', 'numeric', 'min:0'], 'temperature' => ['nullable', 'numeric', 'between:25,45'],
             'heart_rate' => ['nullable', 'integer', 'between:1,300'], 'oxygen_saturation' => ['nullable', 'integer', 'between:1,100'],
+            'height' => ['nullable', 'numeric', 'between:0.3,2.5'], 'respiratory_rate' => ['nullable', 'integer', 'between:1,100'],
+            'bmi' => ['nullable', 'numeric', 'between:1,100'], 'diuresis' => ['nullable', 'numeric', 'min:0'],
             'reason' => ['nullable', 'string'], 'current_illness' => ['nullable', 'string'], 'history' => ['nullable', 'string'],
             'physical_exam' => ['nullable', 'string'], 'diagnosis' => ['nullable', 'string'], 'treatment_plan' => ['nullable', 'string'], 'observations' => ['nullable', 'string'],
+            'lung_exam' => ['nullable', 'string'], 'cardiac_exam' => ['nullable', 'string'],
+            'dialysis_prescription' => ['nullable', 'string', 'max:255'], 'dialysis_hours' => ['nullable', 'numeric', 'between:0,24'],
+            'filter_area' => ['nullable', 'numeric', 'between:0,10'], 'anemia_treatment' => ['nullable', 'boolean'],
+            'hemoglobin' => ['nullable', 'numeric', 'between:0,30'], 'epoetin_dose' => ['nullable', 'string', 'max:255'],
+            'hydroxocobalamin_dose' => ['nullable', 'string', 'max:255'], 'iron_dose' => ['nullable', 'string', 'max:255'],
+            'bone_mineral_treatment' => ['nullable', 'boolean'], 'antihypertensive_treatment' => ['nullable', 'boolean'],
+            'other_treatment' => ['nullable', 'string'],
             'diagnoses' => ['nullable', 'array', 'max:10'], 'diagnoses.*.cie10_id' => ['nullable', 'exists:cie10s,id'],
             'diagnoses.*.codigo' => ['required_with:diagnoses.*.descripcion', 'nullable', 'string', 'max:20'],
             'diagnoses.*.descripcion' => ['required_with:diagnoses.*.codigo', 'nullable', 'string', 'max:255'],

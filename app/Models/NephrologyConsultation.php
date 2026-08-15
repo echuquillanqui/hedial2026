@@ -12,6 +12,10 @@ class NephrologyConsultation extends Model
 
     protected $casts = [
         'consultation_date' => 'date',
+        'dialysis_start_date' => 'date',
+        'anemia_treatment' => 'boolean',
+        'bone_mineral_treatment' => 'boolean',
+        'antihypertensive_treatment' => 'boolean',
         'diagnoses' => 'array',
         'auxiliary_exams' => 'array',
         'next_laboratory_date' => 'date',
