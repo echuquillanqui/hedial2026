@@ -108,7 +108,7 @@ class NephrologyConsultationController extends Controller
     public function consultationPdf(NephrologyConsultation $consultation)
     {
         $this->authorizeSede($consultation);
-        $consultation->load(['patient', 'doctor', 'sede', 'medications']);
+        $consultation->load(['patient', 'doctor', 'sede']);
 
         return Pdf::loadView('consultations.consultation_pdf', compact('consultation'))->setPaper('a4')
             ->stream('consulta-nefrologica-'.$consultation->id.'.pdf');

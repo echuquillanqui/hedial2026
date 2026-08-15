@@ -18,7 +18,8 @@
         .vitals td { border: 1px solid #aebdcd; padding: 5px; text-align: center; }
         .vitals .label { width: auto; }
         .diagnosis, .exams { border: 1px solid #aebdcd; min-height: 28px; padding: 6px; }
-        .medications th { background: #dce7f2; color: #183b6b; font-size: 8px; text-transform: uppercase; }
+        .exam-grid { width: 100%; }
+        .exam-grid td { padding: 2px 5px; vertical-align: top; width: 33.33%; }
         .center { text-align: center; }
         .signatures { margin-top: 34px; text-align: center; }
         .signatures td { padding: 0 25px; width: 50%; }
@@ -60,23 +61,30 @@
 
 <div class="section-title">Exámenes auxiliares solicitados</div>
 <div class="exams">
-    @forelse($consultation->auxiliary_exams ?: [] as $exam)
-        {{ str_replace('|', ' — ', $exam) }}@unless($loop->last)<br>@endunless
-    @empty
+    @php
+        $selectedExams = collect($consultation->auxiliary_exams ?: [])
+            ->map(fn ($exam) => str_contains($exam, '|') ? explode('|', $exam, 2)[1] : $exam)
+            ->values();
+    @endphp
+    @if($selectedExams->isNotEmpty())
+        <table class="exam-grid">
+            @foreach($selectedExams->chunk(3) as $examRow)
+                <tr>
+                    @foreach($examRow as $exam)
+                        <td>( X ) {{ $exam }}</td>
+                    @endforeach
+                    @for($column = $examRow->count(); $column < 3; $column++)
+                        <td></td>
+                    @endfor
+                </tr>
+            @endforeach
+        </table>
+    @else
         —
-    @endforelse
+    @endif
     <br><strong>Próximo laboratorio:</strong> {{ $consultation->next_laboratory_date?->format('d/m/Y') ?: '—' }}
     &nbsp;&nbsp; <strong>Próxima cita:</strong> {{ $consultation->next_appointment_date?->format('d/m/Y') ?: '—' }}
 </div>
-
-@if($consultation->medications->isNotEmpty())
-<div class="section-title">Tratamiento prescrito</div>
-<table class="medications"><thead><tr><th>Código</th><th>Medicamento</th><th>Prescripción</th><th>Cant. prescrita</th></tr></thead><tbody>
-@foreach($consultation->medications as $medication)
-    <tr><td class="center">{{ $medication->fua_code ?: '—' }}</td><td>{{ $medication->description }}</td><td>{{ $medication->c ?: '—' }}</td><td class="center">{{ rtrim(rtrim(number_format($medication->prescribed_quantity, 2, '.', ''), '0'), '.') }}</td></tr>
-@endforeach
-</tbody></table>
-@endif
 
 <table class="signatures"><tr><td><div class="line">Firma del paciente / responsable</div></td><td><div class="line"><strong>{{ $consultation->doctor?->name ?: 'Médico tratante' }}</strong><br>CMP: {{ $consultation->doctor?->license_number ?: '________' }} &nbsp; RNE: {{ $consultation->doctor?->specialty_number ?: '________' }}<br>Firma y sello</div></td></tr></table>
 <div class="footer">Consulta generada el {{ now()->format('d/m/Y H:i') }} — Consulta N.° {{ $consultation->id }}</div>
