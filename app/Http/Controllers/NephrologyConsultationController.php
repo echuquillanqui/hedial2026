@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FuaConfiguration;
 use App\Models\NephrologyConsultation;
 use App\Models\Patient;
 use App\Models\User;
@@ -110,8 +111,30 @@ class NephrologyConsultationController extends Controller
         $this->authorizeSede($consultation);
         $consultation->load(['patient', 'doctor', 'sede', 'medications']);
 
-        return Pdf::loadView('consultations.consultation_pdf', compact('consultation'))->setPaper('a4')
+        $configuration = FuaConfiguration::global();
+        $logoData = $this->logoData($configuration->logo_path);
+
+        return Pdf::loadView('consultations.consultation_pdf', compact('consultation', 'configuration', 'logoData'))->setPaper('a4')
             ->stream('consulta-nefrologica-'.$consultation->id.'.pdf');
+    }
+
+    /** Use the logo uploaded in FUA settings and keep an embedded fallback for reliable PDFs. */
+    private function logoData(?string $path): ?string
+    {
+        $candidates = array_filter([
+            $path ? storage_path('app/public/'.$path) : null,
+            public_path('logo/logo_03.jpeg'),
+        ]);
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                $mime = mime_content_type($candidate) ?: 'image/jpeg';
+
+                return 'data:'.$mime.';base64,'.base64_encode(file_get_contents($candidate));
+            }
+        }
+
+        return null;
     }
 
     private function validated(Request $request): array
