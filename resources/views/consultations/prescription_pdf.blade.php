@@ -15,8 +15,8 @@
         .prescription + .prescription { page-break-before: avoid; }
         .prescription:first-child { border-bottom: 1px dashed #8a96a3; }
         .prescription:last-child { padding-top: 5mm; }
-        .header { position: relative; min-height: 34px; text-align: center; border-bottom: 2px solid #183b6b; padding: 0 80px 4px; }
-        .company-logo { position: absolute; top: 0; left: 4px; width: 70px; height: 30px; object-fit: contain; }
+        .header { position: relative; min-height: 40px; text-align: center; border-bottom: 2px solid #183b6b; padding: 0 80px 4px; }
+        .company-logo { position: absolute; top: 0; left: 4px; width: 70px; height: 38px; object-fit: contain; }
         .header h1 { margin: 0; color: #183b6b; font-size: 14px; }
         .header p { margin: 1px; }
         .meta { width: 100%; margin: 5px 0; border-collapse: collapse; }
@@ -28,10 +28,9 @@
         .meds th { background: #183b6b; color: white; font-size: 7px; text-transform: uppercase; }
         .num { text-align: center; }
         .box { min-height: 18px; padding: 3px 4px; border: 1px solid #ccd5df; white-space: pre-line; }
-        .signatures { position: absolute; right: 1mm; bottom: 9mm; left: 1mm; width: calc(100% - 2mm); text-align: center; }
+        .signatures { position: absolute; right: 1mm; bottom: 3mm; left: 1mm; width: calc(100% - 2mm); text-align: center; }
         .signatures td { width: 50%; padding: 0 14px; vertical-align: top; }
-        .line { margin-top: 12px; padding-top: 3px; border-top: 1px solid #222; }
-        .footer { position: absolute; right: 1mm; bottom: 3mm; left: 1mm; color: #667; font-size: 6px; text-align: center; }
+        .line { margin-top: 30px; padding-top: 3px; border-top: 1px solid #222; }
     </style>
 </head>
 <body>
@@ -42,7 +41,6 @@
                 <img class="company-logo" src="{{ $logoData }}" alt="Logo de la empresa">
             @endif
             <h1>RECETA MÉDICA</h1>
-            <p>{{ ($configuration ?? null)?->company_name ?: $consultation->sede?->name }}</p>
         </div>
 
         <table class="meta">
@@ -76,10 +74,9 @@
         <div class="box">{{ $consultation->treatment_plan ?: 'Sin indicaciones adicionales.' }}</div>
 
         <table class="signatures"><tr>
-            <td><div class="line">Firma del paciente / responsable</div></td>
-            <td><div class="line"><strong>{{ $consultation->doctor?->name ?: 'Médico tratante' }}</strong><br>CMP: {{ $consultation->doctor?->license_number ?: '________' }} &nbsp; RNE: {{ $consultation->doctor?->specialty_number ?: '________' }}<br>Firma y sello</div></td>
+            <td><div class="line">Firma y huella del paciente / responsable</div></td>
+            <td><div class="line">Sello y firma del médico</div></td>
         </tr></table>
-        <div class="footer">Receta generada el {{ now()->format('d/m/Y H:i') }} — Consulta N.° {{ $consultation->id }}</div>
     </section>
 @endfor
 </body>

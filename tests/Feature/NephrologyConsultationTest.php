@@ -109,11 +109,16 @@ class NephrologyConsultationTest extends TestCase
 
         $consultation->load(['patient', 'doctor', 'sede', 'medications']);
         $configuration = \App\Models\FuaConfiguration::global();
+        $configuration->company_name = 'Nombre empresarial que no debe mostrarse';
         $logoData = 'data:image/png;base64,logo-prueba';
         $document = view('consultations.prescription_pdf', compact('consultation', 'configuration', 'logoData'))->render();
         $this->assertSame(2, substr_count($document, 'class="prescription"'));
         $this->assertSame(2, substr_count($document, 'RECETA MÉDICA'));
         $this->assertSame(2, substr_count($document, 'alt="Logo de la empresa"'));
+        $this->assertSame(2, substr_count($document, 'Firma y huella del paciente / responsable'));
+        $this->assertSame(2, substr_count($document, 'Sello y firma del médico'));
+        $this->assertStringNotContainsString('Receta generada el', $document);
+        $this->assertStringNotContainsString($configuration->company_name, $document);
         $this->assertStringNotContainsString('Consulta nefrológica', $document);
     }
 
