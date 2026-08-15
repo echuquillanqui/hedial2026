@@ -1,3 +1,38 @@
+<style>
+    .consultation-data {
+        width: 100%;
+        margin-top: 5px;
+        border-collapse: collapse;
+        table-layout: auto;
+    }
+
+    .consultation-data td {
+        padding: 1px 4px;
+        vertical-align: top;
+    }
+
+    .consultation-data .data-label {
+        width: 1%;
+        color: #003eae;
+        font-size: 0.6rem;
+        font-weight: bold;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    .consultation-data .data-value {
+        min-width: 7%;
+        font-size: 0.6rem;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .consultation-data .data-value-wide {
+        width: 100%;
+    }
+</style>
+
 <div style="font-family: Arial,sans-serif; width: 100%; padding: 5px; box-sizing: border-box; margin: -25px -25px auto; border: 3px solid black;">
 
     <table style="width: 100%; border: solid 1px black; border-collapse: collapse">
@@ -20,64 +55,64 @@
         </tr>
     </table>
 
-    <table style="width: 100%; border-collapse:collapse; margin-top:5px;">
+    <table class="consultation-data">
         <tr>
-            <td style="font-weight: bold; font-size: 0.6rem; width: 20%;">NOMBRES Y APELLIDOS: </td>
-            <td style="font-size: 0.6rem; text-align: left; width: 32%">{{ $nephrology->patient->name }}</td>
+            <td class="data-label">NOMBRES Y APELLIDOS:</td>
+            <td class="data-value">{{ $nephrology->patient->name }}</td>
 
-            <td style="font-weight: bold; font-size: 0.6rem; width: 5%;">DNI: </td>
-            <td style="font-size: 0.6rem; width: 8%">{{ $nephrology->patient->dni }}</td>
+            <td class="data-label">DNI:</td>
+            <td class="data-value">{{ $nephrology->patient->dni }}</td>
 
-            <td style="font-weight: bold; font-size: 0.6rem; width: 17%">FECHA DE NACIMIENTO: </td>
-            <td style="font-size: 0.6rem; text-align: left; width: 10%;">{{ !$nephrology->patient->date_of_birth ? '-------' : $nephrology->patient->date_of_birth }}</td>
+            <td class="data-label">FECHA DE NACIMIENTO:</td>
+            <td class="data-value">{{ !$nephrology->patient->date_of_birth ? '-------' : $nephrology->patient->date_of_birth }}</td>
 
-            <td style="font-weight: bold; font-size: 0.5rem; width: 4%">EDAD: </td>
-            <td style="font-size: 0.5rem; text-align: left; width: 8%">{{ $nephrology->patient->age }} años</td>
+            <td class="data-label">EDAD:</td>
+            <td class="data-value">{{ $nephrology->patient->age }} años</td>
         </tr>
     </table>
 
-    <table style="width: 100%; border-collapse:collapse; margin-top:5px;">
+    <table class="consultation-data">
 
         <tr>
-            <td style="font-weight: bold; font-size: 0.6rem; width: 5%">HORA: </td>
-            <td style="font-size: 0.6rem; width: 7%; text-align: left;">{{ $nephrology->timenefro }}</td>
+            <td class="data-label">HORA:</td>
+            <td class="data-value">{{ $nephrology->timenefro }}</td>
 
-            <td style="font-weight: bold; font-size: 0.6rem; width: 15%">FECHA DE ATENCION: </td>
-            <td style="font-size: 0.6rem; width: 8%">{{ $nephrology->date_order }}</td>
+            <td class="data-label">FECHA DE ATENCION:</td>
+            <td class="data-value">{{ $nephrology->date_order }}</td>
 
-            <td style="font-weight: bold; font-size: 0.6rem;">MOTIVO DE CONSULTA: </td>
-            <td style="font-size: 0.6rem; text-align: left;">{{ $nephrology->consult }}</td>
+            <td class="data-label">MOTIVO DE CONSULTA:</td>
+            <td class="data-value">{{ $nephrology->consult }}</td>
 
-            <td style="font-weight: bold; font-size: 0.6rem">TIEMPO DE ENFERMEDAD: </td>
-            <td style="font-size: 0.6rem; text-align: left;">{{ $nephrology->time_disease }}</td>
+            <td class="data-label">TIEMPO DE ENFERMEDAD:</td>
+            <td class="data-value">{{ $nephrology->time_disease }}</td>
 
         </tr>
     </table>
-    <table style="width: 100%; border-collapse:collapse; margin-top:5px;">
+    <table class="consultation-data">
 
         <tr>
-            <td style="font-weight: bold; font-size: 0.6rem; width: 8%">ANAMNESIS: </td>
-            <td style="font-size: 0.6rem; text-align: left;">{{ $nephrology->anamnesis }} </td>
+            <td class="data-label">ANAMNESIS:</td>
+            <td class="data-value data-value-wide">{{ $nephrology->anamnesis }}</td>
 
-            <td style="font-weight: bold; font-size: 0.6rem; width: 13%;">FECHA DE INICIO: </td>
-            <td style="font-size: 0.6rem; text-align: left;">{{ $nephrology->date_start }}</td>
+            <td class="data-label">FECHA DE INICIO:</td>
+            <td class="data-value">{{ $nephrology->date_start }}</td>
         </tr>
     </table>
-    <table style="width: 100%; border-collapse:collapse; margin-top:5px;">
+    <table class="consultation-data">
 
         <tr>
-            <td style="font-weight: bold; font-size: 0.6rem; width: 8%;">ETIOLOGIA: </td>
-            <td style="font-size: 0.6rem; text-align: left;">{{ $nephrology->etiology }}</td>
+            <td class="data-label">ETIOLOGIA:</td>
+            <td class="data-value data-value-wide">{{ $nephrology->etiology }}</td>
 
-            <td colspan="2" style="font-weight: bold; font-size: 0.6rem; width: 20%">ACCESO VASCULAR ACTUAL: </td>
-            <td style="font-size: 0.6rem; text-align: left;">{{ $nephrology->access }} {{ $nephrology->desc_access }}</td>
+            <td class="data-label">ACCESO VASCULAR ACTUAL:</td>
+            <td class="data-value data-value-wide">{{ $nephrology->access }} {{ $nephrology->desc_access }}</td>
         </tr>
     </table>
-    <table style="width: 100%; border-collapse:collapse; margin-top:5px;">
+    <table class="consultation-data">
 
         <tr>
-            <td style="font-weight: bold; font-size: 0.6rem; width: 15%">SIGNOS Y SINTOMAS: </td>
-            <td colspan="6" style="font-size: 0.6rem; text-align: left;">{{ $nephrology->symptoms }}</td>
+            <td class="data-label">SIGNOS Y SINTOMAS:</td>
+            <td class="data-value data-value-wide">{{ $nephrology->symptoms }}</td>
         </tr>
     </table>
 
