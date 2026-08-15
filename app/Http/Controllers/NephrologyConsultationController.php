@@ -32,7 +32,7 @@ class NephrologyConsultationController extends Controller
 
     public function index(Request $request)
     {
-        $consultations = NephrologyConsultation::with(['patient', 'doctor'])
+        $consultations = NephrologyConsultation::with(['patient', 'doctor', 'order.fua'])
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->string('search')->trim();

@@ -62,7 +62,9 @@ class NephrologyConsultationTest extends TestCase
         $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
             ->assertOk()
             ->assertSee($patients[0]->full_name)
-            ->assertSee($patients[1]->full_name);
+            ->assertSee($patients[1]->full_name)
+            ->assertSee(route('fuas.pdf', NephrologyConsultation::firstOrFail()->order->fua), false)
+            ->assertSee('FUA');
     }
 
     public function test_consultation_stores_default_prescription_rows(): void
