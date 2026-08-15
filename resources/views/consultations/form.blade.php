@@ -23,6 +23,8 @@
     .exam-group-title h6 { margin:0; }
     .exam-group-toggle { color:var(--blue); font-size:.72rem; font-weight:700; white-space:nowrap; }
     .exam-check { display:flex; gap:.6rem; padding:.42rem; border-radius:8px; } .exam-check:hover { background:#e0f2fe; }
+    .exam-period-selector { border:1px solid #bfdbfe; border-radius:14px; padding:1rem; background:#eff6ff; }
+    .exam-period-button.active { color:#fff; background:var(--blue); border-color:var(--blue); box-shadow:0 5px 12px rgba(37,99,235,.22); }
 </style>
 <div class="container-fluid clinical-shell">
     <div class="clinical-hero d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
@@ -57,8 +59,12 @@
         </section>
 
         <section id="exams" class="clinical-panel">
-            <div class="card section-card shadow-sm mb-3"><div class="card-body"><h5 class="section-title text-center mb-4">Exámenes auxiliares — se solicita</h5><div class="row g-3">
-                @foreach($examGroups as $frequency => $exams)<div class="col-xl-3 col-md-6"><div class="exam-group" data-exam-group><div class="exam-group-title"><h6><i class="bi bi-calendar-check me-1"></i>{{ $frequency }}</h6><label class="exam-group-toggle"><input class="form-check-input me-1" type="checkbox" data-select-exam-group>Todo el bloque</label></div>@foreach($exams as $exam)<label class="exam-check"><input class="form-check-input" type="checkbox" name="auxiliary_exams[]" value="{{ $frequency }}|{{ $exam }}" data-exam-item @checked(in_array($frequency.'|'.$exam, $savedExams))><span>{{ $exam }}</span></label>@endforeach</div></div>@endforeach
+            <div class="card section-card shadow-sm mb-3"><div class="card-body"><h5 class="section-title text-center mb-3">Exámenes auxiliares — se solicita</h5>
+                <div class="exam-period-selector mb-4"><div class="fw-bold text-center mb-2">Seleccione la frecuencia</div><div class="d-flex flex-wrap justify-content-center gap-2" role="group" aria-label="Frecuencia de exámenes auxiliares">
+                    @foreach(['M' => 'Mensual', 'B' => 'Bimestral', 'T' => 'Trimestral', 'S' => 'Semestral'] as $period => $label)<button type="button" class="btn btn-outline-primary fw-bold exam-period-button" data-exam-period="{{ $period }}" aria-pressed="false">{{ $label }}</button>@endforeach
+                </div><div class="small text-muted text-center mt-2">La selección es acumulativa: Bimestral incluye Mensual; Trimestral incluye Mensual y Bimestral; Semestral incluye todos los grupos.</div></div>
+                <div class="row g-3">
+                @foreach($examGroups as $frequency => $exams)<div class="col-xl-3 col-md-6"><div class="exam-group" data-exam-group data-exam-frequency="{{ ['Mensual' => 'M', 'Bimestral' => 'B', 'Trimestral' => 'T', 'Semestral' => 'S'][$frequency] }}"><div class="exam-group-title"><h6><i class="bi bi-calendar-check me-1"></i>{{ $frequency }}</h6><label class="exam-group-toggle"><input class="form-check-input me-1" type="checkbox" data-select-exam-group>Todo el bloque</label></div>@foreach($exams as $exam)<label class="exam-check"><input class="form-check-input" type="checkbox" name="auxiliary_exams[]" value="{{ $frequency }}|{{ $exam }}" data-exam-item @checked(in_array($frequency.'|'.$exam, $savedExams))><span>{{ $exam }}</span></label>@endforeach</div></div>@endforeach
             </div><div class="row g-3 mt-2"><div class="col-md-6"><label class="form-label">Fecha próximo laboratorio</label><input type="date" class="form-control" name="next_laboratory_date" value="{{ old('next_laboratory_date', optional($consultation->next_laboratory_date)->format('Y-m-d')) }}"></div><div class="col-md-6"><label class="form-label">Fecha próxima cita</label><input type="date" class="form-control" name="next_appointment_date" value="{{ old('next_appointment_date', optional($consultation->next_appointment_date)->format('Y-m-d')) }}"></div></div></div></div>
         </section>
         <div class="d-flex gap-2 justify-content-end sticky-bottom bg-light py-3"><button class="btn btn-success btn-lg px-4"><i class="bi bi-check2-circle me-1"></i> Guardar consulta</button>@if($editing)<a target="_blank" href="{{ route('consultations.prescription.pdf', $consultation) }}" class="btn btn-danger btn-lg">Generar receta PDF</a>@endif</div>
@@ -67,14 +73,35 @@
 @endsection
 @push('scripts')<script>
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('[data-exam-group]').forEach(group => {
+    const examPeriods = ['M', 'B', 'T', 'S'];
+    const examGroups = [...document.querySelectorAll('[data-exam-group]')];
+    const periodButtons = [...document.querySelectorAll('[data-exam-period]')];
+    const syncPeriodButtons = () => periodButtons.forEach(button => {
+        const includedPeriods = examPeriods.slice(0, examPeriods.indexOf(button.dataset.examPeriod) + 1);
+        const active = includedPeriods.every(period => {
+            const group = examGroups.find(item => item.dataset.examFrequency === period);
+            return [...group.querySelectorAll('[data-exam-item]')].every(item => item.checked);
+        });
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    examGroups.forEach(group => {
         const toggle = group.querySelector('[data-select-exam-group]');
         const items = [...group.querySelectorAll('[data-exam-item]')];
-        const sync = () => { const count = items.filter(item => item.checked).length; toggle.checked = count === items.length; toggle.indeterminate = count > 0 && count < items.length; };
-        toggle.addEventListener('change', () => items.forEach(item => { item.checked = toggle.checked; }));
+        const sync = () => { const count = items.filter(item => item.checked).length; toggle.checked = count === items.length; toggle.indeterminate = count > 0 && count < items.length; syncPeriodButtons(); };
+        toggle.addEventListener('change', () => { items.forEach(item => { item.checked = toggle.checked; }); syncPeriodButtons(); });
         items.forEach(item => item.addEventListener('change', sync));
         sync();
     });
+    periodButtons.forEach(button => button.addEventListener('click', () => {
+        const selectedIndex = examPeriods.indexOf(button.dataset.examPeriod);
+        examGroups.forEach(group => {
+            const checked = examPeriods.indexOf(group.dataset.examFrequency) <= selectedIndex;
+            group.querySelectorAll('[data-exam-item]').forEach(item => { item.checked = checked; });
+            const toggle = group.querySelector('[data-select-exam-group]'); toggle.checked = checked; toggle.indeterminate = false;
+        });
+        syncPeriodButtons();
+    }));
     document.querySelectorAll('.clinical-tab').forEach(button => button.addEventListener('click', () => {
         document.querySelectorAll('.clinical-tab,.clinical-panel').forEach(item => item.classList.remove('active'));
         button.classList.add('active'); document.getElementById(button.dataset.tab).classList.add('active');
