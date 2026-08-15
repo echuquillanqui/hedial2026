@@ -117,4 +117,31 @@ class NephrologyConsultationTest extends TestCase
 
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
     }
+
+    public function test_consultation_document_lists_only_selected_exam_names_in_three_columns_without_prescription(): void
+    {
+        $user = User::factory()->create();
+        $consultation = NephrologyConsultation::create([
+            'patient_id' => Patient::factory()->create()->id,
+            'doctor_id' => $user->id,
+            'consultation_date' => '2026-08-14',
+            'auxiliary_exams' => [
+                'Mensual|Hematocrito',
+                'Mensual|Hemoglobina',
+                'Bimestral|Aspartato aminotransferasa (AST/TGO)',
+                'Trimestral|Albúmina',
+            ],
+        ]);
+        $consultation->medications()->create(NephrologyConsultationController::DEFAULT_MEDICATIONS[0]);
+        $consultation->load(['patient', 'doctor', 'sede']);
+
+        $document = view('consultations.consultation_pdf', compact('consultation'))->render();
+
+        $this->assertStringContainsString('<table class="exam-grid">', $document);
+        $this->assertSame(4, substr_count($document, '( X )'));
+        $this->assertStringContainsString('( X ) Hematocrito', $document);
+        $this->assertStringNotContainsString('Mensual|', $document);
+        $this->assertStringNotContainsString('Tratamiento prescrito', $document);
+        $this->assertStringNotContainsString('Tiamina 100 mg tableta', $document);
+    }
 }
