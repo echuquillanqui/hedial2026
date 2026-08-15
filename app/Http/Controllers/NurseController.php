@@ -198,7 +198,10 @@ class NurseController extends Controller
 
     public function printSingle($id)
     {
-        $order = Order::with(['patient', 'medical', 'nurse', 'treatments'])->findOrFail($id);
+        $order = Order::with([
+            'patient', 'medical.usuarioInicia', 'medical.usuarioFinaliza',
+            'nurse.enfermeroInicia', 'nurse.enfermeroFinaliza', 'treatments',
+        ])->findOrFail($id);
         if (CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id()) {
             abort(403, 'Atención fuera de la sede activa.');
         }

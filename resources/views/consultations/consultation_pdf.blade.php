@@ -129,7 +129,7 @@
     </table>
     <div style="margin-top:10px"><strong>Atendido por:</strong></div>
     <table style="width:55%"><tr><td class="label" style="width:26%">Nombre y apellido:</td><td>{{ $doctor?->name ?: '—' }}</td></tr><tr><td class="label">Profesión:</td><td>{{ $doctor?->profession ?: 'Médico Cirujano' }}</td></tr><tr><td class="label">Especialidad:</td><td>Nefrología</td></tr><tr><td class="label">N° C.M.P. / R.N.E.:</td><td>{{ $doctor?->license_number ?: '—' }} / {{ $doctor?->specialty_number ?: '—' }}</td></tr></table>
-    <div class="signature"><div class="signature-line">{{ $doctor?->name ?: 'Médico tratante' }}</div><div>Médico Nefrólogo</div><div>C.M.P. {{ $doctor?->license_number ?: '—' }} - R.N.E. {{ $doctor?->specialty_number ?: '—' }}</div></div>
+    <div class="signature" style="border-top:0">@include('pdf.partials.digital_stamp', ['user' => $doctor, 'role' => 'doctor'])</div>
 </div>
 </body>
 </html>

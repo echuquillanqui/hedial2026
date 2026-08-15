@@ -145,10 +145,8 @@
                     <div class="bold" style="font-size: 8px; text-transform: uppercase;">
                         
                     </div>
-                    <div style="border-top: 1px solid #000; font-size: 7px; margin-top: 2px;" class="bold">
-                        {{ $order->medical->medico_inicia_nombre ?? 'DRA. CYNTHIA LISETTE YANQUI BALLENA' }}<br>
-                        MEDICO NEFROLOGO<br>
-                        C.M.P. {{ $order->medical->medico_inicia_cmp ?? '82062' }} - R.N.E. {{ $order->medical->medico_inicia_rne ?? '51592' }}<br>
+                    <div style="font-size: 7px; margin-top: 2px;" class="bold">
+                        @include('pdf.partials.digital_stamp', ['user' => $order->medical->usuarioInicia, 'role' => 'doctor'])<br>
                         <span>Médico que Inicia HD</span>
                     </div>
                 </div>
@@ -157,10 +155,8 @@
                 <div style="width: 50%; margin: 0 auto;">
                     <div class="bold" style="font-size: 8px; text-transform: uppercase;">
                     </div>
-                    <div style="border-top: 1px solid #000; font-size: 7px; margin-top: 2px;" class="bold">
-                        {{ $order->medical->medico_finaliza_nombre ?? 'DRA. CYNTHIA LISETTE YANQUI BALLENA' }}<br>
-                        MEDICO NEFROLOGO<br>
-                        C.M.P. {{ $order->medical->medico_finaliza_cmp ?? '82062' }} - R.N.E. {{ $order->medical->medico_finaliza_rne ?? '51592' }}<br>
+                    <div style="font-size: 7px; margin-top: 2px;" class="bold">
+                        @include('pdf.partials.digital_stamp', ['user' => $order->medical->usuarioFinaliza, 'role' => 'doctor'])<br>
                         <span>Médico que Finaliza HD</span>
                     </div>
                 </div>
@@ -320,10 +316,8 @@
     <tr>
         <td colspan="4" style="height: 100px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
             <div style="width: 50%; margin: 0 auto;">
-                <div style="border-top: 1px solid #000; font-size: 9px; margin-top: 2px;" class="bold">
-                    {{ $order->nurse->enfermeroInicia->name ?? '_______________________' }}<br>
-                    ENFERMERO(A)<br>
-                    {{ $order->nurse->enfermeroInicia->license_number ?? '-------' }}<br>
+                    <div style="font-size: 9px; margin-top: 2px;" class="bold">
+                    @include('pdf.partials.digital_stamp', ['user' => $order->nurse->enfermeroInicia, 'role' => 'nurse'])<br>
                     <span>Enfermero(a) que Inicia HD</span>
                 </div>
             </div>
@@ -331,10 +325,8 @@
 
         <td colspan="4" style="height: 100px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
             <div style="width: 50%; margin: 0 auto;">
-                <div style="border-top: 1px solid #000; font-size: 9px; margin-top: 2px;" class="bold">
-                    {{ $order->nurse->enfermeroFinaliza->name ?? '_______________________' }}<br>
-                    ENFERMERO(A)<br>
-                    {{ $order->nurse->enfermeroFinaliza->license_number ?? '-------' }}<br>
+                <div style="font-size: 9px; margin-top: 2px;" class="bold">
+                    @include('pdf.partials.digital_stamp', ['user' => $order->nurse->enfermeroFinaliza, 'role' => 'nurse'])<br>
                     <span>Enfermero(a) que Finaliza HD</span>
                 </div>
             </div>

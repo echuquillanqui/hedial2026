@@ -82,7 +82,7 @@
                     <div class="signature-label">Firma y huella del paciente / responsable</div>
                 </td>
                 <td>
-                    <div class="signature-space">&nbsp;</div>
+                    <div class="signature-space" style="height:auto;border-bottom:0">@include('pdf.partials.digital_stamp', ['user' => $consultation->doctor, 'role' => 'doctor'])</div>
                     <div class="signature-label">Sello y firma del médico</div>
                 </td>
             </tr></table>
