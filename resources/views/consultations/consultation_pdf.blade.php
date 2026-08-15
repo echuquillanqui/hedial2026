@@ -3,22 +3,24 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { size: A4 portrait; margin: 10mm 15mm; }
+        @page { size: A4 portrait; margin: 8mm 12mm; }
         * { box-sizing: border-box; }
         body { color: #172033; font-family: DejaVu Sans, sans-serif; font-size: 8px; line-height: 1.12; margin: 0; }
-        .sheet { border: 1px solid #cbd5e1; border-top: 5px solid #2563eb; height: 270mm; overflow: hidden; padding: 3mm 4mm; position: relative; }
+        .sheet { border: 1px solid #cbd5e1; border-top: 4px solid #2563eb; padding: 3mm 4mm; }
         table { border-collapse: collapse; width: 100%; }
         td { padding: 1.5px 3px; vertical-align: top; }
-        .header { background: #eff6ff; border: 0; border-radius: 8px; height: 66px; margin-bottom: 4px; }
+        .header { background: #eff6ff; border: 0; height: 58px; margin-bottom: 4px; page-break-inside: avoid; }
         .header td { text-align: center; vertical-align: middle; }
         .logo { width: 76px; height: 48px; object-fit: contain; }
         .logo-fallback { color:#2563eb; font-size:22px; font-weight:bold; }
         h1 { color:#172554; font-size: 14px; letter-spacing: .45px; margin: 0; }
         .label, .section-title { font-weight: bold; text-transform: uppercase; }
         .section-title { background: #172554; border-left: 5px solid #38bdf8; color:#fff; font-size: 8px; letter-spacing:.35px; margin: 4px 0 2px; padding: 3px 6px; }
-        .data td { padding: 2px 3px; }
+        .data td { padding: 2px 3px; overflow-wrap: break-word; }
         .data { table-layout: fixed; }
-        .data .label { white-space: nowrap; }
+        .data .label { line-height: 1.05; }
+        .patient-data .value { border-right: 1px solid #dbeafe; }
+        .patient-data .value:last-child { border-right: 0; }
         .line { min-height: 12px; padding: 1.5px 3px; }
         .vitals td { font-weight: bold; white-space: nowrap; }
         .diagnoses td { padding: 1px 3px; }
@@ -31,7 +33,7 @@
         .exam-grid { table-layout: fixed; }
         .exam-grid td { padding: 2px 5px; width: 33.333%; }
         .exam-check { color:#1d4ed8; font-weight:bold; white-space:nowrap; }
-        .signature { margin: 24px auto 0; text-align: center; width: 46%; }
+        .signature { margin: 14px auto 0; text-align: center; width: 46%; page-break-inside: avoid; }
         .signature-line { border-top: 1px solid #222; font-size: 10px; font-weight: bold; padding-top: 2px; }
         .muted { color: #475569; margin-top:3px; }
         .data { border-bottom:1px solid #dbeafe; }
@@ -59,13 +61,13 @@
         <td style="width:20%;color:#1d4ed8;font-weight:bold">HISTORIA CLÍNICA<br><span style="font-size:11px">{{ $patient->medical_history_number ?: $patient->dni ?: '—' }}</span></td>
     </tr></table>
 
-    <table class="data">
+    <table class="data patient-data">
         <colgroup>
-            <col style="width:17%"><col style="width:27%"><col style="width:6%"><col style="width:11%">
-            <col style="width:17%"><col style="width:10%"><col style="width:5%"><col style="width:7%">
+            <col style="width:16%"><col style="width:26%"><col style="width:7%"><col style="width:13%">
+            <col style="width:16%"><col style="width:10%"><col style="width:5%"><col style="width:7%">
         </colgroup>
-        <tr><td class="label">Nombres y apellidos:</td><td>{{ $patient->full_name ?: '—' }}</td><td class="label">DNI:</td><td>{{ $patient->dni ?: '—' }}</td><td class="label">Fecha de nacimiento:</td><td>{{ $birthDate?->format('Y-m-d') ?: '—' }}</td><td class="label">Edad:</td><td>{{ $age !== null ? $age.' años' : '—' }}</td></tr>
-        <tr><td class="label">Fecha de atención:</td><td>{{ $consultation->consultation_date?->format('Y-m-d') ?: '—' }}</td><td class="label">Hora:</td><td>{{ $consultation->consultation_time ?: '—' }}</td><td class="label">Motivo de consulta:</td><td colspan="3">{{ $consultation->reason ?: '—' }}</td></tr>
+        <tr><td class="label">Nombres y apellidos:</td><td class="value">{{ $patient->full_name ?: '—' }}</td><td class="label">DNI:</td><td class="value">{{ $patient->dni ?: '—' }}</td><td class="label">Fecha de nacimiento:</td><td class="value">{{ $birthDate?->format('d/m/Y') ?: '—' }}</td><td class="label">Edad:</td><td class="value">{{ $age !== null ? $age.' años' : '—' }}</td></tr>
+        <tr><td class="label">Fecha de atención:</td><td class="value">{{ $consultation->consultation_date?->format('d/m/Y') ?: '—' }}</td><td class="label">Hora:</td><td class="value">{{ $consultation->consultation_time ?: '—' }}</td><td class="label">Motivo de consulta:</td><td class="value" colspan="3">{{ $consultation->reason ?: '—' }}</td></tr>
         <tr><td class="label">Tiempo de enfermedad:</td><td>{{ $consultation->disease_duration ?: '—' }}</td><td class="label" colspan="2">Fecha de inicio de diálisis:</td><td colspan="4">{{ $consultation->dialysis_start_date?->format('Y-m-d') ?: '—' }}</td></tr>
     </table>
     <div class="line"><span class="label">Anamnesis:</span> {{ $consultation->current_illness ?: $consultation->history ?: '—' }}</div>
