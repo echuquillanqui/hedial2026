@@ -55,6 +55,11 @@ class Order extends Model
         return $this->hasOne(Fua::class);
     }
 
+    public function nephrologyConsultation()
+    {
+        return $this->hasOne(NephrologyConsultation::class);
+    }
+
     public function nurse() 
     {
         return $this->hasOne(Nurse::class, 'order_id');
