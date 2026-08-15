@@ -70,7 +70,8 @@ class FuaController extends Controller
     {
         $fua->load([
             'order.patient', 'order.sede', 'order.medical.usuarioInicia',
-            'order.laboratoryOrder.items.test', 'responsibleUser',
+            'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.medications',
+            'responsibleUser',
         ]);
         $responsible = $fua->responsibleUser ?: $fua->order?->medical?->usuarioInicia;
         $medications = $this->medications($fua);
@@ -95,6 +96,16 @@ class FuaController extends Controller
 
     private function medications(Fua $fua): array
     {
+        if ($fua->type === Fua::NEPHROLOGY) {
+            return $fua->order?->nephrologyConsultation?->medications
+                ?->map(fn ($medication) => [
+                    'code' => $medication->fua_code,
+                    'description' => $medication->description,
+                    'prescribed_quantity' => $medication->prescribed_quantity,
+                    'delivered_quantity' => $medication->delivered_quantity,
+                ])->all() ?? [];
+        }
+
         $medical = $fua->order?->medical;
 
         return collect([
@@ -129,8 +140,12 @@ class FuaController extends Controller
 
     private function procedures(Fua $fua): array
     {
-        if ($fua->type !== Fua::HEMODIALYSIS) {
-            return [];
+        if ($fua->type === Fua::NEPHROLOGY) {
+            return [[
+                'code' => '90937',
+                'description' => 'Consulta ambulatoria especializada para la evaluación y manejo de un paciente continuador',
+                'quantity' => 1,
+            ]];
         }
 
         $rows = [['code' => '90937', 'description' => 'Procedimiento de hemodiálisis que requiere repetida(s) evaluación(es) con o sin', 'quantity' => 1]];
