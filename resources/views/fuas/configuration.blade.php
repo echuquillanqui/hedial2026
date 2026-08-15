@@ -25,10 +25,12 @@
                     <div class="d-flex align-items-center gap-3 flex-wrap">
                         @if($configuration->logo_path)
                             <img src="{{ asset('storage/'.$configuration->logo_path) }}" alt="Logo actual" class="border rounded bg-white p-2" style="width:100px;height:70px;object-fit:contain">
+                        @else
+                            <img src="{{ asset('logo/logo_03.jpeg') }}" alt="Logo predeterminado" class="border rounded bg-white p-2" style="width:100px;height:70px;object-fit:contain">
                         @endif
                         <div class="flex-grow-1">
                             <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/webp">
-                            <div class="form-text">PNG, JPG o WebP, máximo 2 MB. Se adapta automáticamente al encabezado del PDF.</div>
+                            <div class="form-text">PNG, JPG o WebP, máximo 2 MB. Este archivo se usa automáticamente en el encabezado; mientras no cargue uno se mostrará el logo predeterminado.</div>
                         </div>
                         @if($configuration->logo_path)
                             <div class="form-check"><input class="form-check-input" type="checkbox" name="remove_logo" value="1" id="removeLogo"><label class="form-check-label" for="removeLogo">Quitar logo</label></div>

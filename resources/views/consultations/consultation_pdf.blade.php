@@ -3,30 +3,38 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { margin: 10px 12px; }
+        @page { size: A4 portrait; margin: 7mm; }
         * { box-sizing: border-box; }
-        body { color: #000; font-family: DejaVu Sans, sans-serif; font-size: 8.2px; line-height: 1.18; margin: 0; }
-        .sheet { border: 2px solid #111; min-height: 1030px; padding: 7px; }
+        body { color: #172033; font-family: DejaVu Sans, sans-serif; font-size: 7.35px; line-height: 1.13; margin: 0; }
+        .sheet { border: 1px solid #cbd5e1; border-top: 5px solid #2563eb; height: 283mm; overflow: hidden; padding: 4mm 5mm; position: relative; }
         table { border-collapse: collapse; width: 100%; }
-        td { padding: 2px 3px; vertical-align: top; }
-        .header { border: 1px solid #222; height: 105px; margin-bottom: 5px; }
+        td { padding: 1.5px 3px; vertical-align: top; }
+        .header { background: #eff6ff; border: 0; border-radius: 8px; height: 66px; margin-bottom: 4px; }
         .header td { text-align: center; vertical-align: middle; }
-        .logo { width: 67px; height: 67px; object-fit: contain; }
-        h1 { font-size: 14px; margin: 0; }
+        .logo { width: 76px; height: 48px; object-fit: contain; }
+        .logo-fallback { color:#2563eb; font-size:22px; font-weight:bold; }
+        h1 { color:#172554; font-size: 14px; letter-spacing: .45px; margin: 0; }
         .label, .section-title { font-weight: bold; text-transform: uppercase; }
-        .section-title { background: #c9c9c9; border: 2px solid #111; font-size: 9px; margin: 5px 0 3px; padding: 3px; }
+        .section-title { background: #172554; border-left: 5px solid #38bdf8; color:#fff; font-size: 8px; letter-spacing:.35px; margin: 4px 0 2px; padding: 3px 6px; }
         .data td { padding: 2px 3px; }
-        .line { min-height: 14px; padding: 2px 3px; }
+        .line { min-height: 12px; padding: 1.5px 3px; }
         .vitals td { font-weight: bold; white-space: nowrap; }
         .diagnoses td { padding: 1px 3px; }
         .diagnoses .code { text-align: center; width: 12%; }
-        .box { border: 2px solid #111; display: inline-block; font-size: 9px; height: 17px; line-height: 13px; margin: 0 3px; text-align: center; width: 30px; }
-        .treatment td { padding: 3px; }
+        .box { background:#fff; border: 1px solid #2563eb; border-radius:3px; color:#1d4ed8; display: inline-block; font-size: 8px; height: 13px; line-height: 11px; margin: 0 2px; text-align: center; width: 20px; }
+        .treatment { background:#f8fafc; border:1px solid #dbeafe; }
+        .treatment td { padding: 2px 3px; }
         .detail { padding-left: 18px; }
         .exams { font-size: 8px; }
-        .signature { margin: 55px auto 0; text-align: center; width: 46%; }
+        .signature { margin: 24px auto 0; text-align: center; width: 46%; }
         .signature-line { border-top: 1px solid #222; font-size: 10px; font-weight: bold; padding-top: 2px; }
-        .muted { color: #333; }
+        .muted { color: #475569; margin-top:3px; }
+        .data { border-bottom:1px solid #dbeafe; }
+        .data .label { color:#1e40af; }
+        .vitals { background:#eff6ff; border:1px solid #bfdbfe; }
+        .diagnoses { border:1px solid #dbeafe; }
+        .diagnoses tr:nth-child(even) { background:#f8fafc; }
+        .exams { background:#f8fafc; border:1px solid #dbeafe; }
     </style>
 </head>
 <body>
@@ -41,9 +49,9 @@
 @endphp
 <div class="sheet">
     <table class="header"><tr>
-        <td style="width:18%"><img class="logo" src="{{ public_path('logo/logo_03.jpeg') }}" alt="Logo"></td>
-        <td><h1>FORMATO DE CONSULTA NEFROLÓGICA</h1><div class="muted">{{ $consultation->sede?->name }}</div></td>
-        <td style="width:18%"><img class="logo" src="{{ public_path('logo/logo_03.jpeg') }}" alt="Logo"></td>
+        <td style="width:20%">@if($logoData ?? null)<img class="logo" src="{{ $logoData }}" alt="Logo de la empresa">@else<div class="logo-fallback">SALUD+</div>@endif</td>
+        <td><h1>FORMATO DE CONSULTA NEFROLÓGICA</h1><div class="muted">{{ ($configuration ?? null)?->company_name ?: $consultation->sede?->name }}</div></td>
+        <td style="width:20%;color:#1d4ed8;font-weight:bold">HISTORIA CLÍNICA<br><span style="font-size:11px">{{ $patient->medical_history_number ?: $patient->dni ?: '—' }}</span></td>
     </tr></table>
 
     <table class="data">
