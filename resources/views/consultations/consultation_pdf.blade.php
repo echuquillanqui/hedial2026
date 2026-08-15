@@ -1,92 +1,99 @@
 <!doctype html>
-<html>
+<html lang="es">
 <head>
     <meta charset="utf-8">
     <style>
-        @page { margin: 28px 34px; }
-        body { color: #172033; font-family: DejaVu Sans, sans-serif; font-size: 9px; }
-        .header { border-bottom: 2px solid #183b6b; padding-bottom: 9px; text-align: center; }
-        .header h1 { color: #183b6b; font-size: 18px; margin: 0; }
-        .header p { margin: 3px; }
+        @page { margin: 10px 12px; }
+        * { box-sizing: border-box; }
+        body { color: #000; font-family: DejaVu Sans, sans-serif; font-size: 8.2px; line-height: 1.18; margin: 0; }
+        .sheet { border: 2px solid #111; min-height: 1030px; padding: 7px; }
         table { border-collapse: collapse; width: 100%; }
-        .meta { margin: 12px 0; }
-        .meta td, .clinical td, .medications th, .medications td { border: 1px solid #aebdcd; padding: 5px; }
-        .label { background: #eef3f8; font-weight: bold; width: 15%; }
-        .section-title { background: #183b6b; color: #fff; font-size: 10px; font-weight: bold; margin-top: 10px; padding: 5px 7px; text-transform: uppercase; }
-        .clinical td { height: 42px; vertical-align: top; width: 50%; }
-        .field-label { color: #183b6b; display: block; font-weight: bold; margin-bottom: 4px; }
-        .vitals td { border: 1px solid #aebdcd; padding: 5px; text-align: center; }
-        .vitals .label { width: auto; }
-        .diagnosis, .exams { border: 1px solid #aebdcd; min-height: 28px; padding: 6px; }
-        .exam-grid { width: 100%; }
-        .exam-grid td { padding: 2px 5px; vertical-align: top; width: 33.33%; }
-        .center { text-align: center; }
-        .signatures { margin-top: 34px; text-align: center; }
-        .signatures td { padding: 0 25px; width: 50%; }
-        .line { border-top: 1px solid #222; padding-top: 4px; }
-        .footer { bottom: 0; color: #667; font-size: 7px; position: fixed; text-align: center; width: 100%; }
+        td { padding: 2px 3px; vertical-align: top; }
+        .header { border: 1px solid #222; height: 105px; margin-bottom: 5px; }
+        .header td { text-align: center; vertical-align: middle; }
+        .logo { width: 67px; height: 67px; object-fit: contain; }
+        h1 { font-size: 14px; margin: 0; }
+        .label, .section-title { font-weight: bold; text-transform: uppercase; }
+        .section-title { background: #c9c9c9; border: 2px solid #111; font-size: 9px; margin: 5px 0 3px; padding: 3px; }
+        .data td { padding: 2px 3px; }
+        .line { min-height: 14px; padding: 2px 3px; }
+        .vitals td { font-weight: bold; white-space: nowrap; }
+        .diagnoses td { padding: 1px 3px; }
+        .diagnoses .code { text-align: center; width: 12%; }
+        .box { border: 2px solid #111; display: inline-block; font-size: 9px; height: 17px; line-height: 13px; margin: 0 3px; text-align: center; width: 30px; }
+        .treatment td { padding: 3px; }
+        .detail { padding-left: 18px; }
+        .exams { font-size: 8px; }
+        .signature { margin: 55px auto 0; text-align: center; width: 46%; }
+        .signature-line { border-top: 1px solid #222; font-size: 10px; font-weight: bold; padding-top: 2px; }
+        .muted { color: #333; }
     </style>
 </head>
 <body>
-<div class="header">
-    <h1>CONSULTA NEFROLÓGICA</h1>
-    <p><strong>{{ $consultation->sede?->name }}</strong></p>
-    <p>Registro de atención clínica</p>
+@php
+    $patient = $consultation->patient;
+    $doctor = $consultation->doctor;
+    $birthDate = $patient->birth_date ? \Carbon\Carbon::parse($patient->birth_date) : null;
+    $age = $birthDate ? $birthDate->age : $patient->age;
+    $diagnoses = collect($consultation->diagnoses ?: [])->filter(fn ($item) => !empty($item['codigo']) || !empty($item['descripcion']))->take(4)->values();
+    $exams = collect($consultation->auxiliary_exams ?: [])->map(fn ($exam) => str_contains($exam, '|') ? explode('|', $exam, 2)[1] : $exam)->filter();
+    $yesNo = fn ($value, $expected) => $value !== null && (bool) $value === $expected ? 'X' : '';
+@endphp
+<div class="sheet">
+    <table class="header"><tr>
+        <td style="width:18%"><img class="logo" src="{{ public_path('logo/logo_03.jpeg') }}" alt="Logo"></td>
+        <td><h1>FORMATO DE CONSULTA NEFROLÓGICA</h1><div class="muted">{{ $consultation->sede?->name }}</div></td>
+        <td style="width:18%"><img class="logo" src="{{ public_path('logo/logo_03.jpeg') }}" alt="Logo"></td>
+    </tr></table>
+
+    <table class="data">
+        <tr><td class="label" style="width:19%">Nombres y apellidos:</td><td style="width:31%">{{ $patient->full_name ?: '—' }}</td><td class="label" style="width:7%">DNI:</td><td style="width:12%">{{ $patient->dni ?: '—' }}</td><td class="label" style="width:17%">Fecha de nacimiento:</td><td>{{ $birthDate?->format('Y-m-d') ?: '—' }}</td><td class="label">Edad:</td><td>{{ $age !== null ? $age.' años' : '—' }}</td></tr>
+        <tr><td class="label">Fecha de atención:</td><td>{{ $consultation->consultation_date?->format('Y-m-d') ?: '—' }}</td><td class="label">Hora:</td><td>{{ $consultation->consultation_time ?: '—' }}</td><td class="label">Motivo de consulta:</td><td colspan="3">{{ $consultation->reason ?: '—' }}</td></tr>
+        <tr><td class="label">Tiempo de enfermedad:</td><td>{{ $consultation->disease_duration ?: '—' }}</td><td class="label" colspan="2">Fecha de inicio de diálisis:</td><td colspan="4">{{ $consultation->dialysis_start_date?->format('Y-m-d') ?: '—' }}</td></tr>
+    </table>
+    <div class="line"><span class="label">Anamnesis:</span> {{ $consultation->current_illness ?: $consultation->history ?: '—' }}</div>
+    <div class="line"><span class="label">Etiología:</span> {{ $consultation->etiology ?: '—' }} &nbsp;&nbsp;&nbsp; <span class="label">Acceso vascular actual:</span> {{ $consultation->vascular_access ?: '—' }}</div>
+    <div class="line"><span class="label">Signos y síntomas:</span> {{ $consultation->symptoms ?: '—' }}</div>
+    <div class="line label">Examen físico:</div>
+    <table class="vitals"><tr>
+        <td>T°: {{ $consultation->temperature ?? '—' }} °C</td><td>PA: {{ $consultation->blood_pressure ?: '—' }} mmHg</td>
+        <td>FC: {{ $consultation->heart_rate ?? '—' }} X'</td><td>FR: {{ $consultation->respiratory_rate ?? '—' }} X'</td>
+        <td>PESO: {{ $consultation->weight ?? '—' }} kg</td><td>TALLA: {{ $consultation->height ?? '—' }} m</td><td>IMC: {{ $consultation->bmi ?? '—' }}</td>
+    </tr></table>
+    <div class="line">{{ $consultation->physical_exam ?: '—' }}</div>
+    <div class="line">{{ $consultation->lung_exam ?: '—' }}</div>
+    <div class="line">{{ $consultation->cardiac_exam ?: '—' }}</div>
+    <div class="line"><strong>Diuresis:</strong> {{ $consultation->diuresis ?? '—' }} ml</div>
+
+    <table class="diagnoses">
+        <tr><td class="label">Diagnóstico</td><td class="label code">CIE 10</td></tr>
+        @for($i = 0; $i < 4; $i++)
+            <tr><td>{{ $i + 1 }}. {{ data_get($diagnoses, $i.'.descripcion', '—') }}</td><td class="code">{{ data_get($diagnoses, $i.'.codigo', '—') }}</td></tr>
+        @endfor
+    </table>
+    <table><tr><td><span class="label">Prescripción de diálisis:</span> {{ $consultation->dialysis_prescription ?: '—' }}</td><td><span class="label">Tiempo:</span> {{ $consultation->dialysis_hours ?? '—' }} horas</td><td><span class="label">Área de filtro:</span> {{ $consultation->filter_area ?? '—' }} m2</td></tr></table>
+
+    <div class="section-title">Tratamiento complementario</div>
+    <table class="treatment">
+        <tr><td style="width:31%"><strong>a) Anemia</strong> &nbsp; SÍ <span class="box">{{ $yesNo($consultation->anemia_treatment, true) }}</span> NO <span class="box">{{ $yesNo($consultation->anemia_treatment, false) }}</span></td><td><strong>Especificar:</strong></td><td>Hemoglobina:</td><td>{{ $consultation->hemoglobin ?? '—' }} mg/dl</td></tr>
+        <tr><td></td><td></td><td>Epoetina alfa 2000 UI:</td><td>{{ $consultation->epoetin_dose ?: '—' }}</td></tr>
+        <tr><td></td><td></td><td>Hidroxocobalamina 1 mg:</td><td>{{ $consultation->hydroxocobalamin_dose ?: '—' }}</td></tr>
+        <tr><td></td><td></td><td>Hierro 100 mg:</td><td>{{ $consultation->iron_dose ?: '—' }}</td></tr>
+        <tr><td colspan="4"><strong>Observación:</strong> {{ $consultation->observations ?: '—' }}</td></tr>
+        <tr><td colspan="2"><strong>b) Alteración metabolismo óseo mineral</strong> &nbsp; SÍ <span class="box">{{ $yesNo($consultation->bone_mineral_treatment, true) }}</span> NO <span class="box">{{ $yesNo($consultation->bone_mineral_treatment, false) }}</span></td><td colspan="2"><strong>Especificar:</strong> {{ $consultation->treatment_plan ?: '—' }}</td></tr>
+        <tr><td colspan="2"><strong>c) Antihipertensivos</strong> &nbsp; SÍ <span class="box">{{ $yesNo($consultation->antihypertensive_treatment, true) }}</span> NO <span class="box">{{ $yesNo($consultation->antihypertensive_treatment, false) }}</span></td><td colspan="2"></td></tr>
+        <tr><td colspan="4"><strong>d) Otros:</strong> {{ $consultation->other_treatment ?: '—' }}</td></tr>
+    </table>
+
+    <div class="section-title">Indicaciones de exámenes auxiliares</div>
+    <table class="exams">
+        <tr><td class="label" style="width:20%">Se solicita:</td><td>{{ $exams->isNotEmpty() ? $exams->implode('; ') : '—' }}</td></tr>
+        <tr><td class="label">Fecha de toma de muestra:</td><td>{{ $consultation->next_laboratory_date?->format('Y-m-d') ?: '—' }}</td></tr>
+        <tr><td class="label">Próxima cita:</td><td>{{ $consultation->next_appointment_date?->format('Y-m-d') ?: '—' }}</td></tr>
+    </table>
+    <div style="margin-top:10px"><strong>Atendido por:</strong></div>
+    <table style="width:55%"><tr><td class="label" style="width:26%">Nombre y apellido:</td><td>{{ $doctor?->name ?: '—' }}</td></tr><tr><td class="label">Profesión:</td><td>{{ $doctor?->profession ?: 'Médico Cirujano' }}</td></tr><tr><td class="label">Especialidad:</td><td>Nefrología</td></tr><tr><td class="label">N° C.M.P. / R.N.E.:</td><td>{{ $doctor?->license_number ?: '—' }} / {{ $doctor?->specialty_number ?: '—' }}</td></tr></table>
+    <div class="signature"><div class="signature-line">{{ $doctor?->name ?: 'Médico tratante' }}</div><div>Médico Nefrólogo</div><div>C.M.P. {{ $doctor?->license_number ?: '—' }} - R.N.E. {{ $doctor?->specialty_number ?: '—' }}</div></div>
 </div>
-
-<table class="meta">
-    <tr><td class="label">Paciente</td><td>{{ $consultation->patient->full_name }}</td><td class="label">Fecha</td><td>{{ $consultation->consultation_date?->format('d/m/Y') }}</td></tr>
-    <tr><td class="label">DNI</td><td>{{ $consultation->patient->dni ?: '—' }}</td><td class="label">H. clínica</td><td>{{ $consultation->patient->medical_history_number ?: '—' }}</td></tr>
-    <tr><td class="label">Médico</td><td colspan="3">{{ $consultation->doctor?->name ?: '—' }}</td></tr>
-</table>
-
-<div class="section-title">Signos vitales</div>
-<table class="vitals"><tr>
-    <td><span class="field-label">Presión arterial</span>{{ $consultation->blood_pressure ?: '—' }}</td>
-    <td><span class="field-label">Peso</span>{{ $consultation->weight !== null ? $consultation->weight.' kg' : '—' }}</td>
-    <td><span class="field-label">Temperatura</span>{{ $consultation->temperature !== null ? $consultation->temperature.' °C' : '—' }}</td>
-    <td><span class="field-label">Frec. cardíaca</span>{{ $consultation->heart_rate ?: '—' }}</td>
-    <td><span class="field-label">Sat. O₂</span>{{ $consultation->oxygen_saturation !== null ? $consultation->oxygen_saturation.' %' : '—' }}</td>
-</tr></table>
-
-<div class="section-title">Evaluación clínica</div>
-<table class="clinical">
-    <tr><td><span class="field-label">Motivo de consulta</span>{{ $consultation->reason ?: '—' }}</td><td><span class="field-label">Enfermedad actual</span>{{ $consultation->current_illness ?: '—' }}</td></tr>
-    <tr><td><span class="field-label">Antecedentes</span>{{ $consultation->history ?: '—' }}</td><td><span class="field-label">Examen físico</span>{{ $consultation->physical_exam ?: '—' }}</td></tr>
-    <tr><td><span class="field-label">Plan / indicaciones</span>{{ $consultation->treatment_plan ?: '—' }}</td><td><span class="field-label">Observaciones</span>{{ $consultation->observations ?: '—' }}</td></tr>
-</table>
-
-<div class="section-title">Diagnósticos</div>
-<div class="diagnosis">{{ $consultation->diagnosis ?: '—' }}</div>
-
-<div class="section-title">Exámenes auxiliares solicitados</div>
-<div class="exams">
-    @php
-        $selectedExams = collect($consultation->auxiliary_exams ?: [])
-            ->map(fn ($exam) => str_contains($exam, '|') ? explode('|', $exam, 2)[1] : $exam)
-            ->values();
-    @endphp
-    @if($selectedExams->isNotEmpty())
-        <table class="exam-grid">
-            @foreach($selectedExams->chunk(3) as $examRow)
-                <tr>
-                    @foreach($examRow as $exam)
-                        <td>( X ) {{ $exam }}</td>
-                    @endforeach
-                    @for($column = $examRow->count(); $column < 3; $column++)
-                        <td></td>
-                    @endfor
-                </tr>
-            @endforeach
-        </table>
-    @else
-        —
-    @endif
-    <br><strong>Próximo laboratorio:</strong> {{ $consultation->next_laboratory_date?->format('d/m/Y') ?: '—' }}
-    &nbsp;&nbsp; <strong>Próxima cita:</strong> {{ $consultation->next_appointment_date?->format('d/m/Y') ?: '—' }}
-</div>
-
-<table class="signatures"><tr><td><div class="line">Firma del paciente / responsable</div></td><td><div class="line"><strong>{{ $consultation->doctor?->name ?: 'Médico tratante' }}</strong><br>CMP: {{ $consultation->doctor?->license_number ?: '________' }} &nbsp; RNE: {{ $consultation->doctor?->specialty_number ?: '________' }}<br>Firma y sello</div></td></tr></table>
-<div class="footer">Consulta generada el {{ now()->format('d/m/Y H:i') }} — Consulta N.° {{ $consultation->id }}</div>
 </body>
 </html>
