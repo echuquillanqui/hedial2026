@@ -58,6 +58,10 @@ class FissalLaboratoryTest extends TestCase
         $response->assertSeeInOrder(['Mensual', 'Bimestral', 'Trimestral', 'Semestral']);
         preg_match_all('/<input[^>]+data-select-exam-group/', $response->getContent(), $blockToggles);
         $this->assertCount(4, $blockToggles[0]);
+        preg_match_all('/<button[^>]+data-exam-period="[MBTS]"/', $response->getContent(), $periodButtons);
+        $this->assertCount(4, $periodButtons[0]);
+        $response->assertSee('La selección es acumulativa: Bimestral incluye Mensual; Trimestral incluye Mensual y Bimestral; Semestral incluye todos los grupos.');
+        $response->assertSee("examPeriods = ['M', 'B', 'T', 'S']", false);
     }
 
     public function test_catalog_only_displays_the_24_fissal_tests(): void
