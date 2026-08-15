@@ -116,6 +116,11 @@ class NephrologyConsultationTest extends TestCase
         $response = $this->actingAs($user)->withoutMiddleware()->get(route('consultations.pdf', $consultation));
 
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertSame(
+            1,
+            preg_match_all('/\/Type\s*\/Page\b/', $response->getContent()),
+            'El formato de consulta debe generarse en una sola hoja.'
+        );
     }
 
     public function test_consultation_document_lists_only_selected_exam_names_in_three_columns_without_prescription(): void
@@ -138,10 +143,11 @@ class NephrologyConsultationTest extends TestCase
         $document = view('consultations.consultation_pdf', compact('consultation'))->render();
 
         $this->assertStringContainsString('<table class="exam-grid">', $document);
-        $this->assertStringContainsString('height: 270mm', $document);
+        $this->assertStringNotContainsString('height: 270mm', $document);
+        $this->assertStringNotContainsString('overflow: hidden', $document);
         $this->assertStringContainsString('table-layout: fixed', $document);
-        $this->assertStringContainsString('<col style="width:17%"><col style="width:27%">', $document);
-        $this->assertStringContainsString('white-space: nowrap', $document);
+        $this->assertStringContainsString('<col style="width:16%"><col style="width:26%">', $document);
+        $this->assertStringContainsString('class="value"', $document);
         $this->assertSame(4, substr_count($document, '( X )'));
         $this->assertStringContainsString('( X ) Hematocrito', $document);
         $this->assertStringNotContainsString('Mensual|', $document);
