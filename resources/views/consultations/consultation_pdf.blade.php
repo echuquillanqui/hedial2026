@@ -3,10 +3,10 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { size: A4 portrait; margin: 7mm; }
+        @page { size: A4 portrait; margin: 10mm 15mm; }
         * { box-sizing: border-box; }
-        body { color: #172033; font-family: DejaVu Sans, sans-serif; font-size: 7.35px; line-height: 1.13; margin: 0; }
-        .sheet { border: 1px solid #cbd5e1; border-top: 5px solid #2563eb; height: 283mm; overflow: hidden; padding: 4mm 5mm; position: relative; }
+        body { color: #172033; font-family: DejaVu Sans, sans-serif; font-size: 8px; line-height: 1.12; margin: 0; }
+        .sheet { border: 1px solid #cbd5e1; border-top: 5px solid #2563eb; height: 277mm; overflow: hidden; padding: 3mm 4mm; position: relative; }
         table { border-collapse: collapse; width: 100%; }
         td { padding: 1.5px 3px; vertical-align: top; }
         .header { background: #eff6ff; border: 0; border-radius: 8px; height: 66px; margin-bottom: 4px; }
@@ -26,6 +26,9 @@
         .treatment td { padding: 2px 3px; }
         .detail { padding-left: 18px; }
         .exams { font-size: 8px; }
+        .exam-grid { table-layout: fixed; }
+        .exam-grid td { padding: 2px 5px; width: 33.333%; }
+        .exam-check { color:#1d4ed8; font-weight:bold; white-space:nowrap; }
         .signature { margin: 24px auto 0; text-align: center; width: 46%; }
         .signature-line { border-top: 1px solid #222; font-size: 10px; font-weight: bold; padding-top: 2px; }
         .muted { color: #475569; margin-top:3px; }
@@ -95,7 +98,23 @@
 
     <div class="section-title">Indicaciones de exámenes auxiliares</div>
     <table class="exams">
-        <tr><td class="label" style="width:20%">Se solicita:</td><td>{{ $exams->isNotEmpty() ? $exams->implode('; ') : '—' }}</td></tr>
+        <tr><td class="label">Se solicita:</td></tr>
+        <tr><td>
+            <table class="exam-grid">
+                @forelse($exams->chunk(3) as $examRow)
+                    <tr>
+                        @foreach($examRow as $exam)
+                            <td><span class="exam-check">( X )</span> {{ $exam }}</td>
+                        @endforeach
+                        @for($i = $examRow->count(); $i < 3; $i++)
+                            <td>&nbsp;</td>
+                        @endfor
+                    </tr>
+                @empty
+                    <tr><td colspan="3">—</td></tr>
+                @endforelse
+            </table>
+        </td></tr>
         <tr><td class="label">Fecha de toma de muestra:</td><td>{{ $consultation->next_laboratory_date?->format('Y-m-d') ?: '—' }}</td></tr>
         <tr><td class="label">Próxima cita:</td><td>{{ $consultation->next_appointment_date?->format('Y-m-d') ?: '—' }}</td></tr>
     </table>
