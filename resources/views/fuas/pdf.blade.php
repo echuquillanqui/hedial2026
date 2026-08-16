@@ -32,7 +32,7 @@
   @endif
   @if($patient?->fua_non_signature_reason)
    @if($fua->order?->medical?->indicaciones)<br>@endif
-   <strong>MOTIVO DE NO FIRMA DE FUA:</strong> {{ $patient->fua_non_signature_reason }} / PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.
+   <strong>MOTIVO DE NO FIRMA DE FUA:</strong> {{ $patient->fua_non_signature_reason }} / PACIENTE COLOCA SOLO SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.
   @endif
  </td></tr></table>
  <table class="signatures posterior"><tr><td>@include('pdf.partials.digital_stamp', ['user' => $responsible, 'name' => $doctorName, 'license' => $doctorCmp, 'role' => 'doctor'])</td><td><span class="signature-label">FIRMA DEL ASEGURADO O APODERADO</span></td><td class="fingerprint"><span class="signature-label">HUELLA DIGITAL DEL ASEGURADO O<br>APODERADO</span></td></tr></table>
