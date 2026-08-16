@@ -88,6 +88,28 @@ class FuaNumberingAndOrderEditingTest extends TestCase
         }
     }
 
+    public function test_non_signature_message_is_hidden_when_patient_has_no_reason(): void
+    {
+        $patient = Patient::factory()->create([
+            'fua_non_signature_reason' => null,
+        ]);
+        $order = $this->order($patient, Fua::HEMODIALYSIS, 'FUA-SIN-HUELLA');
+        $fua = app(FuaNumberService::class)->createForOrder($order);
+        $fua->load('order.patient');
+
+        $document = view('fuas.pdf', [
+            'fua' => $fua,
+            'responsible' => null,
+            'configuration' => FuaConfiguration::global(),
+            'medications' => [],
+            'procedures' => [],
+            'logoData' => null,
+        ])->render();
+
+        $this->assertStringNotContainsString('MOTIVO DE NO FIRMA DE FUA:', $document);
+        $this->assertStringNotContainsString('PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
+    }
+
     private function order(Patient $patient, string $type, string $code): Order
     {
         return Order::create([
