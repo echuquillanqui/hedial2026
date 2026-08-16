@@ -113,7 +113,7 @@ class OrderController extends Controller
             'turno'          => 'required|string',
             'horas_dialisis' => 'required|numeric|min:0.5',
             'fecha_orden'    => 'required|date',
-            'laboratory_period' => 'required|in:M,B,T,S',
+            'laboratory_period' => 'nullable|in:M,B,T,S',
         ]);
 
         try {
@@ -156,7 +156,7 @@ class OrderController extends Controller
             'fecha_orden'      => 'required|date',
             'horas_individual' => 'required|array', // Captura el array de la vista
             'laboratory_periods' => 'required|array',
-            'laboratory_periods.*' => 'required|in:M,B,T,S',
+            'laboratory_periods.*' => 'nullable|in:M,B,T,S',
         ]);
 
         try {
@@ -171,7 +171,7 @@ class OrderController extends Controller
                 
                 // 1. Capturar la hora individual (ej: 3.5)
                 $horasHD = $request->horas_individual[$id] ?? 3.5;
-                $laboratoryPeriod = $request->laboratory_periods[$id];
+                $laboratoryPeriod = $request->laboratory_periods[$id] ?? null;
 
                 // 2. Crear la Orden (Tabla: orders)
                 $order = Order::create([
@@ -300,9 +300,7 @@ class OrderController extends Controller
             'turno'          => 'required|string',
             'horas_dialisis' => 'required|numeric|min:0.5', // Cambiado de integer a numeric
             'fecha_orden'    => 'required|date',
-            'laboratory_period' => $order->attention_type === Fua::HEMODIALYSIS
-                ? 'required|in:M,B,T,S'
-                : 'nullable|in:M,B,T,S',
+            'laboratory_period' => 'nullable|in:M,B,T,S',
         ]);
 
         try {
@@ -316,7 +314,8 @@ class OrderController extends Controller
                 ]);
             }
 
-            if ($order->laboratoryOrder && $order->laboratoryOrder->period !== $order->laboratory_period) {
+            if ($order->laboratoryOrder && $order->laboratory_period
+                && $order->laboratoryOrder->period !== $order->laboratory_period) {
                 $order->laboratoryOrder->update(['period' => $order->laboratory_period]);
                 $order->laboratoryOrder->items()->delete();
                 $this->addLaboratoryItems($order->laboratoryOrder, $order->laboratory_period);

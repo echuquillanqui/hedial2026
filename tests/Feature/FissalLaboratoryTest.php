@@ -307,6 +307,50 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame(2, Fua::where('type', Fua::HEMODIALYSIS)->count());
     }
 
+    public function test_dialysis_orders_can_be_created_without_laboratory(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(2)->create(['turno' => '1']);
+
+        $individualResponse = $this->actingAs($user)->withoutMiddleware()->post(route('orders.store'), [
+            'patient_id' => $patients[0]->id,
+            'sala' => 'MODULO 1',
+            'turno' => '1',
+            'horas_dialisis' => 3.5,
+            'fecha_orden' => '2026-08-14',
+            'laboratory_period' => '',
+        ]);
+
+        $individualResponse->assertRedirect(route('orders.index'));
+
+        $bulkResponse = $this->actingAs($user)->withoutMiddleware()->post(route('orders.store_bulk'), [
+            'patient_ids' => [$patients[1]->id],
+            'sala' => 'MODULO 1',
+            'fecha_orden' => '2026-08-14',
+            'horas_individual' => [$patients[1]->id => 3.5],
+            'laboratory_periods' => [$patients[1]->id => ''],
+        ]);
+
+        $bulkResponse->assertRedirect(route('orders.index'));
+        $this->assertSame(2, Order::whereNull('laboratory_period')->count());
+    }
+
+    public function test_bulk_dialysis_form_has_mass_laboratory_assignment_and_individual_overrides(): void
+    {
+        $user = User::factory()->create();
+        Patient::factory()->create();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.create', [
+            'filter_patients' => 1,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Asignar laboratorio en bloque');
+        $response->assertSee('Sin laboratorio');
+        $response->assertSee("assignLaboratoryPeriod('M')", false);
+        $response->assertSee('luego puede modificar cada uno');
+    }
+
     public function test_nephrology_orders_generate_only_orders_and_fuas(): void
     {
         $user = User::factory()->create();
