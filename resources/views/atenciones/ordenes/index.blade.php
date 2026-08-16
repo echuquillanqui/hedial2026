@@ -108,13 +108,11 @@
                                         <i class="bi bi-file-earmark-pdf"></i>
                                     </a>
                                     @endif
-                                    @if($order->attention_type === 'HEMODIALYSIS')
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editOrderModal"
                                             data-id="{{ $order->id }}" data-paciente="{{ $order->patient->surname }} {{ $order->patient->first_name }}"
-                                            data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}">
+                                            data-type="{{ $order->attention_type }}" data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
-                                    @endif
                                     
                                     <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteOrderModal"
                                             data-id="{{ $order->id }}" data-paciente="{{ $order->patient->surname }} {{ $order->patient->first_name }}" data-codigo="{{ $order->codigo_unico }}">
@@ -152,6 +150,7 @@
                         <div class="col-md-6">
                             <label class="modal-label">Módulo</label>
                             <select name="sala" id="modal_sala" class="form-select border-success" required>
+                                <option value="CONSULTA NEFROLÓGICA">CONSULTA NEFROLÓGICA</option>
                                 <option value="MODULO 1">MODULO 1</option>
                                 <option value="MODULO 2">MODULO 2</option>
                                 <option value="MODULO 3">MODULO 3</option>
@@ -161,6 +160,7 @@
                         <div class="col-md-6">
                             <label class="modal-label">Turno</label>
                             <select name="turno" id="modal_turno" class="form-select border-success" required>
+                                <option value="N/A">N/A</option>
                                 <option value="1">1ER TURNO</option>
                                 <option value="2">2DO TURNO</option>
                                 <option value="3">3ER TURNO</option>
@@ -175,7 +175,7 @@
                             <label class="modal-label">Fecha</label>
                             <input type="date" name="fecha_orden" id="modal_fecha" class="form-control border-success" required>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-6" id="laboratoryPeriodGroup">
                             <label class="modal-label">Tipo de examen de laboratorio</label>
                             <select name="laboratory_period" id="modal_laboratory_period" class="form-select border-success" required>
                                 <option value="M">M - Mensual</option>
@@ -239,7 +239,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modal_turno').value = btn.getAttribute('data-turno');
         document.getElementById('modal_horas').value = btn.getAttribute('data-horas');
         document.getElementById('modal_fecha').value = btn.getAttribute('data-fecha');
-        document.getElementById('modal_laboratory_period').value = btn.getAttribute('data-laboratory-period');
+        const isHemodialysis = btn.getAttribute('data-type') === 'HEMODIALYSIS';
+        const laboratoryPeriod = document.getElementById('modal_laboratory_period');
+        document.getElementById('laboratoryPeriodGroup').classList.toggle('d-none', !isHemodialysis);
+        laboratoryPeriod.required = isHemodialysis;
+        laboratoryPeriod.disabled = !isHemodialysis;
+        laboratoryPeriod.value = btn.getAttribute('data-laboratory-period') || 'M';
     });
 
     // Lógica Modal Eliminar

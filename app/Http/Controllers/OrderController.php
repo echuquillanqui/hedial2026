@@ -280,7 +280,11 @@ class OrderController extends Controller
      */
     public function edit(Order $order)
     {
-        
+        if (CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Orden fuera de la sede activa.');
+        }
+
+        return view('atenciones.ordenes.edit', compact('order'));
     }
 
     /**
@@ -296,13 +300,21 @@ class OrderController extends Controller
             'turno'          => 'required|string',
             'horas_dialisis' => 'required|numeric|min:0.5', // Cambiado de integer a numeric
             'fecha_orden'    => 'required|date',
-            'laboratory_period' => 'required|in:M,B,T,S',
+            'laboratory_period' => $order->attention_type === Fua::HEMODIALYSIS
+                ? 'required|in:M,B,T,S'
+                : 'nullable|in:M,B,T,S',
         ]);
 
         try {
             DB::beginTransaction();
 
             $order->update($validated);
+
+            if ($order->nephrologyConsultation) {
+                $order->nephrologyConsultation->update([
+                    'consultation_date' => $order->fecha_orden,
+                ]);
+            }
 
             if ($order->laboratoryOrder && $order->laboratoryOrder->period !== $order->laboratory_period) {
                 $order->laboratoryOrder->update(['period' => $order->laboratory_period]);
