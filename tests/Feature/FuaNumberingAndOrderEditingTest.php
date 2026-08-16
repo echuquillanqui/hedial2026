@@ -62,6 +62,32 @@ class FuaNumberingAndOrderEditingTest extends TestCase
         $this->assertSame('2026-08-20', $consultation->fresh()->consultation_date->format('Y-m-d'));
     }
 
+    public function test_non_signature_reason_is_shown_on_hemodialysis_and_nephrology_fuas(): void
+    {
+        $patient = Patient::factory()->create([
+            'fua_non_signature_reason' => 'Presenta dificultad motora para firmar',
+        ]);
+
+        foreach ([Fua::HEMODIALYSIS, Fua::NEPHROLOGY] as $index => $type) {
+            $order = $this->order($patient, $type, 'FUA-HUELLA-'.$index);
+            $fua = app(FuaNumberService::class)->createForOrder($order);
+            $fua->load('order.patient');
+
+            $document = view('fuas.pdf', [
+                'fua' => $fua,
+                'responsible' => null,
+                'configuration' => FuaConfiguration::global(),
+                'medications' => [],
+                'procedures' => [],
+                'logoData' => null,
+            ])->render();
+
+            $this->assertStringContainsString('MOTIVO DE NO FIRMA DE FUA:', $document);
+            $this->assertStringContainsString('Presenta dificultad motora para firmar', $document);
+            $this->assertStringContainsString('PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
+        }
+    }
+
     private function order(Patient $patient, string $type, string $code): Order
     {
         return Order::create([
