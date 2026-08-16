@@ -42,6 +42,7 @@ class PatientController extends Controller
             'insurance_regime'       => ['nullable', Rule::in(['SUBSIDIADO', 'SEMICONTRIBUTIVO'])],
             'gender'                 => ['nullable', Rule::in(['F', 'M'])],
             'birth_date'             => 'nullable|date|before:today',
+            'fua_non_signature_reason' => 'nullable|string|max:500',
             'sede_id'                => ['required', 'exists:sedes,id'],
         ]);
 
@@ -79,6 +80,7 @@ class PatientController extends Controller
             'surname'                => 'required|string|max:100',
             'last_name'              => 'required|string|max:100',
             'insurance_type'         => ['nullable', Rule::in(['ESSALUD', 'SIS', 'SALUDPOL'])],
+            'fua_non_signature_reason' => 'nullable|string|max:500',
             'sede_id'                => ['required', 'exists:sedes,id'],
         ]);
 

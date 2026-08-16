@@ -87,6 +87,15 @@
                             <input type="text" name="address" x-model="currentPatient.address" class="form-control rounded-3 border-0 shadow-sm">
                         </div>
 
+                        <div class="col-12">
+                            <label class="form-label small fw-bold" for="fua_non_signature_reason">Motivo de no firma de FUA</label>
+                            <textarea id="fua_non_signature_reason" name="fua_non_signature_reason"
+                                      x-model="currentPatient.fua_non_signature_reason" maxlength="500" rows="2"
+                                      class="form-control rounded-3 border-0 shadow-sm"
+                                      placeholder="Indique por qué el paciente no puede firmar y colocará su huella"></textarea>
+                            <div class="form-text">Si se registra un motivo, este aparecerá en las FUA de consultas y hemodiálisis.</div>
+                        </div>
+
 
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Sede</label>
