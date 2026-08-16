@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\FuaConfiguration;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class FuaConfigurationController extends Controller
@@ -38,8 +39,6 @@ class FuaConfigurationController extends Controller
             'responsible_specialty' => ['required', 'string', 'max:100'],
             'hemodialysis_series' => ['required', 'string', 'max:30'],
             'hemodialysis_next_number' => ['required', 'integer', 'min:1'],
-            'nephrology_series' => ['required', 'string', 'max:30'],
-            'nephrology_next_number' => ['required', 'integer', 'min:1'],
             'correction_series' => ['required', 'string', 'max:30'],
             'correction_next_number' => ['required', 'integer', 'min:1'],
             'number_length' => ['required', 'integer', 'between:1,12'],
@@ -59,7 +58,13 @@ class FuaConfigurationController extends Controller
         }
 
         unset($data['logo'], $data['remove_logo']);
-        $configuration->update($data);
+        DB::transaction(function () use ($configuration, $data) {
+            // Se mantienen las columnas históricas sincronizadas para que las
+            // instalaciones existentes puedan actualizarse sin perder datos.
+            $data['nephrology_series'] = $data['hemodialysis_series'];
+            $data['nephrology_next_number'] = $data['hemodialysis_next_number'];
+            $configuration->update($data);
+        });
 
         return back()->with('success', 'Configuración global de FUA actualizada.');
     }

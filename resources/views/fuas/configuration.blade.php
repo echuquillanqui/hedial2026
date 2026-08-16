@@ -5,7 +5,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h3 class="mb-1">Configuración global de FUA</h3>
-            <p class="text-muted mb-0">Estos datos comunes y series se aplicarán automáticamente a las nuevas FUA.</p>
+            <p class="text-muted mb-0">Los datos comunes se reflejan también en las FUA ya generadas; la numeración se aplica a las nuevas FUA.</p>
         </div>
         <a href="{{ route('fuas.index') }}" class="btn btn-outline-secondary"><i class="bi bi-files me-1"></i>Ver FUA generadas</a>
     </div>
@@ -78,11 +78,10 @@
         <div class="card shadow-sm">
             <div class="card-header bg-dark text-white fw-bold">Series y correlativos</div>
             <div class="card-body">
-                <div class="alert alert-warning small">El próximo número se reserva dentro de una transacción. La combinación de serie y correlativo es única, incluso cuando se generan órdenes en bloque.</div>
+                <div class="alert alert-warning small">Hemodiálisis y consulta nefrológica comparten la misma serie y el mismo próximo correlativo. Cada número se reserva dentro de una transacción, incluso al generar órdenes en bloque. Solo subsanación usa una numeración independiente.</div>
                 <div class="row g-3">
                     @foreach([
-                        'hemodialysis' => 'FUA de la atención de hemodiálisis',
-                        'nephrology' => 'FUA de consulta nefrológica',
+                        'hemodialysis' => 'FUA de hemodiálisis y consulta nefrológica',
                         'correction' => 'FUA de subsanación'
                     ] as $prefix => $label)
                         <div class="col-12"><h6 class="text-primary mb-0">{{ $label }}</h6></div>

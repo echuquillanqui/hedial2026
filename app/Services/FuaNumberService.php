@@ -35,7 +35,13 @@ class FuaNumberService
                 'corrects_fua_id' => $correctedFua?->id,
             ]);
 
-            $configuration->update([$counterField => $correlative + 1]);
+            $nextNumber = $correlative + 1;
+            $configuration->update(in_array($type, [Fua::HEMODIALYSIS, Fua::NEPHROLOGY], true)
+                ? [
+                    'hemodialysis_next_number' => $nextNumber,
+                    'nephrology_next_number' => $nextNumber,
+                ]
+                : [$counterField => $nextNumber]);
 
             return $fua;
         });
@@ -45,7 +51,9 @@ class FuaNumberService
     {
         return match ($type) {
             Fua::HEMODIALYSIS => ['hemodialysis_series', 'hemodialysis_next_number'],
-            Fua::NEPHROLOGY => ['nephrology_series', 'nephrology_next_number'],
+            // Las atenciones de hemodiálisis y las consultas pertenecen a una
+            // sola numeración. La subsanación conserva su serie independiente.
+            Fua::NEPHROLOGY => ['hemodialysis_series', 'hemodialysis_next_number'],
             Fua::CORRECTION => ['correction_series', 'correction_next_number'],
             default => throw new InvalidArgumentException('Tipo de FUA no válido.'),
         };
