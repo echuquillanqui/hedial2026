@@ -32,6 +32,17 @@
                         <label class="data-title">Fecha</label>
                         <input type="date" name="fecha_orden" class="form-control" value="{{ $order->fecha_orden }}">
                     </div>
+                    @if($order->attention_type === 'HEMODIALYSIS')
+                    <div class="col-md-4">
+                        <label class="data-title">Tipo de examen de laboratorio</label>
+                        <select name="laboratory_period" class="form-select">
+                            <option value="" @selected(!$order->laboratory_period)>Sin laboratorio</option>
+                            @foreach(['M' => 'Mensual', 'B' => 'Bimestral', 'T' => 'Trimestral', 'S' => 'Semestral'] as $period => $label)
+                                <option value="{{ $period }}" @selected($order->laboratory_period === $period)>{{ $period }} - {{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
                 </div>
             </div>
             <div class="card-footer text-end">

@@ -134,7 +134,8 @@
                                                     <input type="number" name="horas_dialisis" class="form-control form-control-sm border-success" value="3.5" step="0.5" min="0.5" required>
                                                 </div>
                                                 <div class="col-md-2">
-                                                    <select name="laboratory_period" class="form-select form-select-sm border-success" aria-label="Tipo de examen de laboratorio" required>
+                                                    <select name="laboratory_period" class="form-select form-select-sm border-success" aria-label="Tipo de examen de laboratorio">
+                                                        <option value="" selected>Sin laboratorio</option>
                                                         <option value="M">Lab. M</option>
                                                         <option value="B">Lab. B</option>
                                                         <option value="T">Lab. T</option>
@@ -164,6 +165,7 @@
     @if(isset($patients) && $patients->count() > 0)
     <form action="{{ route('orders.store_bulk') }}" method="POST" x-data="{
         selected: @js(collect(old('patient_ids', []))->map(fn ($id) => (string) $id)->values()),
+        laboratoryPeriods: @js($patients->mapWithKeys(fn ($patient) => [(string) $patient->id => old('laboratory_periods.'.$patient->id)])),
         patientQuery: '',
         normalize(value) { return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); },
         matches(value) { return this.normalize(value).includes(this.normalize(this.patientQuery)); },
@@ -176,6 +178,9 @@
             this.selected = checked
                 ? [...new Set([...this.selected, ...this.visibleIds])]
                 : this.selected.filter(id => !this.visibleIds.includes(id));
+        },
+        assignLaboratoryPeriod(period) {
+            this.selected.forEach(id => this.laboratoryPeriods[id] = period);
         }
     }">
         @csrf
@@ -197,6 +202,20 @@
                             <div class="mb-4">
                                 <label class="data-title text-success">Fecha Programada</label>
                                 <input type="date" name="fecha_orden" class="form-control border-success shadow-sm" value="{{ date('Y-m-d') }}" required>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="data-title text-success">Asignar laboratorio en bloque</label>
+                                <div class="d-grid gap-2" role="group" aria-label="Asignación masiva de laboratorio">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary fw-bold" @click="assignLaboratoryPeriod('')" :disabled="selected.length === 0">Sin laboratorio</button>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Cuatro tipos de examen">
+                                        <button type="button" class="btn btn-outline-success fw-bold" @click="assignLaboratoryPeriod('M')" :disabled="selected.length === 0" title="Mensual">M</button>
+                                        <button type="button" class="btn btn-outline-success fw-bold" @click="assignLaboratoryPeriod('B')" :disabled="selected.length === 0" title="Bimestral">B</button>
+                                        <button type="button" class="btn btn-outline-success fw-bold" @click="assignLaboratoryPeriod('T')" :disabled="selected.length === 0" title="Trimestral">T</button>
+                                        <button type="button" class="btn btn-outline-success fw-bold" @click="assignLaboratoryPeriod('S')" :disabled="selected.length === 0" title="Semestral">S</button>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-1">Se aplica a los pacientes seleccionados; luego puede modificar cada uno.</small>
                             </div>
 
                             <div x-show="selected.length > 0" x-transition>
@@ -269,7 +288,8 @@
                                             </div>
                                         </td>
                                         <td>
-                                            <select name="laboratory_periods[{{ $patient->id }}]" class="form-select form-select-sm border-success fw-bold" required>
+                                            <select name="laboratory_periods[{{ $patient->id }}]" x-model="laboratoryPeriods[@js((string) $patient->id)]" class="form-select form-select-sm border-success fw-bold">
+                                                <option value="">Sin laboratorio</option>
                                                 <option value="M">M - Mensual</option>
                                                 <option value="B">B - Bimestral</option>
                                                 <option value="T">T - Trimestral</option>

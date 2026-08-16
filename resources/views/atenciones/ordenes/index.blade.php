@@ -96,7 +96,7 @@
                             <td class="text-center"><span class="badge bg-light text-success border border-success">{{ $order->sala }}</span></td>
                             <td class="fw-bold small text-center">TURNO - {{ $order->turno }}</td>
                             <td class="fw-bold text-primary text-center">{{ number_format($order->horas_dialisis, 1) }}</td>
-                            <td class="text-center"><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">{{ $order->laboratory_period ?? '-' }}</span></td>
+                            <td class="text-center"><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">{{ $order->laboratory_period ?? 'Sin laboratorio' }}</span></td>
                             <td class="text-center">
                                 <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{ $order->fua?->number ?? 'Pendiente' }}</span>
                                 <div class="small text-muted">{{ $order->attention_type === 'NEPHROLOGY' ? 'Consulta' : 'Hemodiálisis' }}</div>
@@ -177,7 +177,8 @@
                         </div>
                         <div class="col-md-6" id="laboratoryPeriodGroup">
                             <label class="modal-label">Tipo de examen de laboratorio</label>
-                            <select name="laboratory_period" id="modal_laboratory_period" class="form-select border-success" required>
+                            <select name="laboratory_period" id="modal_laboratory_period" class="form-select border-success">
+                                <option value="">Sin laboratorio</option>
                                 <option value="M">M - Mensual</option>
                                 <option value="B">B - Bimestral</option>
                                 <option value="T">T - Trimestral</option>
@@ -242,9 +243,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const isHemodialysis = btn.getAttribute('data-type') === 'HEMODIALYSIS';
         const laboratoryPeriod = document.getElementById('modal_laboratory_period');
         document.getElementById('laboratoryPeriodGroup').classList.toggle('d-none', !isHemodialysis);
-        laboratoryPeriod.required = isHemodialysis;
+        laboratoryPeriod.required = false;
         laboratoryPeriod.disabled = !isHemodialysis;
-        laboratoryPeriod.value = btn.getAttribute('data-laboratory-period') || 'M';
+        laboratoryPeriod.value = btn.getAttribute('data-laboratory-period') || '';
     });
 
     // Lógica Modal Eliminar
