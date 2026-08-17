@@ -17,7 +17,6 @@ class NurseController extends Controller
 {
     public function index(Request $request)
     {
-        $dateFilter = $request->get('date', date('Y-m-d'));
         $user = $request->user();
         $requiresModuleAssignment = $user->isNursingProfessional();
         $moduleAssignment = $requiresModuleAssignment
@@ -31,8 +30,29 @@ class NurseController extends Controller
             ? $moduleAssignment?->module
             : $request->get('modulo');
 
-        $nurses = Nurse::with(['order.patient', 'enfermeroInicia', 'enfermeroFinaliza'])
-        ->when($requiresModuleAssignment && ! $moduleAssignment, fn ($query) => $query->whereRaw('1 = 0'))
+        $nurses = $this->filteredNurses($request, $moduleFilter, $requiresModuleAssignment && ! $moduleAssignment)
+        ->latest()
+        ->paginate(15)
+        ->appends($request->all());
+
+        // ESTA PARTE ES LA QUE HACE QUE EL FILTRO SEA INTERACTIVO
+        if ($request->ajax()) {
+            return view('atenciones.enfermeria._table', compact('nurses'))->render();
+        }
+
+        return view('atenciones.enfermeria.index', compact(
+            'nurses',
+            'requiresModuleAssignment',
+            'moduleAssignment'
+        ));
+    }
+
+    private function filteredNurses(Request $request, $moduleFilter, bool $hideResults = false)
+    {
+        $dateFilter = $request->get('date', date('Y-m-d'));
+
+        return Nurse::with(['order.patient', 'order.medical.usuarioInicia', 'order.medical.usuarioFinaliza', 'order.treatments', 'enfermeroInicia', 'enfermeroFinaliza'])
+        ->when($hideResults, fn ($query) => $query->whereRaw('1 = 0'))
         ->when(CurrentSede::id(), function ($query) {
             $query->whereHas('order', fn ($q) => $q->where('sede_id', CurrentSede::id()));
         })
@@ -69,21 +89,7 @@ class NurseController extends Controller
             } elseif ($estado === 'en_curso') {
                 $query->whereNull('enfermero_que_finaliza_id');
             }
-        })
-        ->latest()
-        ->paginate(15)
-        ->appends($request->all());
-
-        // ESTA PARTE ES LA QUE HACE QUE EL FILTRO SEA INTERACTIVO
-        if ($request->ajax()) {
-            return view('atenciones.enfermeria._table', compact('nurses'))->render();
-        }
-
-        return view('atenciones.enfermeria.index', compact(
-            'nurses',
-            'requiresModuleAssignment',
-            'moduleAssignment'
-        ));
+        });
     }
 
     public function storeModuleAssignment(Request $request)
@@ -254,6 +260,33 @@ class NurseController extends Controller
 
         // Usamos stream para previsualizar en el navegador sin descargar
         return $pdf->stream('Ficha_HD_'.$order->patient->dni.'.pdf');
+    }
+
+    public function printBulk(Request $request)
+    {
+        $user = $request->user();
+        $requiresModuleAssignment = $user->isNursingProfessional();
+        $moduleAssignment = $requiresModuleAssignment
+            ? NurseModuleAssignment::query()
+                ->where('user_id', $user->id)
+                ->where('sede_id', CurrentSede::id())
+                ->whereDate('work_date', today())
+                ->first()
+            : null;
+        $moduleFilter = $requiresModuleAssignment
+            ? $moduleAssignment?->module
+            : $request->get('modulo');
+
+        $orders = $this->filteredNurses(
+            $request,
+            $moduleFilter,
+            $requiresModuleAssignment && ! $moduleAssignment
+        )->latest()->get()->pluck('order')->filter()->values();
+
+        abort_if($orders->isEmpty(), 404, 'No hay registros de enfermería para los filtros seleccionados.');
+
+        return Pdf::loadView('atenciones.enfermeria.print_bulk', compact('orders'))
+            ->stream('Fichas_HD_enfermeria.pdf');
     }
 
 }

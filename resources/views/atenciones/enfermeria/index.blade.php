@@ -8,6 +8,11 @@
                 <i class="bi bi-clipboard-pulse text-primary me-2"></i>Control de Enfermería
             </h3>
         </div>
+        <div class="col-md-6 text-md-end mt-2 mt-md-0">
+            <button type="button" id="btnBulkPrint" class="btn btn-danger shadow-sm">
+                <i class="bi bi-printer-fill me-2"></i>Imprimir en bloque
+            </button>
+        </div>
     </div>
 
     @if($requiresModuleAssignment && $moduleAssignment)
@@ -116,10 +121,42 @@
     </div>
 </div>
 
+<div class="modal fade" id="bulkPrintModal" tabindex="-1" aria-labelledby="bulkPrintModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 95vw;">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title fw-bold" id="bulkPrintModalLabel">
+                        <i class="bi bi-file-earmark-pdf text-danger me-2"></i>Vista previa de impresión en bloque
+                    </h5>
+                    <small class="text-muted">Se incluyen todos los registros que coinciden con los filtros, no solo la página visible.</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-0 position-relative" style="height: 78vh;">
+                <div id="bulkPrintLoading" class="position-absolute top-50 start-50 translate-middle text-center">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="small text-muted mt-2">Generando vista previa...</div>
+                </div>
+                <iframe id="bulkPrintFrame" class="w-100 h-100 border-0" title="Vista previa de fichas de enfermería"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" id="btnPrintPreview" class="btn btn-danger">
+                    <i class="bi bi-printer me-2"></i>Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('filterForm');
         const container = document.getElementById('tableContainer');
+        const bulkPrintFrame = document.getElementById('bulkPrintFrame');
+        const bulkPrintLoading = document.getElementById('bulkPrintLoading');
+        const bulkPrintModalElement = document.getElementById('bulkPrintModal');
 
         function updateTable() {
             // Animación de carga
@@ -159,6 +196,25 @@
             form.reset();
             document.getElementById('dateSelect').value = "{{ date('Y-m-d') }}";
             updateTable();
+        });
+
+        document.getElementById('btnBulkPrint').addEventListener('click', function() {
+            const params = new URLSearchParams(new FormData(form));
+            bulkPrintLoading.classList.remove('d-none');
+            bulkPrintFrame.src = `{{ route('enfermeria.print.bulk') }}?${params.toString()}`;
+            window.bootstrap.Modal.getOrCreateInstance(bulkPrintModalElement).show();
+        });
+
+        bulkPrintFrame.addEventListener('load', function() {
+            bulkPrintLoading.classList.add('d-none');
+        });
+
+        document.getElementById('btnPrintPreview').addEventListener('click', function() {
+            bulkPrintFrame.contentWindow?.print();
+        });
+
+        bulkPrintModalElement.addEventListener('hidden.bs.modal', function() {
+            bulkPrintFrame.src = 'about:blank';
         });
 
         // Función para no saturar al servidor mientras se escribe

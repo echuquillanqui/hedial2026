@@ -36,6 +36,11 @@
     </style>
 </head>
 <body>
-    @include('atenciones.enfermeria._print_sheet')
+@foreach($orders as $order)
+    @php($date = \Carbon\Carbon::parse($order->fecha_orden)->format('d/m/Y'))
+    <div style="page-break-after: {{ $loop->last ? 'auto' : 'always' }};">
+        @include('atenciones.enfermeria._print_sheet')
+    </div>
+@endforeach
 </body>
 </html>
