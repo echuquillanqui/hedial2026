@@ -74,6 +74,29 @@ class NurseModuleAssignmentTest extends TestCase
             ->assertDontSee($nurse->order->patient->first_name);
     }
 
+    public function test_nursing_index_offers_filtered_bulk_print_preview_in_a_modal(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+
+        NurseModuleAssignment::create([
+            'user_id' => $user->id,
+            'sede_id' => $sede->id,
+            'work_date' => today(),
+            'module' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.index'));
+
+        $response->assertOk()
+            ->assertSee('Imprimir en bloque')
+            ->assertSee('id="bulkPrintModal"', false)
+            ->assertSee('id="bulkPrintFrame"', false)
+            ->assertSee(route('enfermeria.print.bulk'), false)
+            ->assertSee('new URLSearchParams(new FormData(form))', false);
+    }
+
     private function nursingUserAndSede(): array
     {
         $user = User::factory()->create([
