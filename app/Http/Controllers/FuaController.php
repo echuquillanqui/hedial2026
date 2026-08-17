@@ -14,6 +14,16 @@ class FuaController extends Controller
 {
     public function hemodialysisIndex(Request $request)
     {
+        return $this->printIndex($request, Fua::HEMODIALYSIS);
+    }
+
+    public function nephrologyIndex(Request $request)
+    {
+        return $this->printIndex($request, Fua::NEPHROLOGY);
+    }
+
+    private function printIndex(Request $request, string $type)
+    {
         $filters = $request->validate([
             'date' => ['nullable', 'date'],
             'patient' => ['nullable', 'string', 'max:100'],
@@ -21,17 +31,31 @@ class FuaController extends Controller
         ]);
 
         $date = $request->boolean('all_dates') ? null : ($filters['date'] ?? now()->toDateString());
-        $fuas = $this->hemodialysisQuery($date, $filters['patient'] ?? null)
+        $fuas = $this->printQuery($type, $date, $filters['patient'] ?? null)
             ->orderByDesc('orders.fecha_orden')
             ->orderByDesc('fuas.id')
             ->select('fuas.*')
             ->paginate(30)
             ->withQueryString();
 
-        return view('fuas.hemodialysis-index', compact('fuas', 'date'));
+        return view('fuas.print-index', [
+            'fuas' => $fuas,
+            'date' => $date,
+            'type' => $type,
+        ]);
     }
 
     public function bulkPdf(Request $request)
+    {
+        return $this->bulkPdfForType($request, Fua::HEMODIALYSIS);
+    }
+
+    public function nephrologyBulkPdf(Request $request)
+    {
+        return $this->bulkPdfForType($request, Fua::NEPHROLOGY);
+    }
+
+    private function bulkPdfForType(Request $request, string $type)
     {
         $data = $request->validate([
             'fuas' => ['required', 'array', 'min:1'],
@@ -39,7 +63,7 @@ class FuaController extends Controller
         ]);
 
         $fuas = Fua::query()
-            ->where('type', Fua::HEMODIALYSIS)
+            ->where('type', $type)
             ->whereIn('id', $data['fuas'])
             ->with($this->pdfRelations())
             ->get()
@@ -56,19 +80,21 @@ class FuaController extends Controller
             'procedures' => $this->procedures($fua),
         ]);
 
-        return Pdf::loadView('fuas.pdf', [
+        $view = $type === Fua::NEPHROLOGY ? 'fuas.pdf_nephrology' : 'fuas.pdf';
+
+        return Pdf::loadView($view, [
             'documents' => $documents,
             'configuration' => $configuration,
             'logoData' => $this->logoData($configuration->logo_path),
-        ])->setPaper('a4')->stream('fuas-hemodialisis.pdf');
+        ])->setPaper('a4')->stream($type === Fua::NEPHROLOGY ? 'fuas-consultas.pdf' : 'fuas-hemodialisis.pdf');
     }
 
-    private function hemodialysisQuery(?string $date, ?string $patient): Builder
+    private function printQuery(string $type, ?string $date, ?string $patient): Builder
     {
         return Fua::query()
             ->with(['order.patient', 'order.sede'])
             ->join('orders', 'orders.id', '=', 'fuas.order_id')
-            ->where('fuas.type', Fua::HEMODIALYSIS)
+            ->where('fuas.type', $type)
             ->when($date, fn (Builder $query) => $query->whereDate('orders.fecha_orden', $date))
             ->when($patient, function (Builder $query, string $patient) {
                 $query->whereHas('order.patient', fn (Builder $query) => $query
