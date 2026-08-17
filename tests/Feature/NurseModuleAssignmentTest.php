@@ -65,7 +65,10 @@ class NurseModuleAssignmentTest extends TestCase
             ->get(route('nurses.index'));
 
         $response->assertOk()
-            ->assertSee('Seleccione su módulo de trabajo para hoy')
+            ->assertSee('Seleccione su módulo')
+            ->assertSee('data-bs-backdrop="static"', false)
+            ->assertSee('data-bs-keyboard="false"', false)
+            ->assertSee("backdrop: 'static'", false)
             ->assertDontSee($nurse->order->patient->first_name);
     }
 

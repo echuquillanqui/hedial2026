@@ -10,27 +10,52 @@
         </div>
     </div>
 
-    @if($requiresModuleAssignment)
-        <div class="alert {{ $moduleAssignment ? 'alert-primary' : 'alert-warning' }} border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3" role="alert">
+    @if($requiresModuleAssignment && $moduleAssignment)
+        <div class="alert alert-primary border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3" role="alert">
             <div>
                 <div class="fw-bold">
                     <i class="bi bi-grid-3x3-gap-fill me-2"></i>
-                    {{ $moduleAssignment ? 'Módulo asignado para hoy: MÓDULO '.$moduleAssignment->module : 'Seleccione su módulo de trabajo para hoy' }}
+                    Módulo asignado para hoy: MÓDULO {{ $moduleAssignment->module }}
                 </div>
                 <small>La lista de pacientes se filtrará automáticamente según esta selección.</small>
             </div>
-            <form method="POST" action="{{ route('nurses.module-assignment.store') }}" class="d-flex gap-2">
-                @csrf
-                <select name="module" class="form-select form-select-sm" aria-label="Módulo de trabajo" required>
-                    <option value="">Elegir módulo</option>
-                    @foreach(range(1, 4) as $module)
-                        <option value="{{ $module }}" @selected(optional($moduleAssignment)->module === $module)>MÓDULO {{ $module }}</option>
-                    @endforeach
-                </select>
-                <button class="btn btn-sm btn-primary text-nowrap" type="submit">
-                    {{ $moduleAssignment ? 'Cambiar' : 'Confirmar' }}
-                </button>
-            </form>
+            <button class="btn btn-sm btn-primary text-nowrap" type="button" data-bs-toggle="modal" data-bs-target="#moduleAssignmentModal">
+                Cambiar módulo
+            </button>
+        </div>
+    @endif
+
+    @if($requiresModuleAssignment)
+        <div class="modal fade" id="moduleAssignmentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="moduleAssignmentModalLabel" aria-modal="true" role="dialog">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header border-0 pb-0">
+                        <div>
+                            <h5 class="modal-title fw-bold" id="moduleAssignmentModalLabel">
+                                <i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>Seleccione su módulo
+                            </h5>
+                            <p class="text-muted small mb-0 mt-2">Elija el módulo en el que trabajará hoy para mostrar los pacientes correspondientes.</p>
+                        </div>
+                    </div>
+                    <form method="POST" action="{{ route('nurses.module-assignment.store') }}">
+                        @csrf
+                        <div class="modal-body py-4">
+                            <label for="moduleAssignmentSelect" class="form-label fw-bold">Módulo de trabajo</label>
+                            <select name="module" id="moduleAssignmentSelect" class="form-select" required autofocus>
+                                <option value="">Elegir módulo</option>
+                                @foreach(range(1, 4) as $module)
+                                    <option value="{{ $module }}" @selected(optional($moduleAssignment)->module === $module)>MÓDULO {{ $module }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="modal-footer border-0 pt-0">
+                            <button class="btn btn-primary w-100" type="submit">
+                                <i class="bi bi-check-circle me-2"></i>Confirmar módulo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     @endif
 
@@ -93,6 +118,13 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        @if($requiresModuleAssignment && ! $moduleAssignment)
+            window.bootstrap.Modal.getOrCreateInstance(document.getElementById('moduleAssignmentModal'), {
+                backdrop: 'static',
+                keyboard: false
+            }).show();
+        @endif
+
         const form = document.getElementById('filterForm');
         const container = document.getElementById('tableContainer');
 
