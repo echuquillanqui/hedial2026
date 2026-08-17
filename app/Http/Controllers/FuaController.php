@@ -7,10 +7,79 @@ use App\Models\FuaConfiguration;
 use App\Models\Test;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class FuaController extends Controller
 {
+    public function hemodialysisIndex(Request $request)
+    {
+        $filters = $request->validate([
+            'date' => ['nullable', 'date'],
+            'patient' => ['nullable', 'string', 'max:100'],
+            'all_dates' => ['nullable', 'boolean'],
+        ]);
+
+        $date = $request->boolean('all_dates') ? null : ($filters['date'] ?? now()->toDateString());
+        $fuas = $this->hemodialysisQuery($date, $filters['patient'] ?? null)
+            ->orderByDesc('orders.fecha_orden')
+            ->orderByDesc('fuas.id')
+            ->select('fuas.*')
+            ->paginate(30)
+            ->withQueryString();
+
+        return view('fuas.hemodialysis-index', compact('fuas', 'date'));
+    }
+
+    public function bulkPdf(Request $request)
+    {
+        $data = $request->validate([
+            'fuas' => ['required', 'array', 'min:1'],
+            'fuas.*' => ['integer', 'distinct'],
+        ]);
+
+        $fuas = Fua::query()
+            ->where('type', Fua::HEMODIALYSIS)
+            ->whereIn('id', $data['fuas'])
+            ->with($this->pdfRelations())
+            ->get()
+            ->sortBy(fn (Fua $fua) => array_search($fua->id, $data['fuas']))
+            ->values();
+
+        abort_if($fuas->isEmpty(), 404);
+
+        $configuration = FuaConfiguration::global();
+        $documents = $fuas->map(fn (Fua $fua) => [
+            'fua' => $fua,
+            'responsible' => $fua->responsibleUser ?: $fua->order?->medical?->usuarioInicia,
+            'medications' => $this->medications($fua),
+            'procedures' => $this->procedures($fua),
+        ]);
+
+        return Pdf::loadView('fuas.pdf', [
+            'documents' => $documents,
+            'configuration' => $configuration,
+            'logoData' => $this->logoData($configuration->logo_path),
+        ])->setPaper('a4')->stream('fuas-hemodialisis.pdf');
+    }
+
+    private function hemodialysisQuery(?string $date, ?string $patient): Builder
+    {
+        return Fua::query()
+            ->with(['order.patient', 'order.sede'])
+            ->join('orders', 'orders.id', '=', 'fuas.order_id')
+            ->where('fuas.type', Fua::HEMODIALYSIS)
+            ->when($date, fn (Builder $query) => $query->whereDate('orders.fecha_orden', $date))
+            ->when($patient, function (Builder $query, string $patient) {
+                $query->whereHas('order.patient', fn (Builder $query) => $query
+                    ->where('dni', 'like', "%{$patient}%")
+                    ->orWhere('surname', 'like', "%{$patient}%")
+                    ->orWhere('last_name', 'like', "%{$patient}%")
+                    ->orWhere('first_name', 'like', "%{$patient}%")
+                    ->orWhere('other_names', 'like', "%{$patient}%"));
+            });
+    }
+
     public function index(Request $request)
     {
         $fuas = Fua::with(['order.patient', 'order.sede'])
@@ -68,11 +137,7 @@ class FuaController extends Controller
 
     public function pdf(Request $request, Fua $fua)
     {
-        $fua->load([
-            'order.patient', 'order.sede', 'order.medical.usuarioInicia',
-            'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.medications',
-            'responsibleUser',
-        ]);
+        $fua->load($this->pdfRelations());
         $responsible = $fua->responsibleUser ?: $fua->order?->medical?->usuarioInicia;
         $medications = $this->medications($fua);
         $procedures = $this->procedures($fua);
@@ -92,6 +157,15 @@ class FuaController extends Controller
         return $request->boolean('download')
             ? $document->download($filename)
             : $document->stream($filename);
+    }
+
+    private function pdfRelations(): array
+    {
+        return [
+            'order.patient', 'order.sede', 'order.medical.usuarioInicia',
+            'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.medications',
+            'responsibleUser', 'correctedFua',
+        ];
     }
 
     private function medications(Fua $fua): array
