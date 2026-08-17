@@ -109,6 +109,8 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
         ->parameters(['consultas' => 'consultation'])
         ->names('consultations');
     Route::resource('nurses', NurseController::class);
+    Route::post('enfermeria/modulo-diario', [NurseController::class, 'storeModuleAssignment'])
+        ->name('nurses.module-assignment.store');
     Route::get('/enfermeria/imprimir/{id}', [NurseController::class, 'printSingle'])->name('enfermeria.print.single');
 
     Route::get('extra-materials', [ExtraMaterialController::class, 'index'])->name('extra-materials.index');

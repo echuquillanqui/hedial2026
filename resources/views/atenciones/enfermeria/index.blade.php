@@ -10,6 +10,30 @@
         </div>
     </div>
 
+    @if($requiresModuleAssignment)
+        <div class="alert {{ $moduleAssignment ? 'alert-primary' : 'alert-warning' }} border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3" role="alert">
+            <div>
+                <div class="fw-bold">
+                    <i class="bi bi-grid-3x3-gap-fill me-2"></i>
+                    {{ $moduleAssignment ? 'Módulo asignado para hoy: MÓDULO '.$moduleAssignment->module : 'Seleccione su módulo de trabajo para hoy' }}
+                </div>
+                <small>La lista de pacientes se filtrará automáticamente según esta selección.</small>
+            </div>
+            <form method="POST" action="{{ route('nurses.module-assignment.store') }}" class="d-flex gap-2">
+                @csrf
+                <select name="module" class="form-select form-select-sm" aria-label="Módulo de trabajo" required>
+                    <option value="">Elegir módulo</option>
+                    @foreach(range(1, 4) as $module)
+                        <option value="{{ $module }}" @selected(optional($moduleAssignment)->module === $module)>MÓDULO {{ $module }}</option>
+                    @endforeach
+                </select>
+                <button class="btn btn-sm btn-primary text-nowrap" type="submit">
+                    {{ $moduleAssignment ? 'Cambiar' : 'Confirmar' }}
+                </button>
+            </form>
+        </div>
+    @endif
+
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
             <form id="filterForm" class="row g-2">
@@ -24,11 +48,17 @@
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">MÓDULO</label>
                     <select name="modulo" id="moduloSelect" class="form-select form-select-sm">
+                        @if($requiresModuleAssignment)
+                            <option value="{{ optional($moduleAssignment)->module }}" selected>
+                                {{ $moduleAssignment ? 'MÓDULO '.$moduleAssignment->module : 'SIN ASIGNAR' }}
+                            </option>
+                        @else
                         <option value="">TODOS</option>
                         <option value="1">MÓDULO 1</option>
                         <option value="2">MÓDULO 2</option>
                         <option value="3">MÓDULO 3</option>
                         <option value="4">MÓDULO 4</option>
+                        @endif
                     </select>
                 </div>
                 <div class="col-md-2">
