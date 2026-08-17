@@ -68,6 +68,8 @@ class NurseModuleAssignmentTest extends TestCase
             ->assertSee('Seleccione su módulo')
             ->assertSee('data-bs-backdrop="static"', false)
             ->assertSee('data-bs-keyboard="false"', false)
+            ->assertSee('data-auto-show="true"', false)
+            ->assertSee('openRequiredModuleModal', false)
             ->assertSee("backdrop: 'static'", false)
             ->assertDontSee($nurse->order->patient->first_name);
     }

@@ -26,7 +26,7 @@
     @endif
 
     @if($requiresModuleAssignment)
-        <div class="modal fade" id="moduleAssignmentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="moduleAssignmentModalLabel" aria-modal="true" role="dialog">
+        <div class="modal fade" id="moduleAssignmentModal" data-bs-backdrop="static" data-bs-keyboard="false" data-auto-show="{{ $moduleAssignment ? 'false' : 'true' }}" tabindex="-1" aria-labelledby="moduleAssignmentModalLabel" aria-modal="true" role="dialog">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 shadow">
                     <div class="modal-header border-0 pb-0">
@@ -118,13 +118,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        @if($requiresModuleAssignment && ! $moduleAssignment)
-            window.bootstrap.Modal.getOrCreateInstance(document.getElementById('moduleAssignmentModal'), {
-                backdrop: 'static',
-                keyboard: false
-            }).show();
-        @endif
-
         const form = document.getElementById('filterForm');
         const container = document.getElementById('tableContainer');
 
@@ -177,6 +170,35 @@
             };
         }
     });
+
+    @if($requiresModuleAssignment && ! $moduleAssignment)
+        (function openRequiredModuleModal() {
+            const modalElement = document.getElementById('moduleAssignmentModal');
+
+            if (!modalElement || modalElement.dataset.autoShow !== 'true') {
+                return;
+            }
+
+            const showModal = function() {
+                if (!window.bootstrap?.Modal) {
+                    return false;
+                }
+
+                window.bootstrap.Modal.getOrCreateInstance(modalElement, {
+                    backdrop: 'static',
+                    keyboard: false
+                }).show();
+
+                return true;
+            };
+
+            if (showModal()) {
+                return;
+            }
+
+            window.addEventListener('load', showModal, { once: true });
+        })();
+    @endif
 
 </script>
 @endsection
