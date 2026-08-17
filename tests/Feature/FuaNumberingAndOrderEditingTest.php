@@ -110,6 +110,36 @@ class FuaNumberingAndOrderEditingTest extends TestCase
         $this->assertStringNotContainsString('PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
     }
 
+    public function test_fua_print_views_can_filter_by_module_and_shift(): void
+    {
+        $user = User::factory()->create();
+        $matchingPatient = Patient::factory()->create(['modulo' => '2']);
+        $otherPatient = Patient::factory()->create(['modulo' => '1']);
+
+        foreach ([Fua::HEMODIALYSIS, Fua::NEPHROLOGY] as $index => $type) {
+            $matchingOrder = $this->order($matchingPatient, $type, 'MATCH-'.$index);
+            $matchingOrder->update(['sala' => $type === Fua::NEPHROLOGY ? 'CONSULTA NEFROLÓGICA' : 'MODULO 2', 'turno' => '3']);
+            $matchingFua = app(FuaNumberService::class)->createForOrder($matchingOrder);
+
+            $otherOrder = $this->order($otherPatient, $type, 'OTHER-'.$index);
+            $otherOrder->update(['turno' => '1']);
+            $otherFua = app(FuaNumberService::class)->createForOrder($otherOrder);
+
+            $route = $type === Fua::NEPHROLOGY ? 'fuas.nephrology.index' : 'fuas.hemodialysis.index';
+            $response = $this->actingAs($user)->withoutMiddleware()->get(route($route, [
+                'all_dates' => 1,
+                'modulo' => 2,
+                'turno' => 3,
+            ]));
+
+            $response->assertOk()
+                ->assertSee($matchingFua->number)
+                ->assertDontSee($otherFua->number)
+                ->assertSee('value="2" selected', false)
+                ->assertSee('value="3" selected', false);
+        }
+    }
+
     private function order(Patient $patient, string $type, string $code): Order
     {
         return Order::create([

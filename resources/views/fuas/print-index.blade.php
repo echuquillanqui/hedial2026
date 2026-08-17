@@ -17,21 +17,39 @@
 
     <div class="card shadow-sm mb-4"><div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-3 col-lg-2">
                 <label class="form-label fw-semibold">Fecha de atención</label>
                 <input type="date" name="date" value="{{ $date }}" class="form-control" @disabled(request()->boolean('all_dates'))>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-5 col-lg-3">
                 <label class="form-label fw-semibold">Nombre o DNI del paciente</label>
                 <input name="patient" value="{{ request('patient') }}" class="form-control" placeholder="Escribe el nombre, apellido o DNI">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label fw-semibold" for="modulo">Módulo</label>
+                <select name="modulo" id="modulo" class="form-select">
+                    <option value="">Todos los módulos</option>
+                    @foreach(range(1, 4) as $module)
+                        <option value="{{ $module }}" @selected((string) request('modulo') === (string) $module)>Módulo {{ $module }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label fw-semibold" for="turno">Turno</label>
+                <select name="turno" id="turno" class="form-select">
+                    <option value="">Todos los turnos</option>
+                    @foreach(range(1, 4) as $shift)
+                        <option value="{{ $shift }}" @selected((string) request('turno') === (string) $shift)>Turno {{ $shift }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3 col-lg-1">
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" name="all_dates" value="1" id="allDates" @checked(request()->boolean('all_dates')) onchange="this.form.querySelector('[name=date]').disabled=this.checked">
                     <label class="form-check-label" for="allDates">Todas las FUA</label>
                 </div>
             </div>
-            <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Filtrar</button></div>
+            <div class="col-md-3 col-lg-2"><button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Filtrar</button></div>
         </form>
     </div></div>
 

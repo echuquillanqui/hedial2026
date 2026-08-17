@@ -27,11 +27,19 @@ class FuaController extends Controller
         $filters = $request->validate([
             'date' => ['nullable', 'date'],
             'patient' => ['nullable', 'string', 'max:100'],
+            'modulo' => ['nullable', 'integer', 'between:1,4'],
+            'turno' => ['nullable', 'integer', 'between:1,4'],
             'all_dates' => ['nullable', 'boolean'],
         ]);
 
         $date = $request->boolean('all_dates') ? null : ($filters['date'] ?? now()->toDateString());
-        $fuas = $this->printQuery($type, $date, $filters['patient'] ?? null)
+        $fuas = $this->printQuery(
+            $type,
+            $date,
+            $filters['patient'] ?? null,
+            $filters['modulo'] ?? null,
+            $filters['turno'] ?? null,
+        )
             ->orderByDesc('orders.fecha_orden')
             ->orderByDesc('fuas.id')
             ->select('fuas.*')
@@ -89,13 +97,30 @@ class FuaController extends Controller
         ])->setPaper('a4')->stream($type === Fua::NEPHROLOGY ? 'fuas-consultas.pdf' : 'fuas-hemodialisis.pdf');
     }
 
-    private function printQuery(string $type, ?string $date, ?string $patient): Builder
+    private function printQuery(
+        string $type,
+        ?string $date,
+        ?string $patient,
+        ?int $module,
+        ?int $shift,
+    ): Builder
     {
         return Fua::query()
             ->with(['order.patient', 'order.sede'])
             ->join('orders', 'orders.id', '=', 'fuas.order_id')
             ->where('fuas.type', $type)
             ->when($date, fn (Builder $query) => $query->whereDate('orders.fecha_orden', $date))
+            ->when($shift, fn (Builder $query) => $query->where('orders.turno', (string) $shift))
+            ->when($module, function (Builder $query, int $module) use ($type) {
+                if ($type === Fua::NEPHROLOGY) {
+                    $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery
+                        ->where('modulo', (string) $module));
+
+                    return;
+                }
+
+                $query->where('orders.sala', 'MODULO '.$module);
+            })
             ->when($patient, function (Builder $query, string $patient) {
                 $query->whereHas('order.patient', fn (Builder $query) => $query
                     ->where('dni', 'like', "%{$patient}%")
