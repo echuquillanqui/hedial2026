@@ -147,6 +147,23 @@
     </li>
     @endif
 
+    @if($canViewOrders)
+    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('fuas.hemodialysis.*') ? 'active fw-bold' : '' }}"
+                type="button" @click="open = !open" :aria-expanded="open.toString()">
+            <i class="bi bi-printer me-1"></i> Impresiones
+        </button>
+        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
+            <li><a class="dropdown-item {{ request()->routeIs('fuas.hemodialysis.*') ? 'active' : '' }}" href="{{ route('fuas.hemodialysis.index') }}">
+                <i class="bi bi-file-earmark-medical me-2"></i> FUA de hemodiálisis
+            </a></li>
+            <li><a class="dropdown-item" href="{{ route('fuas.index', ['type' => 'NEPHROLOGY']) }}">
+                <i class="bi bi-journal-medical me-2"></i> FUA de consultas
+            </a></li>
+        </ul>
+    </li>
+    @endif
+
     @if($canSeeClinicalArea)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
         <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.*', 'medicals.*', 'consultations.*', 'nurses.*', 'extra-materials.*', 'fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active fw-bold' : '' }}"
