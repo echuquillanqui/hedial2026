@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Nurse;
+use App\Models\NurseModuleAssignment;
 use App\Models\User;
 use App\Models\Order;
 use Illuminate\Http\Request;
@@ -15,20 +16,35 @@ use App\Support\CurrentSede;
 class NurseController extends Controller
 {
     public function index(Request $request)
-{
-    $dateFilter = $request->get('date', date('Y-m-d'));
+    {
+        $dateFilter = $request->get('date', date('Y-m-d'));
+        $user = $request->user();
+        $requiresModuleAssignment = $user->isNursingProfessional();
+        $moduleAssignment = $requiresModuleAssignment
+            ? NurseModuleAssignment::query()
+                ->where('user_id', $user->id)
+                ->where('sede_id', CurrentSede::id())
+                ->whereDate('work_date', today())
+                ->first()
+            : null;
+        $moduleFilter = $requiresModuleAssignment
+            ? $moduleAssignment?->module
+            : $request->get('modulo');
 
-    $nurses = Nurse::with(['order.patient', 'enfermeroInicia', 'enfermeroFinaliza'])
+        $nurses = Nurse::with(['order.patient', 'enfermeroInicia', 'enfermeroFinaliza'])
+        ->when($requiresModuleAssignment && ! $moduleAssignment, fn ($query) => $query->whereRaw('1 = 0'))
         ->when(CurrentSede::id(), function ($query) {
             $query->whereHas('order', fn ($q) => $q->where('sede_id', CurrentSede::id()));
         })
         ->when($request->search, function ($query, $search) {
-            $query->whereHas('order.patient', function($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('surname', 'like', "%{$search}%")
-                  ->orWhere('dni', 'like', "%{$search}%");
-            })->orWhereHas('order', function($q) use ($search) {
-                $q->where('codigo_unico', 'like', "%{$search}%");
+            $query->where(function ($query) use ($search) {
+                $query->whereHas('order.patient', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('surname', 'like', "%{$search}%")
+                        ->orWhere('dni', 'like', "%{$search}%");
+                })->orWhereHas('order', function ($q) use ($search) {
+                    $q->where('codigo_unico', 'like', "%{$search}%");
+                });
             });
         })
         ->when($dateFilter, function ($query, $date) {
@@ -41,7 +57,7 @@ class NurseController extends Controller
                 $q->where('turno', $turno);
             });
         })
-        ->when($request->modulo, function ($query, $modulo) {
+        ->when($moduleFilter, function ($query, $modulo) {
             $query->whereHas('order', function($q) use ($modulo) {
                 // Ajustado a tu base de datos de medicina: 'MODULO ' . $valor
                 $q->where('sala', 'MODULO ' . $modulo);
@@ -58,13 +74,38 @@ class NurseController extends Controller
         ->paginate(15)
         ->appends($request->all());
 
-    // ESTA PARTE ES LA QUE HACE QUE EL FILTRO SEA INTERACTIVO
-    if ($request->ajax()) {
-        return view('atenciones.enfermeria._table', compact('nurses'))->render();
+        // ESTA PARTE ES LA QUE HACE QUE EL FILTRO SEA INTERACTIVO
+        if ($request->ajax()) {
+            return view('atenciones.enfermeria._table', compact('nurses'))->render();
+        }
+
+        return view('atenciones.enfermeria.index', compact(
+            'nurses',
+            'requiresModuleAssignment',
+            'moduleAssignment'
+        ));
     }
 
-    return view('atenciones.enfermeria.index', compact('nurses'));
-}
+    public function storeModuleAssignment(Request $request)
+    {
+        abort_unless($request->user()->isNursingProfessional(), 403);
+
+        $validated = $request->validate([
+            'module' => ['required', 'integer', 'between:1,4'],
+        ]);
+
+        NurseModuleAssignment::updateOrCreate(
+            [
+                'user_id' => $request->user()->id,
+                'sede_id' => CurrentSede::id(),
+                'work_date' => today()->toDateString(),
+            ],
+            ['module' => $validated['module']]
+        );
+
+        return redirect()->route('nurses.index')
+            ->with('success', 'Módulo de trabajo actualizado para hoy.');
+    }
 
     public function edit(Nurse $nurse)
     {

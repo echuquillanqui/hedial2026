@@ -64,6 +64,17 @@ class User extends Authenticatable
         return $this->belongsToMany(OperationalArea::class, 'operational_area_user')->withTimestamps();
     }
 
+    public function nurseModuleAssignments(): HasMany
+    {
+        return $this->hasMany(NurseModuleAssignment::class);
+    }
+
+    public function isNursingProfessional(): bool
+    {
+        return $this->hasRole('enfermeria')
+            || str_contains(mb_strtoupper((string) $this->profession), 'ENFERMER');
+    }
+
     // Referencias donde es el Responsable de la RF
     public function referralsAsResponsible(): HasMany
     {
