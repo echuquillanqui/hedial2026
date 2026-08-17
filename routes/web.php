@@ -59,6 +59,8 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('fuas', [FuaController::class, 'index'])->name('fuas.index');
     Route::get('impresiones/fuas-hemodialisis', [FuaController::class, 'hemodialysisIndex'])->name('fuas.hemodialysis.index');
     Route::post('impresiones/fuas-hemodialisis/imprimir', [FuaController::class, 'bulkPdf'])->name('fuas.hemodialysis.bulk-pdf');
+    Route::get('impresiones/fuas-consultas', [FuaController::class, 'nephrologyIndex'])->name('fuas.nephrology.index');
+    Route::post('impresiones/fuas-consultas/imprimir', [FuaController::class, 'nephrologyBulkPdf'])->name('fuas.nephrology.bulk-pdf');
     Route::get('fuas/{fua}/vista-previa', [FuaController::class, 'preview'])->name('fuas.preview');
     Route::put('fuas/{fua}/responsable', [FuaController::class, 'updateResponsible'])->name('fuas.responsible.update');
     Route::get('fuas/{fua}/pdf', [FuaController::class, 'pdf'])->name('fuas.pdf');

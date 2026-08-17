@@ -1,12 +1,17 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container py-3" x-data="{ selected: [] }">
+@php
+    $isConsultation = $type === \App\Models\Fua::NEPHROLOGY;
+    $bulkRoute = $isConsultation ? route('fuas.nephrology.bulk-pdf') : route('fuas.hemodialysis.bulk-pdf');
+    $attentionLabel = $isConsultation ? 'consulta nefrológica' : 'hemodiálisis';
+@endphp
+<div class="container py-3" x-data="fuaPdfViewer()">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <span class="text-uppercase small fw-bold text-primary">Impresiones</span>
-            <h3 class="mb-1"><i class="bi bi-files me-2"></i>FUA de hemodiálisis</h3>
-            <p class="text-muted mb-0">Filtra las atenciones y prepara varias FUA en un solo documento.</p>
+            <h3 class="mb-1"><i class="bi bi-files me-2"></i>FUA de {{ $isConsultation ? 'consultas' : 'hemodiálisis' }}</h3>
+            <p class="text-muted mb-0">Filtra las atenciones y prepara varias FUA en un solo documento, sin salir de esta pantalla.</p>
         </div>
     </div>
 
@@ -30,12 +35,12 @@
         </form>
     </div></div>
 
-    <form method="POST" action="{{ route('fuas.hemodialysis.bulk-pdf') }}" target="_blank">
+    <form method="POST" action="{{ $bulkRoute }}" @submit.prevent="openBulkPdf($event.currentTarget)">
         @csrf
         <div class="card shadow-sm overflow-hidden">
             <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3">
                 <span><strong>{{ $fuas->total() }}</strong> FUA encontradas</span>
-                <button class="btn btn-danger" :disabled="selected.length === 0"><i class="bi bi-printer me-2"></i>Imprimir seleccionadas (<span x-text="selected.length">0</span>)</button>
+                <button type="submit" class="btn btn-danger" :disabled="selected.length === 0 || pdfLoading"><i class="bi bi-printer me-2"></i>Imprimir seleccionadas (<span x-text="selected.length">0</span>)</button>
             </div>
             <div class="table-responsive"><table class="table table-hover align-middle mb-0">
                 <thead class="table-light"><tr>
@@ -50,12 +55,15 @@
                         <td>{{ $fua->order?->patient?->dni ?: '—' }}</td>
                         <td>{{ $fua->order?->fecha_orden ? \Carbon\Carbon::parse($fua->order->fecha_orden)->format('d/m/Y') : $fua->created_at->format('d/m/Y') }}</td>
                         <td>{{ $fua->order?->sede?->name ?: '—' }}</td>
-                        <td class="text-end"><a target="_blank" href="{{ route('fuas.pdf', $fua) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>Ver</a></td>
+                        <td class="text-end"><button type="button" @click="openPdf('{{ route('fuas.pdf', $fua) }}', 'FUA {{ $fua->number }}')" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>Ver</button></td>
                     </tr>
-                @empty<tr><td colspan="7" class="text-center text-muted py-5">No hay FUA de hemodiálisis para los filtros seleccionados.</td></tr>@endforelse</tbody>
+                @empty<tr><td colspan="7" class="text-center text-muted py-5">No hay FUA de {{ $attentionLabel }} para los filtros seleccionados.</td></tr>@endforelse</tbody>
             </table></div>
             @if($fuas->hasPages())<div class="card-footer bg-white">{{ $fuas->links() }}</div>@endif
         </div>
     </form>
+    @include('fuas.partials.pdf-modal')
 </div>
+
+@include('fuas.partials.pdf-modal-script')
 @endsection

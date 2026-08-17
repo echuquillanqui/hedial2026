@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container py-3">
+<div class="container py-3" x-data="fuaPdfViewer()">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h3 class="mb-1"><i class="bi bi-file-earmark-medical text-primary me-2"></i>Formatos Únicos de Atención</h3>
@@ -40,7 +40,7 @@
                         <td>{{ $fua->order?->fecha_orden ? \Carbon\Carbon::parse($fua->order->fecha_orden)->format('d/m/Y') : $fua->created_at->format('d/m/Y') }}</td>
                         <td><span class="badge bg-success-subtle text-success-emphasis">{{ $fua->status }}</span></td>
                         <td class="text-end text-nowrap">
-                            <a href="{{ route('fuas.preview', $fua) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>Vista previa</a>
+                            <button type="button" @click="openPdf('{{ route('fuas.pdf', $fua) }}', 'FUA {{ $fua->number }}')" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>Vista previa</button>
                             <a href="{{ route('fuas.pdf', [$fua, 'download' => 1]) }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-download"></i></a>
                         </td>
                     </tr>
@@ -52,5 +52,8 @@
         </div>
         @if($fuas->hasPages())<div class="card-footer bg-white">{{ $fuas->links() }}</div>@endif
     </div>
+    @include('fuas.partials.pdf-modal')
 </div>
+
+@include('fuas.partials.pdf-modal-script')
 @endsection
