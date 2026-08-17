@@ -15,6 +15,8 @@
         </div>
     </div>
 
+    <div id="bulkPrintMessage" class="alert alert-info d-none" role="alert" aria-live="polite"></div>
+
     @if($requiresModuleAssignment && $moduleAssignment)
         <div class="alert alert-primary border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3" role="alert">
             <div>
@@ -157,6 +159,8 @@
         const bulkPrintFrame = document.getElementById('bulkPrintFrame');
         const bulkPrintLoading = document.getElementById('bulkPrintLoading');
         const bulkPrintModalElement = document.getElementById('bulkPrintModal');
+        const bulkPrintButton = document.getElementById('btnBulkPrint');
+        const bulkPrintMessage = document.getElementById('bulkPrintMessage');
 
         function updateTable() {
             // Animación de carga
@@ -198,11 +202,43 @@
             updateTable();
         });
 
-        document.getElementById('btnBulkPrint').addEventListener('click', function() {
+        bulkPrintButton.addEventListener('click', function() {
             const params = new URLSearchParams(new FormData(form));
-            bulkPrintLoading.classList.remove('d-none');
-            bulkPrintFrame.src = `{{ route('enfermeria.print.bulk') }}?${params.toString()}`;
-            window.bootstrap.Modal.getOrCreateInstance(bulkPrintModalElement).show();
+            const originalContent = bulkPrintButton.innerHTML;
+
+            bulkPrintMessage.classList.add('d-none');
+            bulkPrintButton.disabled = true;
+            bulkPrintButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Verificando...';
+
+            fetch(`{{ route('enfermeria.print.bulk.check') }}?${params.toString()}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('No se pudo verificar la impresión');
+                return response.json();
+            })
+            .then(({ has_records: hasRecords }) => {
+                if (!hasRecords) {
+                    bulkPrintMessage.textContent = 'No hay nada para imprimir con los filtros seleccionados.';
+                    bulkPrintMessage.classList.remove('d-none');
+                    return;
+                }
+
+                bulkPrintLoading.classList.remove('d-none');
+                bulkPrintFrame.src = `{{ route('enfermeria.print.bulk') }}?${params.toString()}`;
+                window.bootstrap.Modal.getOrCreateInstance(bulkPrintModalElement).show();
+            })
+            .catch(() => {
+                bulkPrintMessage.textContent = 'No se pudo preparar la impresión. Inténtelo nuevamente.';
+                bulkPrintMessage.classList.remove('d-none');
+            })
+            .finally(() => {
+                bulkPrintButton.disabled = false;
+                bulkPrintButton.innerHTML = originalContent;
+            });
         });
 
         bulkPrintFrame.addEventListener('load', function() {

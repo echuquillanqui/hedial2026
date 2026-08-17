@@ -94,7 +94,46 @@ class NurseModuleAssignmentTest extends TestCase
             ->assertSee('id="bulkPrintModal"', false)
             ->assertSee('id="bulkPrintFrame"', false)
             ->assertSee(route('enfermeria.print.bulk'), false)
+            ->assertSee(route('enfermeria.print.bulk.check'), false)
+            ->assertSee('No hay nada para imprimir con los filtros seleccionados.')
             ->assertSee('new URLSearchParams(new FormData(form))', false);
+    }
+
+    public function test_bulk_print_check_reports_when_there_is_nothing_to_print(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+
+        NurseModuleAssignment::create([
+            'user_id' => $user->id,
+            'sede_id' => $sede->id,
+            'work_date' => today(),
+            'module' => 1,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->getJson(route('enfermeria.print.bulk.check'))
+            ->assertOk()
+            ->assertExactJson(['has_records' => false]);
+    }
+
+    public function test_bulk_print_check_reports_matching_records(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $this->nurseForModule($sede, 2, 'PACIENTE-PARA-IMPRIMIR');
+
+        NurseModuleAssignment::create([
+            'user_id' => $user->id,
+            'sede_id' => $sede->id,
+            'work_date' => today(),
+            'module' => 2,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->getJson(route('enfermeria.print.bulk.check'))
+            ->assertOk()
+            ->assertExactJson(['has_records' => true]);
     }
 
     private function nursingUserAndSede(): array

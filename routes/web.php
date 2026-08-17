@@ -111,6 +111,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::resource('nurses', NurseController::class);
     Route::post('enfermeria/modulo-diario', [NurseController::class, 'storeModuleAssignment'])
         ->name('nurses.module-assignment.store');
+    Route::get('/enfermeria/imprimir-bloque/verificar', [NurseController::class, 'checkBulkPrint'])->name('enfermeria.print.bulk.check');
     Route::get('/enfermeria/imprimir-bloque', [NurseController::class, 'printBulk'])->name('enfermeria.print.bulk');
     Route::get('/enfermeria/imprimir/{id}', [NurseController::class, 'printSingle'])->name('enfermeria.print.single');
 

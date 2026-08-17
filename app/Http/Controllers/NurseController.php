@@ -264,6 +264,28 @@ class NurseController extends Controller
 
     public function printBulk(Request $request)
     {
+        $orders = $this->bulkPrintQuery($request)
+            ->latest()
+            ->get()
+            ->pluck('order')
+            ->filter()
+            ->values();
+
+        abort_if($orders->isEmpty(), 404, 'No hay registros de enfermería para los filtros seleccionados.');
+
+        return Pdf::loadView('atenciones.enfermeria.print_bulk', compact('orders'))
+            ->stream('Fichas_HD_enfermeria.pdf');
+    }
+
+    public function checkBulkPrint(Request $request)
+    {
+        return response()->json([
+            'has_records' => $this->bulkPrintQuery($request)->exists(),
+        ]);
+    }
+
+    private function bulkPrintQuery(Request $request)
+    {
         $user = $request->user();
         $requiresModuleAssignment = $user->isNursingProfessional();
         $moduleAssignment = $requiresModuleAssignment
@@ -277,16 +299,11 @@ class NurseController extends Controller
             ? $moduleAssignment?->module
             : $request->get('modulo');
 
-        $orders = $this->filteredNurses(
+        return $this->filteredNurses(
             $request,
             $moduleFilter,
             $requiresModuleAssignment && ! $moduleAssignment
-        )->latest()->get()->pluck('order')->filter()->values();
-
-        abort_if($orders->isEmpty(), 404, 'No hay registros de enfermería para los filtros seleccionados.');
-
-        return Pdf::loadView('atenciones.enfermeria.print_bulk', compact('orders'))
-            ->stream('Fichas_HD_enfermeria.pdf');
+        );
     }
 
 }
