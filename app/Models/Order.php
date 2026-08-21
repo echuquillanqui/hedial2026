@@ -16,6 +16,11 @@ class Order extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'fecha_orden' => 'date',
+        'es_covid' => 'boolean',
+    ];
+
     protected $fillable = [
         'sede_id',
         'patient_id',

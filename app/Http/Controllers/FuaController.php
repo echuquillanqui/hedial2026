@@ -273,7 +273,7 @@ class FuaController extends Controller
             ]];
         }
 
-        $rows = [['code' => '90937', 'description' => 'Procedimiento de hemodiálisis que requiere repetida(s) evaluación(es) con o sin', 'quantity' => 1]];
+        $rows = [['code' => '90937', 'description' => 'HEMODIÁLISIS (2DA. SESIÓN)', 'quantity' => 1]];
         $frequencies = match ($fua->order?->laboratory_period) {
             'M' => ['M'],
             'B' => ['M', 'B'],
