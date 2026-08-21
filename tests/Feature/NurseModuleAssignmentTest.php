@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\NurseController;
 use App\Models\Nurse;
 use App\Models\NurseModuleAssignment;
 use App\Models\Order;
@@ -14,6 +15,33 @@ use Tests\TestCase;
 class NurseModuleAssignmentTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_nursing_staff_selectors_only_include_nursing_professionals(): void
+    {
+        $nursingProfessional = User::factory()->create([
+            'name' => 'Profesional de Enfermería',
+            'profession' => 'ENFERMERA',
+        ]);
+        User::factory()->create([
+            'name' => 'Profesional Médico',
+            'profession' => 'MEDICO',
+        ]);
+        User::factory()->create([
+            'name' => 'Personal Administrativo',
+            'profession' => 'ADMINISTRATIVO',
+        ]);
+        $sede = Sede::create(['name' => 'Sede de prueba', 'code' => 'TEST', 'is_active' => true]);
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-SELECTORES');
+
+        $view = app(NurseController::class)->edit($nurse);
+        $availableStaff = $view->getData()['enfermeros'];
+
+        $this->assertTrue($availableStaff->contains($nursingProfessional));
+        $this->assertSame(
+            [$nursingProfessional->id],
+            $availableStaff->pluck('id')->all()
+        );
+    }
 
     public function test_nursing_professional_can_select_the_module_for_today(): void
     {

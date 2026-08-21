@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Permission\Traits\HasRoles;
@@ -73,6 +74,14 @@ class User extends Authenticatable
     {
         return $this->hasRole('enfermeria')
             || str_contains(mb_strtoupper((string) $this->profession), 'ENFERMER');
+    }
+
+    public function scopeNursingProfessionals(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query) {
+            $query->where('profession', 'like', '%ENFERMER%')
+                ->orWhereHas('roles', fn (Builder $roles) => $roles->where('name', 'enfermeria'));
+        });
     }
 
     // Referencias donde es el Responsable de la RF

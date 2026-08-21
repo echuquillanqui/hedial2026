@@ -138,7 +138,9 @@ class NurseController extends Controller
             $nurse->save();
         }
 
-        $enfermeros = User::all();
+        $enfermeros = User::nursingProfessionals()
+            ->orderBy('name')
+            ->get();
         return view('atenciones.enfermeria.edit', compact('nurse', 'order', 'enfermeros'));
     }
 
