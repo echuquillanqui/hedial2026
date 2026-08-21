@@ -15,6 +15,7 @@
     tests: @js($tests->map(fn ($test) => ['id' => $test->id, 'name' => $test->name, 'frequency' => $test->frequency])->values()),
     initialSchedules: @js(old('schedules', [['sampled_at' => date('Y-m-d'), 'period' => 'M']])),
     initialPatients: @js(collect(old('patient_ids', []))->map(fn ($id) => (string) $id)->values()),
+    allPatientIds: @js($patients->pluck('id')->map(fn ($id) => (string) $id)->values()),
 })">
     <div class="card border-0 shadow-sm mb-3 bg-light">
         <div class="card-body py-3">
@@ -62,12 +63,18 @@
         <div class="row g-3">
             <div class="col-xl-7">
                 <div class="card border-0 shadow-sm">
-                    <div class="card-header section-header d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+                    <div class="card-header section-header d-flex flex-wrap justify-content-between align-items-center gap-3 py-3">
                         <span>Pacientes · {{ $sequence ?: 'sin secuencia para hoy' }}{{ $shift ? ' · turno '.$shift : ' · todos los turnos' }}</span>
-                        <label class="form-check m-0">
-                            <input type="checkbox" class="form-check-input" @change="toggleVisiblePatients($el.checked)" :checked="allVisibleSelected">
-                            <span class="form-check-label">Seleccionar visibles</span>
-                        </label>
+                        <div class="d-flex flex-wrap gap-3">
+                            <label class="form-check m-0">
+                                <input type="checkbox" class="form-check-input" @change="toggleAllPatients($el.checked)" :checked="allPatientsSelected" :disabled="!allPatientIds.length">
+                                <span class="form-check-label">Seleccionar todos</span>
+                            </label>
+                            <label class="form-check m-0">
+                                <input type="checkbox" class="form-check-input" @change="toggleVisiblePatients($el.checked)" :checked="allVisibleSelected" :disabled="!visiblePatientInputs.length">
+                                <span class="form-check-label">Seleccionar visibles</span>
+                            </label>
+                        </div>
                     </div>
                     <div class="card-body border-bottom py-3">
                         <div class="input-group">
@@ -143,11 +150,12 @@
 </div>
 
 <script>
-function laboratoryBatchForm({ tests, initialSchedules, initialPatients }) {
+function laboratoryBatchForm({ tests, initialSchedules, initialPatients, allPatientIds }) {
     return {
         tests,
         schedules: initialSchedules.map((item, index) => ({ ...item, key: `${Date.now()}-${index}` })),
         selectedPatients: initialPatients,
+        allPatientIds,
         patientQuery: '',
         addSchedule() { this.schedules.push({ sampled_at: '{{ date('Y-m-d') }}', period: 'M', key: `${Date.now()}-${Math.random()}` }); },
         removeSchedule(index) { if (this.schedules.length > 1) this.schedules.splice(index, 1); },
@@ -157,7 +165,9 @@ function laboratoryBatchForm({ tests, initialSchedules, initialPatients }) {
         normalize(value) { return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); },
         matchesPatient(value) { return this.normalize(value).includes(this.normalize(this.patientQuery)); },
         get visiblePatientInputs() { return [...document.querySelectorAll('[data-patient-search]')].filter(input => this.matchesPatient(input.dataset.patientSearch)); },
+        get allPatientsSelected() { return this.allPatientIds.length > 0 && this.allPatientIds.every(id => this.selectedPatients.includes(id)); },
         get allVisibleSelected() { return this.visiblePatientInputs.length > 0 && this.visiblePatientInputs.every(input => this.selectedPatients.includes(input.value)); },
+        toggleAllPatients(checked) { this.selectedPatients = checked ? [...this.allPatientIds] : []; },
         toggleVisiblePatients(checked) { const ids = this.visiblePatientInputs.map(input => input.value); this.selectedPatients = checked ? [...new Set([...this.selectedPatients, ...ids])] : this.selectedPatients.filter(id => !ids.includes(id)); },
     };
 }

@@ -200,6 +200,21 @@ class FissalLaboratoryTest extends TestCase
         $response->assertSee("periodIncludes(schedule.period, 'M')", false);
     }
 
+    public function test_create_order_page_offers_to_select_all_patients(): void
+    {
+        $user = User::factory()->create();
+        Patient::factory()->count(2)->create(['secuencia' => 'L-M-V']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.orders.create', [
+            'secuencia' => 'L-M-V',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Seleccionar todos');
+        $response->assertSee('toggleAllPatients($el.checked)', false);
+        $response->assertSee('allPatientIds:', false);
+    }
+
     public function test_laboratory_generation_defaults_to_the_sequence_for_the_current_day(): void
     {
         Carbon::setTestNow('2026-08-14 09:00:00'); // Viernes
