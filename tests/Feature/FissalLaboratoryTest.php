@@ -238,6 +238,43 @@ class FissalLaboratoryTest extends TestCase
             && $patients->first()->is($expectedPatient));
     }
 
+    public function test_laboratory_results_can_be_filtered_by_date_and_patient_sequence(): void
+    {
+        $user = User::factory()->create();
+        $expectedPatient = Patient::factory()->create(['secuencia' => 'L-M-V']);
+        $otherSequencePatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+        $expectedOrder = LaboratoryOrder::create([
+            'patient_id' => $expectedPatient->id,
+            'patient_name' => $expectedPatient->full_name,
+            'period' => 'M',
+            'sampled_at' => '2026-08-21',
+        ]);
+        LaboratoryOrder::create([
+            'patient_id' => $expectedPatient->id,
+            'patient_name' => $expectedPatient->full_name,
+            'period' => 'M',
+            'sampled_at' => '2026-08-20',
+        ]);
+        LaboratoryOrder::create([
+            'patient_id' => $otherSequencePatient->id,
+            'patient_name' => $otherSequencePatient->full_name,
+            'period' => 'M',
+            'sampled_at' => '2026-08-21',
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.results.index', [
+            'date' => '2026-08-21',
+            'sequence' => 'L-M-V',
+        ]));
+
+        $response->assertOk();
+        $response->assertViewHas('orders', fn ($orders): bool => $orders->count() === 1
+            && $orders->first()->is($expectedOrder));
+        $response->assertSee('id="laboratory-date"', false);
+        $response->assertSee('id="laboratory-sequence"', false);
+        $response->assertSee('@change="applyFilters()"', false);
+    }
+
     public function test_individual_dialysis_order_keeps_laboratory_period_for_fua_without_generating_laboratory_records(): void
     {
         $this->seed(FissalLaboratorySeeder::class);

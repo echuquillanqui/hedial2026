@@ -167,6 +167,18 @@ class LaboratoryOrderController extends Controller
             ->when($request->filled('q'), fn ($query) => $query->where('patient_name', 'like', '%'.$request->q.'%'))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
             ->when($request->filled('period'), fn ($query) => $query->where('period', $request->period))
+            ->when($request->filled('date'), function ($query) use ($request) {
+                $query->where(function ($query) use ($request) {
+                    $query->whereDate('sampled_at', $request->date)
+                        ->orWhere(function ($query) use ($request) {
+                            $query->whereNull('sampled_at')->whereDate('created_at', $request->date);
+                        });
+                });
+            })
+            ->when(
+                in_array($request->query('sequence'), ['L-M-V', 'M-J-S'], true),
+                fn ($query) => $query->whereHas('patient', fn ($query) => $query->where('secuencia', $request->sequence))
+            )
             ->latest()
             ->paginate(15)->withQueryString();
 
