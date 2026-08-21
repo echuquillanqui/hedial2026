@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\Patient;
 use App\Support\CurrentSede;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -14,7 +15,11 @@ class AuditController extends Controller
         $orders = $this->filteredOrders($request)
             ->with(['patient', 'medical', 'nurse', 'treatments'])
             ->orderBy('fecha_orden', 'desc')
+            ->orderBy('sala')
             ->orderBy('turno')
+            ->orderBy(
+                Patient::select('surname')->whereColumn('patients.id', 'orders.patient_id')
+            )
             ->paginate(20)
             ->withQueryString();
 
@@ -30,7 +35,11 @@ class AuditController extends Controller
                 'treatments' => fn ($query) => $query->orderBy('hora'),
             ])
             ->orderBy('fecha_orden', 'desc')
+            ->orderBy('sala')
             ->orderBy('turno')
+            ->orderBy(
+                Patient::select('surname')->whereColumn('patients.id', 'orders.patient_id')
+            )
             ->paginate(25)
             ->withQueryString();
 
