@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
 use App\Support\CurrentSede;
 use App\Models\Fua;
 use App\Models\NephrologyConsultation;
+use App\Models\FuaConfiguration;
 use App\Services\FuaNumberService;
 
 class OrderController extends Controller
@@ -379,6 +380,9 @@ class OrderController extends Controller
         Nurse::create([
             'order_id' => $order->id,
             'frecuencia_hd' => $patient->secuencia ?? null,
+            'marca_modelo' => FuaConfiguration::global()->dialysis_equipment ?: 'FRESENIUS/4008S',
+            'acceso_arterial' => $patient->acceso_arterial ?? null,
+            'acceso_venoso' => $patient->acceso_venoso ?? null,
             'epo2000' => '0',
             'epo4000' => '0',
             'hierro' => '0',

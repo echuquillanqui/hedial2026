@@ -9,7 +9,8 @@
     body { background-color: var(--bg-light); }
     .form-control-sm, .form-select-sm { border: 1px solid #ced4da !important; border-radius: 4px; transition: all 0.2s; }
     .form-control-sm:focus { border-color: var(--medical-blue) !important; box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15); }
-    label { font-size: 0.68rem; font-weight: 800; color: #555; text-transform: uppercase; margin-bottom: 2px; }
+    label { font-size: 0.82rem; font-weight: 800; color: #444; text-transform: uppercase; margin-bottom: 3px; }
+    .form-control-sm, .form-select-sm { font-size: 0.95rem; }
     .card-medical { border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     .header-info { background: white; border-left: 5px solid var(--medical-blue); }
     .nav-tabs .nav-link { font-weight: 700; font-size: 0.85rem; color: #6c757d; border: none; padding: 10px 20px; }
@@ -44,7 +45,7 @@
                 <div class="col-md-1"><label>Sesión №</label><div class="h5 fw-bold text-primary mb-0">#{{ $nurse->numero_hd }}</div></div>
                 <div class="col-md-2"><label data-label="Puesto">Puesto *</label><input type="text" name="puesto" id="puestoInput" class="form-control form-control-sm fw-bold" value="{{ $nurse->puesto }}" required></div>
                 <div class="col-md-2"><label data-label="№ Máquina">№ Máquina *</label><input type="text" name="numero_maquina" id="maquinaInput" class="form-control form-control-sm" value="{{ $nurse->numero_maquina ?? $nurse->puesto }}" required></div>
-                <div class="col-md-3"><label>Marca / Modelo</label><input type="text" name="marca_modelo" class="form-control form-control-sm" value="{{ $nurse->marca_modelo ?? 'FRESENIUS/4008S' }}"></div>
+                <div class="col-md-3"><label>Marca / Modelo</label><input type="text" name="marca_modelo" class="form-control form-control-sm" value="{{ $nurse->marca_modelo }}"></div>
                 <div class="col-md-2"><label>Frecuencia</label><input type="text" class="form-control form-control-sm bg-light border-0 fw-bold" value="{{ $nurse->frecuencia_hd ?? '3 VECES POR SEMANA' }}" readonly></div>
                 <div class="col-md-2"><label>Filtro / Dializador</label><input type="text" name="filtro" class="form-control form-control-sm" value="{{ $nurse->filtro }}"></div>
             </div>
@@ -63,15 +64,16 @@
                     <div class="col-md-3"><label>Acceso Venoso *</label>
                         <select name="acceso_venoso" class="form-select form-select-sm" required>
                             <option value="">-- Seleccione --</option>
-                            @foreach(['CVCLP','FAV','INJ','CVCL','CVCT'] as $opt)<option value="{{ $opt }}" {{ $nurse->acceso_venoso == $opt ? 'selected' : '' }}>{{ $opt }}</option>@endforeach
+                            @foreach(['CVCLP','FAV','INJ','CVCL','CVCT'] as $opt)<option value="{{ $opt }}" {{ ($nurse->acceso_venoso ?? $order->patient->acceso_venoso) == $opt ? 'selected' : '' }}>{{ $opt }}</option>@endforeach
                         </select>
                     </div>
                     <div class="col-md-3"><label>Acceso Arterial *</label>
                         <select name="acceso_arterial" class="form-select form-select-sm" required>
                             <option value="">-- Seleccione --</option>
-                            @foreach(['CVCLP','FAV','INJ','CVCL','CVCT'] as $opt)<option value="{{ $opt }}" {{ $nurse->acceso_arterial == $opt ? 'selected' : '' }}>{{ $opt }}</option>@endforeach
+                            @foreach(['CVCLP','FAV','INJ','CVCL','CVCT'] as $opt)<option value="{{ $opt }}" {{ ($nurse->acceso_arterial ?? $order->patient->acceso_arterial) == $opt ? 'selected' : '' }}>{{ $opt }}</option>@endforeach
                         </select>
                     </div>
+                    <div class="col-md-2"><label>Peso Seco (kg)</label><input type="number" step="0.01" name="peso_seco" class="form-control form-control-sm" value="{{ old('peso_seco', $order->patient->peso_seco ?? $order->medical->peso_seco) }}"></div>
                     <div class="col-md-2"><label>PA Inicial</label><input type="text" name="pa_inicial" class="form-control form-control-sm" value="{{ $nurse->pa_inicial ?? $order->medical->pa_inicial }}"></div>
                     <div class="col-md-2"><label>Peso Inicial (kg)</label><input type="number" step="0.01" name="peso_inicial" class="form-control form-control-sm" value="{{ $nurse->peso_inicial ?? $order->medical->peso_inicial }}"></div>
                     <div class="col-md-2"><label>UF Prog (L)</label><input type="text" name="uf" class="form-control form-control-sm" value="{{ $nurse->uf ?? $order->medical->uf }}"></div>

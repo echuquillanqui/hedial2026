@@ -1,7 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container px-0 py-0">
+<style>
+    .medical-list { font-size: 0.95rem; }
+    .medical-list .small, .medical-list small { font-size: 0.82rem !important; }
+    .medical-list .form-control, .medical-list .form-select { font-size: 0.95rem; }
+</style>
+<div class="container px-0 py-0 medical-list">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold text-success text-uppercase">
             <i class="bi bi-clipboard2-pulse me-2"></i> Control Médico de Hemodiálisis

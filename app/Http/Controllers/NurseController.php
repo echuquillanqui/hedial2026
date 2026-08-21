@@ -149,6 +149,9 @@ class NurseController extends Controller
         }
         $validator = Validator::make($request->all(), [
             't_hora.*' => ['nullable', 'date_format:H:i'],
+            'peso_seco' => ['nullable', 'numeric', 'between:0,999.99'],
+            'acceso_arterial' => ['required', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
+            'acceso_venoso' => ['required', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
         ]);
 
         $validator->after(function ($validator) use ($request) {
@@ -216,6 +219,17 @@ class NurseController extends Controller
             DB::transaction(function () use ($request, $nurse) {
                 // Actualizamos la tabla nurses
                 $nurse->update($request->all());
+
+                // Se fijan una sola vez en la ficha del paciente, durante su
+                // primera atención, para precargar las sesiones posteriores.
+                $patient = $nurse->order->patient;
+                $initialData = collect(['peso_seco', 'acceso_arterial', 'acceso_venoso'])
+                    ->filter(fn ($field) => blank($patient->$field) && $request->filled($field))
+                    ->mapWithKeys(fn ($field) => [$field => $request->input($field)])
+                    ->all();
+                if ($initialData) {
+                    $patient->update($initialData);
+                }
 
                 // Actualizamos monitoreo horario (Treatments)
                 if ($request->has('t_hora')) {

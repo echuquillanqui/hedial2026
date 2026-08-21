@@ -55,6 +55,9 @@
                         <th>IDENTIFICACIÓN</th>
                         <th>SEGURO / RÉGIMEN</th>
                         <th>EDAD ACTUAL</th>
+                        <th>MÓDULO</th>
+                        <th>SECUENCIA</th>
+                        <th>TURNO</th>
                         <th>SEDE</th>
                         <th class="text-end pe-4">ACCIONES</th>
                     </tr>
@@ -92,6 +95,9 @@
                                 <div class="small text-dark fw-bold" x-text="getRealAge(p.birth_date) + ' años'"></div>
                                 <div class="extra-small text-muted" x-text="p.birth_date || 'No registra fecha'"></div>
                             </td>
+                            <td><span class="badge bg-primary bg-opacity-10 text-primary" x-text="p.modulo ? 'Módulo ' + p.modulo : '—'"></span></td>
+                            <td><span class="fw-semibold" x-text="p.secuencia || '—'"></span></td>
+                            <td><span class="badge bg-dark" x-text="p.turno ? 'Turno ' + p.turno : '—'"></span></td>
                             <td>
                                 <span class="badge bg-warning bg-opacity-10 text-dark" x-text="(p.sede && p.sede.name) ? p.sede.name : 'Sin sede'"></span>
                             </td>

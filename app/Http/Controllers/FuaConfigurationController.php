@@ -25,6 +25,7 @@ class FuaConfigurationController extends Controller
             'company_name' => ['nullable', 'string', 'max:255'],
             'company_address' => ['nullable', 'string', 'max:255'],
             'company_phone' => ['nullable', 'string', 'max:50'],
+            'dialysis_equipment' => ['required', 'string', 'max:255'],
             'diagnosis_code' => ['required', 'string', 'max:20'],
             'diagnosis_name' => ['required', 'string', 'max:255'],
             'consultation_reason' => ['required', 'string', 'max:255'],
