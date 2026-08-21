@@ -70,22 +70,6 @@
                         $canViewAudit = $canViewOrders && ($canViewMedicals || $canViewNurses);
                     @endphp
                     <ul class="navbar-nav me-auto">
-    @if($canViewAudit)
-    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('audit.*') ? 'active fw-bold' : '' }}"
-                type="button" @click="open = !open" :aria-expanded="open.toString()">
-            <i class="bi bi-shield-check me-1"></i> AUDITORÍA
-        </button>
-        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
-            <li><a class="dropdown-item {{ request()->routeIs('audit.histories') ? 'active' : '' }}" href="{{ route('audit.histories') }}">
-                <i class="bi bi-journal-check me-2"></i> HISTORIAS
-            </a></li>
-            <li><a class="dropdown-item {{ request()->routeIs('audit.fissal') ? 'active' : '' }}" href="{{ route('audit.fissal') }}">
-                <i class="bi bi-table me-2"></i> FISSAL
-            </a></li>
-        </ul>
-    </li>
-    @endif
     @if($canSeeGestion)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
         <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*', 'fuas.configuration.*') ? 'active fw-bold' : '' }}"
@@ -274,6 +258,22 @@
                     <i class="bi bi-diagram-3 me-2"></i> Solicitudes por área
                 </a>
             </li>
+        </ul>
+    </li>
+    @endif
+    @if($canViewAudit)
+    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('audit.*') ? 'active fw-bold' : '' }}"
+                type="button" @click="open = !open" :aria-expanded="open.toString()">
+            <i class="bi bi-shield-check me-1"></i> AUDITORÍA
+        </button>
+        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
+            <li><a class="dropdown-item {{ request()->routeIs('audit.histories') ? 'active' : '' }}" href="{{ route('audit.histories') }}">
+                <i class="bi bi-journal-check me-2"></i> HISTORIAS
+            </a></li>
+            <li><a class="dropdown-item {{ request()->routeIs('audit.fissal') ? 'active' : '' }}" href="{{ route('audit.fissal') }}">
+                <i class="bi bi-table me-2"></i> FISSAL
+            </a></li>
         </ul>
     </li>
     @endif

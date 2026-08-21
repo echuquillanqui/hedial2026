@@ -50,6 +50,36 @@ class AuditTest extends TestCase
             ->assertDontSee('0000001');
     }
 
+    public function test_audit_lists_are_grouped_by_module_and_filters_submit_automatically(): void
+    {
+        [$user, $sede] = $this->auditScenario();
+        $firstModulePatient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'PACIENTE MODULO UNO',
+            'surname' => 'ZAPATA',
+        ]);
+        Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $firstModulePatient->id,
+            'codigo_unico' => 'ORD-AUD-M1',
+            'sala' => 'MODULO 1',
+            'turno' => '4',
+            'fecha_orden' => today(),
+            'attention_type' => 'HEMODIALYSIS',
+        ]);
+
+        foreach (['audit.histories' => 'Corrección', 'audit.fissal' => 'Nefrólogo'] as $route => $previousColumn) {
+            $this->actingAs($user)
+                ->withSession(['current_sede_id' => $sede->id])
+                ->get(route($route, ['date' => today()->toDateString()]))
+                ->assertOk()
+                ->assertSeeInOrder(['PACIENTE MODULO UNO', 'PACIENTE AUDITADO'])
+                ->assertSee('data-audit-filters', false)
+                ->assertSee('form.requestSubmit()', false)
+                ->assertSeeInOrder([$previousColumn, 'Módulo']);
+        }
+    }
+
     private function auditScenario(): array
     {
         $user = User::factory()->create();
