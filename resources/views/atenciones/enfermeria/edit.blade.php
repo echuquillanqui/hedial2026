@@ -81,7 +81,7 @@
                     <div class="col-md-8"><label>Enfermero que Inicia *</label>
                         <select name="enfermero_que_inicia_id" class="form-select form-select-sm" required>
                             <option value="">-- Seleccione Profesional --</option>
-                            @foreach($enfermeros as $enf)<option value="{{ $enf->id }}" {{ $nurse->enfermero_que_inicia_id == $enf->id ? 'selected' : '' }}>{{ $enf->name }}</option>@endforeach
+                            @foreach($enfermeros as $enf)<option value="{{ $enf->id }}" {{ (int) old('enfermero_que_inicia_id', $nurse->enfermero_que_inicia_id ?? auth()->id()) === $enf->id ? 'selected' : '' }}>{{ $enf->name }}</option>@endforeach
                         </select>
                     </div>
                 </div>
@@ -153,7 +153,7 @@
                         <label data-label="Enfermero Cierre">Enfermero Cierre</label>
                         <select name="enfermero_que_finaliza_id" class="form-select form-select-sm closure-field">
                             <option value="">-- Seleccione --</option>
-                            @foreach($enfermeros as $enf)<option value="{{ $enf->id }}" {{ $nurse->enfermero_que_finaliza_id == $enf->id ? 'selected' : '' }}>{{ $enf->name }}</option>@endforeach
+                            @foreach($enfermeros as $enf)<option value="{{ $enf->id }}" {{ (int) old('enfermero_que_finaliza_id', $nurse->enfermero_que_finaliza_id ?? auth()->id()) === $enf->id ? 'selected' : '' }}>{{ $enf->name }}</option>@endforeach
                         </select>
                     </div>
                 </div>

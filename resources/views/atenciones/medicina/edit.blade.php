@@ -187,7 +187,7 @@
                             <option value="">-- Seleccionar --</option>
                             @foreach($medicos as $medico)
                                 <option value="{{ $medico->id }}" 
-                                    @if(old('usuario_que_inicia_hd', is_numeric($medical->usuario_que_inicia_hd) ? $medical->usuario_que_inicia_hd : auth()->id()) == $medico->id) selected @endif>
+                                    @if((int) old('usuario_que_inicia_hd', $medical->usuario_que_inicia_hd ?? auth()->id()) === $medico->id) selected @endif>
                                     {{ $medico->name }}
                                 </option>
                             @endforeach
@@ -199,7 +199,7 @@
                             <option value="">-- Seleccionar --</option>
                             @foreach($medicos as $medico)
                                 <option value="{{ $medico->id }}" 
-                                    @if(old('usuario_que_finaliza_hd', is_numeric($medical->usuario_que_finaliza_hd) ? $medical->usuario_que_finaliza_hd : auth()->id()) == $medico->id) selected @endif>
+                                    @if((int) old('usuario_que_finaliza_hd', $medical->usuario_que_finaliza_hd ?? auth()->id()) === $medico->id) selected @endif>
                                     {{ $medico->name }}
                                 </option>
                             @endforeach
