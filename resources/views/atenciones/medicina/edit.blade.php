@@ -4,9 +4,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
-    .form-control-sm, .form-select-sm { font-size: 0.75rem; padding: 0.2rem 0.4rem; }
-    label { font-size: 0.7rem; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 1px; display: block; }
-    .card-header { padding: 0.3rem 0.8rem; font-size: 0.8rem; background-color: #f8f9fa; font-weight: bold; }
+    .form-control-sm, .form-select-sm { font-size: 0.9rem; padding: 0.3rem 0.5rem; }
+    label { font-size: 0.82rem; font-weight: 700; color: #444; text-transform: uppercase; margin-bottom: 2px; display: block; }
+    .card-header { padding: 0.4rem 0.8rem; font-size: 0.95rem; background-color: #f8f9fa; font-weight: bold; }
     .row-compact { margin-bottom: 0.4rem; }
     .bg-machine { background-color: #f0f7f4; border-left: 4px solid #198754; }
     

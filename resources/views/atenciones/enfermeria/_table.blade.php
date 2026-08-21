@@ -1,8 +1,8 @@
 <div class="card border-0 shadow-sm">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.95rem;">
             <thead class="bg-light">
-                <tr class="text-uppercase text-muted" style="font-size: 0.75rem;">
+                <tr class="text-uppercase text-muted" style="font-size: 0.85rem;">
                     <th class="ps-3">Sala / Turno</th>
                     <th>Paciente / DNI</th>
                     <th class="text-center"># de Sesión</th>

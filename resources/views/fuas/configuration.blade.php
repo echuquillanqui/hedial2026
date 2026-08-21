@@ -41,6 +41,7 @@
                     'ipress_code' => 'Código IPRESS', 'ipress_name' => 'Nombre de IPRESS',
                     'company_name' => 'Razón social / nombre comercial', 'company_address' => 'Dirección',
                     'company_phone' => 'Teléfono de contacto',
+                    'dialysis_equipment' => 'Equipo de diálisis',
                     'diagnosis_code' => 'Código CIE-10', 'diagnosis_name' => 'Diagnóstico predeterminado',
                     'responsible_name' => 'Responsable de la atención', 'responsible_document' => 'DNI del responsable',
                     'responsible_college_number' => 'N.º de colegiatura', 'responsible_specialty' => 'Especialidad'
