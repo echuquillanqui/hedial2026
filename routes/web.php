@@ -16,6 +16,7 @@ use App\Http\Controllers\LaboratoryOrderController;
 use App\Http\Controllers\FuaConfigurationController;
 use App\Http\Controllers\FuaController;
 use App\Http\Controllers\NephrologyConsultationController;
+use App\Http\Controllers\AuditController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,6 +36,8 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::middleware(['auth', 'ensure.sede'])->group(function () {
+    Route::get('auditoria/historias', [AuditController::class, 'histories'])->name('audit.histories');
+    Route::get('auditoria/fissal', [AuditController::class, 'fissal'])->name('audit.fissal');
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/home/export/pdf', [App\Http\Controllers\HomeController::class, 'exportPdf'])->name('home.export.pdf');
     Route::get('/home/export/excel', [App\Http\Controllers\HomeController::class, 'exportExcel'])->name('home.export.excel');
