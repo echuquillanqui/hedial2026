@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Support\CurrentSede;
+use App\Services\WarehouseConsumptionService;
 
 class MedicalController extends Controller
 {
@@ -139,6 +140,7 @@ class MedicalController extends Controller
 
         $medical->update($validated);
         $this->syncMedicationToNurseWhenDefault($medical);
+        app(WarehouseConsumptionService::class)->consumeIfFinalized($medical->order->fresh());
 
         return redirect()->route('medicals.index')
             ->with('success', 'Ficha médica actualizada correctamente.');

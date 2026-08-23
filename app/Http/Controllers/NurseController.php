@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\CurrentSede;
+use App\Services\WarehouseConsumptionService;
 
 class NurseController extends Controller
 {
@@ -253,6 +254,7 @@ class NurseController extends Controller
                     }
                 }
             });
+            app(WarehouseConsumptionService::class)->consumeIfFinalized($nurse->order->fresh());
             return response()->json(['status' => 'success', 'message' => 'Registro de Enfermería actualizado']);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);

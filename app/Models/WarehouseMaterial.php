@@ -13,12 +13,16 @@ class WarehouseMaterial extends Model
         'code',
         'name',
         'unit',
+        'automatic_consumption',
+        'quantity_per_session',
         'warehouse_material_category_id',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'automatic_consumption' => 'boolean',
+        'quantity_per_session' => 'decimal:2',
     ];
 
     public function stocks()
@@ -31,4 +35,3 @@ class WarehouseMaterial extends Model
         return $this->belongsTo(WarehouseMaterialCategory::class, 'warehouse_material_category_id');
     }
 }
-

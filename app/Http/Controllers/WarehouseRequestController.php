@@ -58,7 +58,7 @@ class WarehouseRequestController extends Controller
 
     public function __construct()
     {
-        $this->middleware('permission:warehouse.requests.view')->only(['dashboard', 'index', 'byArea', 'categories', 'materials', 'stocks', 'downloadAlerts']);
+        $this->middleware('permission:warehouse.requests.view')->only(['dashboard', 'index', 'byArea', 'categories', 'materials', 'stocks', 'movements', 'downloadAlerts']);
         $this->middleware('permission:warehouse.requests.print')->only(['printRequest', 'printDispatch']);
         $this->middleware('permission:warehouse.requests.create')->only(['store']);
         $this->middleware('permission:warehouse.requests.update.status')->only(['updateStatus']);
@@ -265,6 +265,8 @@ class WarehouseRequestController extends Controller
             'warehouse_material_category_id' => 'required|exists:warehouse_material_categories,id',
             'current_qty' => 'required|numeric|min:0',
             'min_qty' => 'required|numeric|min:0',
+            'automatic_consumption' => 'nullable|boolean',
+            'quantity_per_session' => 'nullable|required_if:automatic_consumption,1|numeric|min:0.01',
         ]);
 
         DB::transaction(function () use ($validated, $currentWarehouse) {
@@ -274,6 +276,8 @@ class WarehouseRequestController extends Controller
                 'unit' => $validated['unit'],
                 'warehouse_material_category_id' => $validated['warehouse_material_category_id'],
                 'is_active' => true,
+                'automatic_consumption' => (bool) ($validated['automatic_consumption'] ?? false),
+                'quantity_per_session' => $validated['quantity_per_session'] ?? 0,
             ]);
 
             WarehouseStock::query()->create([
@@ -308,7 +312,22 @@ class WarehouseRequestController extends Controller
             'min_qty' => 'required|numeric|min:0',
         ]);
 
-        $warehouseStock->update($validated);
+        DB::transaction(function () use ($warehouseStock, $validated) {
+            $warehouseStock = WarehouseStock::query()->lockForUpdate()->findOrFail($warehouseStock->id);
+            $previous = (float) $warehouseStock->current_qty;
+            $warehouseStock->update($validated);
+
+            if ($previous !== (float) $validated['current_qty']) {
+                WarehouseStockMovement::query()->create([
+                    'warehouse_id' => $warehouseStock->warehouse_id,
+                    'warehouse_material_id' => $warehouseStock->warehouse_material_id,
+                    'movement_type' => 'adjustment',
+                    'qty' => (float) $validated['current_qty'] - $previous,
+                    'performed_by' => Auth::id(),
+                    'notes' => 'Ajuste manual de inventario',
+                ]);
+            }
+        });
 
         return back()->with('toastr', ['type' => 'success', 'message' => 'Stock actualizado.']);
     }
@@ -376,6 +395,24 @@ class WarehouseRequestController extends Controller
         return view('warehouse.materials.index', compact('materials', 'categories', 'currentWarehouse'));
     }
 
+    public function updateAutomaticConsumption(Request $request, WarehouseMaterial $warehouseMaterial)
+    {
+        $this->authorizePermission('warehouse.requests.create');
+        $this->ensurePrincipalWarehouseContext();
+
+        $validated = $request->validate([
+            'automatic_consumption' => 'nullable|boolean',
+            'quantity_per_session' => 'nullable|required_if:automatic_consumption,1|numeric|min:0.01',
+        ]);
+
+        $warehouseMaterial->update([
+            'automatic_consumption' => (bool) ($validated['automatic_consumption'] ?? false),
+            'quantity_per_session' => $validated['quantity_per_session'] ?? 0,
+        ]);
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Consumo automático actualizado.']);
+    }
+
     public function stocks(Request $request)
     {
         $this->ensureWarehouseSetup();
@@ -417,7 +454,45 @@ class WarehouseRequestController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('warehouse.stocks.index', compact('stocks', 'currentWarehouse', 'categories', 'availableWarehouses'));
+        $stockSummary = WarehouseStock::query()
+            ->select('warehouse_id')
+            ->selectRaw('COUNT(*) as products_count')
+            ->selectRaw('SUM(CASE WHEN current_qty <= min_qty THEN 1 ELSE 0 END) as alerts_count')
+            ->selectRaw('SUM(CASE WHEN current_qty < 0 THEN 1 ELSE 0 END) as negative_count')
+            ->with('warehouse.sede')
+            ->when(! $currentWarehouse->is_principal, fn ($query) => $query->where('warehouse_id', $currentWarehouse->id))
+            ->groupBy('warehouse_id')
+            ->get();
+
+        return view('warehouse.stocks.index', compact('stocks', 'currentWarehouse', 'categories', 'availableWarehouses', 'stockSummary'));
+    }
+
+    public function movements(Request $request)
+    {
+        $this->ensureWarehouseSetup();
+        $currentWarehouse = $this->currentWarehouseOrFail();
+        $availableWarehouses = $currentWarehouse->is_principal
+            ? Warehouse::query()->with('sede')->where('is_active', true)->orderByDesc('is_principal')->get()
+            : collect([$currentWarehouse->load('sede')]);
+        $warehouseId = $currentWarehouse->is_principal && $request->integer('warehouse_id')
+            ? $request->integer('warehouse_id')
+            : $currentWarehouse->id;
+
+        $movements = WarehouseStockMovement::query()
+            ->with(['material.category', 'warehouse.sede'])
+            ->where('warehouse_id', $warehouseId)
+            ->when($request->filled('type'), fn ($query) => $query->where('movement_type', $request->input('type')))
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $term = trim((string) $request->input('search'));
+                $query->whereHas('material', fn ($material) => $material
+                    ->where('name', 'like', "%{$term}%")
+                    ->orWhere('code', 'like', "%{$term}%"));
+            })
+            ->latest()
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('warehouse.movements.index', compact('movements', 'currentWarehouse', 'availableWarehouses', 'warehouseId'));
     }
 
 

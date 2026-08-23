@@ -1,12 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div>
-            <h4 class="mb-0">Logística - Dashboard</h4>
-            <small class="text-muted">Sede activa: {{ session('current_sede_name') }} | Almacén: {{ $currentWarehouse->name }}</small>
-        </div>
+<div class="container-fluid logistics-page">
+    @include('warehouse.partials.navigation', ['title' => 'Logística clara, inventario bajo control', 'subtitle' => 'Supervisa existencias, solicitudes y alertas operativas de '.$currentWarehouse->name.'.'])
+    <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
         <a href="{{ route('warehouse.alerts.download') }}" class="btn btn-outline-danger">
             <i class="bi bi-download me-1"></i> Descargar productos en alerta
         </a>
@@ -14,15 +11,15 @@
 
     <div class="row g-3 mb-3">
         <div class="col-md-4">
-            <div class="card shadow-sm h-100 border-0">
+            <a href="{{ route('warehouse.stocks.index') }}" class="card shadow-sm h-100 border-0 text-decoration-none text-body">
                 <div class="card-body">
                     <div class="text-muted small">Items en stock</div>
                     <div class="display-6 fw-semibold">{{ $totalStocks }}</div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-4">
-            <div class="card shadow-sm h-100 border-0 bg-danger-subtle">
+            <div class="card shadow-sm h-100 border-0 bg-danger-subtle" style="border-left:4px solid #dc3545!important">
                 <div class="card-body">
                     <div class="text-muted small">Productos en alerta</div>
                     <div class="display-6 fw-semibold text-danger">{{ $totalAlerts }}</div>
@@ -30,12 +27,12 @@
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card shadow-sm h-100 border-0 bg-warning-subtle">
+            <a href="{{ route('warehouse.requests.index') }}" class="card shadow-sm h-100 border-0 bg-warning-subtle text-decoration-none text-body" style="border-left:4px solid #f59e0b!important">
                 <div class="card-body">
                     <div class="text-muted small">Solicitudes pendientes</div>
                     <div class="display-6 fw-semibold text-warning-emphasis">{{ $pendingRequests }}</div>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 
