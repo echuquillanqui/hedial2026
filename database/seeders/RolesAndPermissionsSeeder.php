@@ -130,6 +130,18 @@ class RolesAndPermissionsSeeder extends Seeder
             $user->sedes()->sync([$sede->id]);
         });
 
+        $logisticsUser = User::query()->firstOrCreate(
+            ['username' => 'logistica'],
+            [
+                'name' => 'Usuario General de Logística',
+                'email' => 'logistica@hemodial.local',
+                'password' => Hash::make('Logistica@123456'),
+                'profession' => 'LOGÍSTICA',
+            ]
+        );
+        $logisticsUser->syncRoles(['logistica']);
+        $logisticsUser->sedes()->sync(Sede::query()->where('is_active', true)->pluck('id'));
+
         $ownerUser = User::where('username', 'rchuquillanqui')->first();
 
         if ($ownerUser) {

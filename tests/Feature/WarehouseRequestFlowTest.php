@@ -10,6 +10,7 @@ use App\Models\WarehouseMaterial;
 use App\Models\WarehouseRequest;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class WarehouseRequestFlowTest extends TestCase
@@ -20,6 +21,25 @@ class WarehouseRequestFlowTest extends TestCase
     {
         parent::setUp();
         $this->seed(RolesAndPermissionsSeeder::class);
+    }
+
+    public function test_roles_seeder_creates_a_general_logistics_user_for_every_active_sede(): void
+    {
+        $activeSede = Sede::create(['name' => 'Activa', 'code' => 'ACT', 'is_active' => true]);
+        $inactiveSede = Sede::create(['name' => 'Inactiva', 'code' => 'INA', 'is_active' => false]);
+
+        $this->seed(RolesAndPermissionsSeeder::class);
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $user = User::query()->where('username', 'logistica')->firstOrFail();
+
+        $this->assertSame(1, User::query()->where('username', 'logistica')->count());
+        $this->assertSame('Usuario General de Logística', $user->name);
+        $this->assertSame('logistica@hemodial.local', $user->email);
+        $this->assertTrue(Hash::check('Logistica@123456', $user->password));
+        $this->assertTrue($user->hasRole('logistica'));
+        $this->assertTrue($user->sedes->contains($activeSede));
+        $this->assertFalse($user->sedes->contains($inactiveSede));
     }
 
     public function test_logistics_sees_requests_from_all_sedes_while_admin_only_sees_assigned_areas(): void
