@@ -134,6 +134,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('almacen/categorias', [App\Http\Controllers\WarehouseRequestController::class, 'storeCategory'])->name('warehouse.categories.store');
     Route::get('almacen/materiales', [App\Http\Controllers\WarehouseRequestController::class, 'materials'])->name('warehouse.materials.index');
     Route::post('almacen/materiales', [App\Http\Controllers\WarehouseRequestController::class, 'storeMaterial'])->name('warehouse.materials.store');
+    Route::put('almacen/materiales/{warehouseMaterial}', [App\Http\Controllers\WarehouseRequestController::class, 'updateMaterial'])->name('warehouse.materials.update');
     Route::get('almacen/ingresos', [App\Http\Controllers\WarehouseRequestController::class, 'entries'])->name('warehouse.entries.index');
     Route::post('almacen/ingresos', [App\Http\Controllers\WarehouseRequestController::class, 'storeEntry'])->name('warehouse.entries.store');
     Route::get('almacen/proveedores', [App\Http\Controllers\WarehouseRequestController::class, 'suppliers'])->name('warehouse.suppliers.index');
