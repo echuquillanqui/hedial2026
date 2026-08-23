@@ -134,7 +134,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('almacen/categorias', [App\Http\Controllers\WarehouseRequestController::class, 'storeCategory'])->name('warehouse.categories.store');
     Route::get('almacen/materiales', [App\Http\Controllers\WarehouseRequestController::class, 'materials'])->name('warehouse.materials.index');
     Route::post('almacen/materiales', [App\Http\Controllers\WarehouseRequestController::class, 'storeMaterial'])->name('warehouse.materials.store');
+    Route::patch('almacen/materiales/{warehouseMaterial}/consumo', [App\Http\Controllers\WarehouseRequestController::class, 'updateAutomaticConsumption'])->name('warehouse.materials.consumption');
     Route::get('almacen/stocks', [App\Http\Controllers\WarehouseRequestController::class, 'stocks'])->name('warehouse.stocks.index');
+    Route::get('almacen/movimientos', [App\Http\Controllers\WarehouseRequestController::class, 'movements'])->name('warehouse.movements.index');
     Route::patch('almacen/stocks/{warehouseStock}', [App\Http\Controllers\WarehouseRequestController::class, 'updateStock'])->name('warehouse.stocks.update');
     Route::get('almacen/alertas/descargar', [App\Http\Controllers\WarehouseRequestController::class, 'downloadAlerts'])->name('warehouse.alerts.download');
     Route::post('almacen/solicitudes', [App\Http\Controllers\WarehouseRequestController::class, 'store'])->name('warehouse.requests.store');

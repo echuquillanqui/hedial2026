@@ -38,6 +38,14 @@
             <input type="number" name="min_qty" class="form-control" min="0" step="0.01" value="0" required>
           </div>
         </div>
+        <div class="form-check form-switch mt-3">
+          <input class="form-check-input" type="checkbox" name="automatic_consumption" value="1" id="newAutomaticConsumption">
+          <label class="form-check-label" for="newAutomaticConsumption">Consumo automático por sesión</label>
+        </div>
+        <div class="mt-2">
+          <label class="form-label">Cantidad por sesión <small class="text-muted">(si aplica)</small></label>
+          <input type="number" name="quantity_per_session" class="form-control" min="0.01" step="0.01" value="1">
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>

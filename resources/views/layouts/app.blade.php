@@ -36,6 +36,20 @@
             padding: 2rem;
             min-height: calc(100vh - 65px);
         }
+        .logistics-page { max-width: 1500px; margin: 0 auto; }
+        .logistics-hero { display:flex; justify-content:space-between; align-items:center; gap:1.5rem; padding:2rem; color:#fff; border-radius:24px; background:linear-gradient(125deg,#142b67 0%,#075e9f 58%,#0797a6 100%); box-shadow:0 18px 40px rgba(20,43,103,.18); }
+        .logistics-hero h2 { font-weight:700; }
+        .logistics-hero p { color:rgba(255,255,255,.78); }
+        .logistics-eyebrow { display:inline-block; margin-bottom:.65rem; padding:.35rem .7rem; border-radius:999px; background:rgba(255,255,255,.14); font-size:.75rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+        .logistics-location { display:flex; align-items:center; gap:.8rem; min-width:220px; padding:.85rem 1rem; border:1px solid rgba(255,255,255,.2); border-radius:16px; background:rgba(255,255,255,.1); }
+        .logistics-location i { font-size:1.4rem; }.logistics-location small,.logistics-location strong { display:block; }
+        .logistics-tabs { display:flex; gap:.4rem; padding:.45rem; overflow-x:auto; border:1px solid #e2e8f0; border-radius:16px; background:#fff; box-shadow:0 8px 24px rgba(15,23,42,.05); }
+        .logistics-tabs a { white-space:nowrap; padding:.7rem 1rem; border-radius:11px; color:#64748b; text-decoration:none; font-weight:700; }
+        .logistics-tabs a:hover { color:#075e9f; background:#f1f5f9; }.logistics-tabs a.active { color:#fff; background:#075e9f; box-shadow:0 5px 12px rgba(7,94,159,.22); }
+        .logistics-panel { border:1px solid #e2e8f0; border-radius:18px; background:#fff; box-shadow:0 10px 30px rgba(15,23,42,.06); }
+        .logistics-table thead th { padding:1rem; color:#64748b; background:#f8fafc; border-bottom:1px solid #e2e8f0; font-size:.75rem; letter-spacing:.04em; text-transform:uppercase; }
+        .logistics-table tbody td { padding:1rem; border-color:#eef2f7; }
+        @media(max-width:767px){.main-content{padding:1rem}.logistics-hero{align-items:flex-start;flex-direction:column;padding:1.4rem}.logistics-location{width:100%}}
     </style>
 </head>
 <body>
@@ -226,12 +240,14 @@
             <i class="bi bi-truck me-1"></i> LOGÍSTICA
         </button>
         <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
+            <li><h6 class="dropdown-header">Control operativo</h6></li>
             <li>
                 <a class="dropdown-item {{ request()->routeIs('warehouse.dashboard') ? 'active' : '' }}" href="{{ route('warehouse.dashboard') }}">
                     <i class="bi bi-speedometer2 me-2"></i> Dashboard
                 </a>
             </li>
             <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header">Catálogo e inventario</h6></li>
             <li>
                 <a class="dropdown-item {{ request()->routeIs('warehouse.categories.*') ? 'active' : '' }}" href="{{ route('warehouse.categories.index') }}">
                     <i class="bi bi-tags me-2"></i> Categorías
@@ -247,7 +263,13 @@
                     <i class="bi bi-bar-chart-line me-2"></i> Stock por sede
                 </a>
             </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('warehouse.movements.*') ? 'active' : '' }}" href="{{ route('warehouse.movements.index') }}">
+                    <i class="bi bi-arrow-left-right me-2"></i> Movimientos
+                </a>
+            </li>
             <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header">Abastecimiento</h6></li>
             <li>
                 <a class="dropdown-item {{ request()->routeIs('warehouse.requests.index') ? 'active' : '' }}" href="{{ route('warehouse.requests.index') }}">
                     <i class="bi bi-file-earmark-text me-2"></i> Solicitudes

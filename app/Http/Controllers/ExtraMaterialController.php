@@ -8,6 +8,7 @@ use App\Models\HemodialysisMaterialConsumption;
 use App\Models\Order;
 use App\Models\Patient;
 use App\Models\WarehouseMaterial;
+use App\Services\WarehouseConsumptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -307,7 +308,7 @@ class ExtraMaterialController extends Controller
             ->whereHas('treatments', function ($query) {
                 $query->whereNotNull('hora');
             })
-            ->get(['id', 'patient_id', 'fecha_orden']);
+            ->get(['id', 'sede_id', 'patient_id', 'codigo_unico', 'fecha_orden']);
 
         if ($finalizedOrders->isEmpty()) {
             return;
@@ -345,6 +346,8 @@ class ExtraMaterialController extends Controller
                         $material->decrement('stock', $quantity);
                     }
                 }
+
+                app(WarehouseConsumptionService::class)->consumeForOrder($order);
             }
         });
     }
