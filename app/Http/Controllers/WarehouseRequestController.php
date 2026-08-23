@@ -363,7 +363,7 @@ class WarehouseRequestController extends Controller
             'warehouse_material_id' => 'required|exists:warehouse_materials,id',
             'warehouse_supplier_id' => 'required|exists:warehouse_suppliers,id',
             'quantity' => 'required|numeric|min:0.01',
-            'expiration_date' => 'required|date|after_or_equal:today',
+            'expiration_date' => 'nullable|date|after_or_equal:today',
             'batch_number' => 'nullable|string|max:100',
             'document_number' => 'nullable|string|max:100',
             'notes' => 'nullable|string|max:1000',
@@ -508,7 +508,9 @@ class WarehouseRequestController extends Controller
             ->with([
                 'category',
                 'stocks' => fn ($q) => $q->where('warehouse_id', $currentWarehouse->id),
-                'stockEntries' => fn ($q) => $q->where('warehouse_id', $currentWarehouse->id)->orderBy('expiration_date'),
+                'stockEntries' => fn ($q) => $q->where('warehouse_id', $currentWarehouse->id)
+                    ->orderByRaw('expiration_date IS NULL')
+                    ->orderBy('expiration_date'),
             ])
             ->orderBy('name');
 
