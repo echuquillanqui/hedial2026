@@ -40,6 +40,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'warehouse.requests.dispatch',
             'warehouse.requests.receive',
             'warehouse.requests.print',
+            'warehouse.configuration.manage',
         ];
 
         foreach ($permissions as $permission) {
@@ -63,8 +64,6 @@ class RolesAndPermissionsSeeder extends Seeder
 
             'warehouse.requests.view',
             'warehouse.requests.create',
-            'warehouse.requests.update.status',
-            'warehouse.requests.dispatch',
             'warehouse.requests.receive',
             'warehouse.requests.print',
             ],
@@ -90,6 +89,12 @@ class RolesAndPermissionsSeeder extends Seeder
                 'dashboard.view',
                 'warehouse.requests.view', 'warehouse.requests.create', 'warehouse.requests.update.status',
                 'warehouse.requests.dispatch', 'warehouse.requests.receive', 'warehouse.requests.print',
+            ],
+            'logistica' => [
+                'dashboard.view',
+                'warehouse.requests.view', 'warehouse.requests.create', 'warehouse.requests.update.status',
+                'warehouse.requests.dispatch', 'warehouse.requests.print',
+                'warehouse.configuration.manage',
             ],
         ];
 

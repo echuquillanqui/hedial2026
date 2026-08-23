@@ -25,14 +25,15 @@
         </div>
         <div class="mb-3">
             <label class="form-label">Área operativa solicitante</label>
-            <select name="operational_area_id" class="form-select">
-              <option value="">Sin área específica...</option>
+            <select name="operational_area_id" class="form-select" required>
+              <option value="">Seleccione el área responsable...</option>
               @foreach($operationalAreas as $areaOption)
                 <option value="{{ $areaOption->id }}">
                   {{ $areaOption->name }} ({{ $areaOption->sede?->name ?? 'Sin sede' }})
                 </option>
               @endforeach
             </select>
+            <small class="text-muted">El área seleccionada será responsable de confirmar la recepción.</small>
         </div>
         <div class="mb-3">
             <label class="form-label">Observaciones</label>

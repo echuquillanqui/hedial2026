@@ -18,6 +18,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Builder;
 
 class WarehouseRequestController extends Controller
 {
@@ -61,6 +62,7 @@ class WarehouseRequestController extends Controller
     public function __construct()
     {
         $this->middleware('permission:warehouse.requests.view')->only(['dashboard', 'index', 'byArea', 'categories', 'materials', 'stocks', 'movements', 'entries', 'suppliers', 'downloadAlerts']);
+        $this->middleware('permission:warehouse.configuration.manage')->only(['configuration', 'updateConfiguration']);
         $this->middleware('permission:warehouse.requests.print')->only(['printRequest', 'printDispatch']);
         $this->middleware('permission:warehouse.requests.create')->only(['store']);
         $this->middleware('permission:warehouse.requests.update.status')->only(['updateStatus']);
@@ -78,16 +80,8 @@ class WarehouseRequestController extends Controller
 
         abort_unless($currentWarehouse, 403, 'No existe almacén configurado para la sede activa.');
 
-        $query = WarehouseRequest::query()
-            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material.category', 'requester', 'operationalArea'])
-            ->where(function ($q) use ($currentWarehouse, $principalWarehouse) {
-                $q->where('from_warehouse_id', $currentWarehouse->id)
-                    ->orWhere('to_warehouse_id', $currentWarehouse->id);
-
-                if ($principalWarehouse && $currentWarehouse->is_principal) {
-                    $q->orWhere('to_warehouse_id', $principalWarehouse->id);
-                }
-            });
+        $query = $this->visibleRequestsQuery()
+            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material.category', 'requester', 'operationalArea']);
 
         if ($request->filled('search')) {
             $term = trim((string) $request->input('search'));
@@ -125,6 +119,7 @@ class WarehouseRequestController extends Controller
         $operationalAreas = OperationalArea::query()
             ->with('sede')
             ->where('sede_id', $currentSedeId)
+            ->when(! $this->isLogisticsUser(), fn ($query) => $query->whereHas('users', fn ($users) => $users->whereKey(Auth::id())))
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -170,16 +165,8 @@ class WarehouseRequestController extends Controller
 
         abort_unless($currentWarehouse, 403, 'No existe almacén configurado para la sede activa.');
 
-        $query = WarehouseRequest::query()
-            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material.category', 'requester', 'operationalArea'])
-            ->where(function ($q) use ($currentWarehouse, $principalWarehouse) {
-                $q->where('from_warehouse_id', $currentWarehouse->id)
-                    ->orWhere('to_warehouse_id', $currentWarehouse->id);
-
-                if ($principalWarehouse && $currentWarehouse->is_principal) {
-                    $q->orWhere('to_warehouse_id', $principalWarehouse->id);
-                }
-            });
+        $query = $this->visibleRequestsQuery()
+            ->with(['fromWarehouse.sede', 'toWarehouse.sede', 'items.material.category', 'requester', 'operationalArea']);
 
         if ($request->filled('search')) {
             $term = trim((string) $request->input('search'));
@@ -242,7 +229,10 @@ class WarehouseRequestController extends Controller
         $totalStocks = WarehouseStock::query()->where('warehouse_id', $currentWarehouse->id)->count();
         $totalAlerts = $alerts->count();
         $pendingRequests = WarehouseRequest::query()
-            ->where('from_warehouse_id', $currentWarehouse->id)
+            ->when(! $this->isLogisticsUser(), fn ($query) => $query->whereIn(
+                'operational_area_id',
+                Auth::user()->operationalAreas()->pluck('operational_areas.id')
+            ))
             ->whereIn('status', ['submitted', 'received_by_warehouse', 'approved', 'partially_dispatched', 'dispatched', 'partially_received'])
             ->count();
 
@@ -639,7 +629,7 @@ class WarehouseRequestController extends Controller
 
         $validated = $request->validate([
             'to_warehouse_id' => 'required|exists:warehouses,id',
-            'operational_area_id' => 'nullable|exists:operational_areas,id',
+            'operational_area_id' => 'required|exists:operational_areas,id',
             'observations' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.warehouse_material_id' => 'required|exists:warehouse_materials,id',
@@ -663,6 +653,7 @@ class WarehouseRequestController extends Controller
                 ->where('sede_id', $fromWarehouse->sede_id)
                 ->exists();
             abort_unless($belongsToCurrentSede, 422, 'El área operativa seleccionada no pertenece a la sede activa.');
+            $this->ensureUserCanManageArea((int) $validated['operational_area_id']);
         }
 
         DB::transaction(function () use ($validated, $fromWarehouse, $toWarehouse) {
@@ -695,7 +686,8 @@ class WarehouseRequestController extends Controller
 
     public function updateStatus(Request $request, WarehouseRequest $warehouseRequest)
     {
-        $this->ensureRequestBelongsToCurrentWarehouse($warehouseRequest);
+        abort_unless($this->isLogisticsUser(), 403, 'Solo el personal de LOGÍSTICA puede gestionar el estado de las solicitudes.');
+        $this->ensureRequestIsVisible($warehouseRequest);
 
         $validated = $request->validate([
             'status' => 'required|in:draft,submitted,received_by_warehouse,approved,rejected,cancelled',
@@ -721,11 +713,7 @@ class WarehouseRequestController extends Controller
 
     public function dispatch(Request $request, WarehouseRequest $warehouseRequest)
     {
-        abort_unless(
-            $warehouseRequest->to_warehouse_id === $this->currentWarehouseOrFail()->id,
-            403,
-            'Solo el almacén de destino puede despachar esta solicitud.'
-        );
+        abort_unless($this->isLogisticsUser(), 403, 'Solo el personal de LOGÍSTICA puede aprobar y despachar solicitudes.');
         abort_unless(in_array($warehouseRequest->status, ['approved', 'partially_dispatched'], true), 422, 'Solo se puede despachar solicitudes aprobadas.');
 
         $validated = $request->validate([
@@ -793,6 +781,8 @@ class WarehouseRequestController extends Controller
 
     public function receive(Request $request, WarehouseRequest $warehouseRequest)
     {
+        abort_unless($warehouseRequest->operational_area_id, 422, 'La solicitud no tiene un área responsable asignada.');
+        $this->ensureUserCanManageArea((int) $warehouseRequest->operational_area_id, false);
         abort_unless(
             $warehouseRequest->from_warehouse_id === $this->currentWarehouseOrFail()->id,
             403,
@@ -871,7 +861,7 @@ class WarehouseRequestController extends Controller
 
     public function printRequest(WarehouseRequest $warehouseRequest)
     {
-        $this->ensureRequestBelongsToCurrentWarehouse($warehouseRequest);
+        $this->ensureRequestIsVisible($warehouseRequest);
         $warehouseRequest->load(['items.material.category', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
 
         $pdf = Pdf::loadView('warehouse.requests.print_request', [
@@ -884,7 +874,7 @@ class WarehouseRequestController extends Controller
 
     public function printDispatch(WarehouseRequest $warehouseRequest)
     {
-        $this->ensureRequestBelongsToCurrentWarehouse($warehouseRequest);
+        $this->ensureRequestIsVisible($warehouseRequest);
         abort_unless(in_array($warehouseRequest->status, ['approved', 'partially_dispatched', 'dispatched', 'partially_received', 'received'], true), 422, 'El pedido debe estar aprobado para imprimir despacho.');
 
         $warehouseRequest->load(['items.material.category', 'fromWarehouse.sede', 'toWarehouse.sede', 'requester']);
@@ -952,6 +942,33 @@ class WarehouseRequestController extends Controller
     public static function receiveStatusLabel(string $status): string
     {
         return self::RECEIVE_STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status));
+    }
+
+    public function configuration()
+    {
+        $this->ensureWarehouseSetup();
+        $sedes = Sede::query()->with('warehouse')->where('is_active', true)->orderBy('name')->get();
+        $principalWarehouse = Warehouse::query()->with('sede')->where('is_principal', true)->first();
+
+        return view('warehouse.configuration', compact('sedes', 'principalWarehouse'));
+    }
+
+    public function updateConfiguration(Request $request)
+    {
+        $validated = $request->validate(['principal_sede_id' => 'required|exists:sedes,id']);
+        $sede = Sede::query()->where('is_active', true)->findOrFail($validated['principal_sede_id']);
+
+        DB::transaction(function () use ($sede) {
+            Sede::query()->update(['is_principal' => false]);
+            Warehouse::query()->update(['is_principal' => false]);
+            $sede->update(['is_principal' => true]);
+            Warehouse::query()->updateOrCreate(
+                ['sede_id' => $sede->id],
+                ['name' => 'Almacén '.$sede->name, 'is_principal' => true, 'is_active' => true]
+            );
+        });
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Almacén principal actualizado correctamente.']);
     }
 
 
@@ -1050,14 +1067,39 @@ class WarehouseRequestController extends Controller
         );
     }
 
-    private function ensureRequestBelongsToCurrentWarehouse(WarehouseRequest $warehouseRequest): void
+    private function visibleRequestsQuery(): Builder
     {
-        $warehouseId = $this->currentWarehouseOrFail()->id;
+        $query = WarehouseRequest::query();
+
+        if ($this->isLogisticsUser()) {
+            return $query;
+        }
+
+        $areaIds = Auth::user()->operationalAreas()->pluck('operational_areas.id');
+
+        return $query->whereIn('operational_area_id', $areaIds);
+    }
+
+    private function isLogisticsUser(): bool
+    {
+        return (bool) Auth::user()?->hasAnyRole(['logistica', 'almacen', 'superadmin']);
+    }
+
+    private function ensureRequestIsVisible(WarehouseRequest $warehouseRequest): void
+    {
+        abort_unless($this->visibleRequestsQuery()->whereKey($warehouseRequest->id)->exists(), 403, 'No tiene acceso a la solicitud o a su área.');
+    }
+
+    private function ensureUserCanManageArea(int $areaId, bool $allowLogistics = true): void
+    {
+        if ($allowLogistics && $this->isLogisticsUser()) {
+            return;
+        }
 
         abort_unless(
-            in_array($warehouseId, [$warehouseRequest->from_warehouse_id, $warehouseRequest->to_warehouse_id], true),
+            Auth::user()?->operationalAreas()->whereKey($areaId)->exists(),
             403,
-            'La solicitud no pertenece a la sede activa.'
+            'Solo un usuario asignado al área solicitante puede realizar esta acción.'
         );
     }
 }
