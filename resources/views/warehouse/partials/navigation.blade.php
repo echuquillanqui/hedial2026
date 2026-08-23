@@ -20,4 +20,7 @@
     @endif
     <a href="{{ route('warehouse.requests.index') }}" class="{{ request()->routeIs('warehouse.requests.index') ? 'active' : '' }}"><i class="bi bi-send"></i> Solicitudes</a>
     <a href="{{ route('warehouse.materials.index') }}" class="{{ request()->routeIs('warehouse.materials.*') ? 'active' : '' }}"><i class="bi bi-sliders"></i> Configuración</a>
+    @can('warehouse.configuration.manage')
+    <a href="{{ route('warehouse.configuration.edit') }}" class="{{ request()->routeIs('warehouse.configuration.*') ? 'active' : '' }}"><i class="bi bi-building-gear"></i> Almacén principal</a>
+    @endcan
 </nav>
