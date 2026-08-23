@@ -44,9 +44,26 @@
                             <td class="fw-semibold">{{ $material->name }}</td>
                             <td>{{ $material->category?->name ?? 'Sin categoría' }}</td>
                             <td>{{ number_format((float) ($stock?->current_qty ?? 0), 2) }} {{ $material->unit }}<small class="d-block text-muted">Mín. {{ number_format((float) ($stock?->min_qty ?? 0), 2) }}</small></td>
-                            <td>@if($material->automatic_consumption)<span class="badge rounded-pill bg-primary-subtle text-primary"><i class="bi bi-lightning-charge-fill"></i> {{ number_format((float)$material->quantity_per_session, 2) }} {{ $material->unit }}</span>@else<span class="text-muted">Manual</span>@endif</td>
+                            <td>
+                                @if($material->automatic_consumption)
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary">
+                                        <i class="bi bi-lightning-charge-fill"></i>
+                                        {{ number_format((float) $material->quantity_per_session, 2) }} {{ $material->unit }}
+                                    </span>
+                                @else
+                                    <span class="text-muted">Manual</span>
+                                @endif
+                            </td>
                             <td><span class="badge bg-{{ $material->is_active ? 'success' : 'secondary' }}">{{ $material->is_active ? 'ACTIVO' : 'INACTIVO' }}</span></td>
-                            <td class="text-end">@if($currentWarehouse?->is_principal)@can('warehouse.requests.create')<button type="button" class="btn btn-sm btn-outline-primary" @click="materialId={{ $material->id }}; materialName={{ Illuminate\Support\Js::from($material->name) }}; automatic={{ $material->automatic_consumption ? 'true' : 'false' }}; quantity='{{ $material->quantity_per_session }}'; consumptionOpen=true" data-bs-toggle="modal" data-bs-target="#consumptionModal"><i class="bi bi-sliders"></i></button>@endcan@endif</td>
+                            <td class="text-end">
+                                @if($currentWarehouse?->is_principal)
+                                    @can('warehouse.requests.create')
+                                        <button type="button" class="btn btn-sm btn-outline-primary" @click="materialId={{ $material->id }}; materialName={{ Illuminate\Support\Js::from($material->name) }}; automatic={{ $material->automatic_consumption ? 'true' : 'false' }}; quantity='{{ $material->quantity_per_session }}'; consumptionOpen=true" data-bs-toggle="modal" data-bs-target="#consumptionModal" aria-label="Configurar consumo de {{ $material->name }}">
+                                            <i class="bi bi-sliders"></i>
+                                        </button>
+                                    @endcan
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="7" class="text-center py-4 text-muted">Sin materiales registrados.</td></tr>
