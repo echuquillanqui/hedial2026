@@ -31,7 +31,8 @@
         <div class="row g-2">
           <div class="col-12">
             <label class="form-label">Stock mínimo</label>
-            <input type="number" name="min_qty" class="form-control" min="0" step="0.01" value="0" required>
+            <input type="number" name="min_qty" class="form-control" min="0.01" step="0.01" value="1" required>
+            <small class="text-muted">Se mostrará una alerta cuando el stock llegue a este valor.</small>
           </div>
         </div>
         <div class="alert alert-info py-2 mt-3 mb-0"><i class="bi bi-info-circle me-1"></i> El stock inicial se registra después en <strong>Ingresos</strong>, indicando proveedor y fecha de vencimiento.</div>

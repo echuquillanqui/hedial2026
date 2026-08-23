@@ -267,7 +267,7 @@ class WarehouseRequestController extends Controller
             'name' => 'required|string|max:255',
             'unit' => 'required|string|max:50',
             'warehouse_material_category_id' => 'required|exists:warehouse_material_categories,id',
-            'min_qty' => 'required|numeric|min:0',
+            'min_qty' => 'required|numeric|min:0.01',
             'automatic_consumption' => 'nullable|boolean',
             'quantity_per_session' => 'nullable|required_if:automatic_consumption,1|numeric|min:0.01',
         ]);
@@ -292,6 +292,39 @@ class WarehouseRequestController extends Controller
         });
 
         return back()->with('toastr', ['type' => 'success', 'message' => 'Material registrado.']);
+    }
+
+    public function updateMaterial(Request $request, WarehouseMaterial $warehouseMaterial)
+    {
+        $this->authorizePermission('warehouse.requests.create');
+        $this->ensurePrincipalWarehouseContext();
+        $currentWarehouse = $this->currentWarehouseOrFail();
+
+        $validated = $request->validate([
+            'code' => 'required|string|max:50|unique:warehouse_materials,code,'.$warehouseMaterial->id,
+            'name' => 'required|string|max:255',
+            'unit' => 'required|string|max:50',
+            'warehouse_material_category_id' => 'required|exists:warehouse_material_categories,id',
+            'min_qty' => 'required|numeric|min:0.01',
+            'is_active' => 'required|boolean',
+        ]);
+
+        DB::transaction(function () use ($validated, $warehouseMaterial, $currentWarehouse) {
+            $warehouseMaterial->update([
+                'code' => $validated['code'],
+                'name' => $validated['name'],
+                'unit' => $validated['unit'],
+                'warehouse_material_category_id' => $validated['warehouse_material_category_id'],
+                'is_active' => (bool) $validated['is_active'],
+            ]);
+
+            WarehouseStock::query()->updateOrCreate(
+                ['warehouse_id' => $currentWarehouse->id, 'warehouse_material_id' => $warehouseMaterial->id],
+                ['min_qty' => $validated['min_qty']]
+            );
+        });
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Material actualizado.']);
     }
 
     public function entries(Request $request)
