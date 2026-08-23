@@ -34,4 +34,9 @@ class WarehouseMaterial extends Model
     {
         return $this->belongsTo(WarehouseMaterialCategory::class, 'warehouse_material_category_id');
     }
+
+    public function stockEntries()
+    {
+        return $this->hasMany(WarehouseStockEntry::class, 'warehouse_material_id');
+    }
 }

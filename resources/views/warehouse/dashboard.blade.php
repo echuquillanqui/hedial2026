@@ -50,6 +50,7 @@
                         <th>Stock actual</th>
                         <th>Stock mínimo</th>
                         <th>Brecha</th>
+                        <th>Próximo vencimiento</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,10 +67,12 @@
                             <td><span class="badge text-bg-danger">{{ number_format($alert->current_qty, 2) }} {{ $alert->material->unit }}</span></td>
                             <td>{{ number_format($alert->min_qty, 2) }} {{ $alert->material->unit }}</td>
                             <td>{{ number_format($gap, 2) }} {{ $alert->material->unit }}</td>
+                            @php($nextEntry = $alert->material->stockEntries->first(fn ($entry) => $entry->expiration_date->isToday() || $entry->expiration_date->isFuture()))
+                            <td>@if($nextEntry)<span class="badge {{ $nextEntry->expiration_date->lte(today()->addDays(30)) ? 'text-bg-warning' : 'text-bg-light' }}">{{ $nextEntry->expiration_date->format('d/m/Y') }}</span>@else<span class="text-muted">Sin fecha vigente</span>@endif</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center py-4 text-muted">No hay productos en alerta para esta sede.</td>
+                            <td colspan="6" class="text-center py-4 text-muted">No hay productos en alerta para esta sede.</td>
                         </tr>
                     @endforelse
                 </tbody>

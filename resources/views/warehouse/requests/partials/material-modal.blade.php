@@ -29,15 +29,12 @@
           <input type="text" name="unit" class="form-control" required placeholder="UND, CAJA, BOLSA...">
         </div>
         <div class="row g-2">
-          <div class="col-md-6">
-            <label class="form-label">Stock actual</label>
-            <input type="number" name="current_qty" class="form-control" min="0" step="0.01" value="0" required>
-          </div>
-          <div class="col-md-6">
+          <div class="col-12">
             <label class="form-label">Stock mínimo</label>
             <input type="number" name="min_qty" class="form-control" min="0" step="0.01" value="0" required>
           </div>
         </div>
+        <div class="alert alert-info py-2 mt-3 mb-0"><i class="bi bi-info-circle me-1"></i> El stock inicial se registra después en <strong>Ingresos</strong>, indicando proveedor y fecha de vencimiento.</div>
         <div class="form-check form-switch mt-3">
           <input class="form-check-input" type="checkbox" name="automatic_consumption" value="1" id="newAutomaticConsumption">
           <label class="form-check-label" for="newAutomaticConsumption">Consumo automático por sesión</label>

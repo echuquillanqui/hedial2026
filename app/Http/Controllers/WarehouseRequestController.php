@@ -11,6 +11,8 @@ use App\Models\WarehouseRequest;
 use App\Models\WarehouseRequestStatusLog;
 use App\Models\WarehouseStock;
 use App\Models\WarehouseStockMovement;
+use App\Models\WarehouseStockEntry;
+use App\Models\WarehouseSupplier;
 use App\Support\CurrentSede;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -58,7 +60,7 @@ class WarehouseRequestController extends Controller
 
     public function __construct()
     {
-        $this->middleware('permission:warehouse.requests.view')->only(['dashboard', 'index', 'byArea', 'categories', 'materials', 'stocks', 'movements', 'downloadAlerts']);
+        $this->middleware('permission:warehouse.requests.view')->only(['dashboard', 'index', 'byArea', 'categories', 'materials', 'stocks', 'movements', 'entries', 'suppliers', 'downloadAlerts']);
         $this->middleware('permission:warehouse.requests.print')->only(['printRequest', 'printDispatch']);
         $this->middleware('permission:warehouse.requests.create')->only(['store']);
         $this->middleware('permission:warehouse.requests.update.status')->only(['updateStatus']);
@@ -228,7 +230,9 @@ class WarehouseRequestController extends Controller
         $currentWarehouse = $this->currentWarehouseOrFail();
 
         $alerts = WarehouseStock::query()
-            ->with(['material.category'])
+            ->with(['material.category', 'material.stockEntries' => fn ($query) => $query
+                ->where('warehouse_id', $currentWarehouse->id)
+                ->orderBy('expiration_date')])
             ->where('warehouse_id', $currentWarehouse->id)
             ->whereColumn('current_qty', '<=', 'min_qty')
             ->orderByRaw('CASE WHEN min_qty = 0 THEN 999999 ELSE (current_qty / min_qty) END ASC')
@@ -263,7 +267,6 @@ class WarehouseRequestController extends Controller
             'name' => 'required|string|max:255',
             'unit' => 'required|string|max:50',
             'warehouse_material_category_id' => 'required|exists:warehouse_material_categories,id',
-            'current_qty' => 'required|numeric|min:0',
             'min_qty' => 'required|numeric|min:0',
             'automatic_consumption' => 'nullable|boolean',
             'quantity_per_session' => 'nullable|required_if:automatic_consumption,1|numeric|min:0.01',
@@ -283,12 +286,109 @@ class WarehouseRequestController extends Controller
             WarehouseStock::query()->create([
                 'warehouse_id' => $currentWarehouse->id,
                 'warehouse_material_id' => $material->id,
-                'current_qty' => $validated['current_qty'],
+                'current_qty' => 0,
                 'min_qty' => $validated['min_qty'],
             ]);
         });
 
         return back()->with('toastr', ['type' => 'success', 'message' => 'Material registrado.']);
+    }
+
+    public function entries(Request $request)
+    {
+        $this->ensureWarehouseSetup();
+        $currentWarehouse = $this->currentWarehouseOrFail();
+        $this->ensurePrincipalWarehouseContext();
+
+        $entries = WarehouseStockEntry::query()
+            ->with(['material.category', 'supplier', 'receiver'])
+            ->where('warehouse_id', $currentWarehouse->id)
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $term = trim((string) $request->input('search'));
+                $query->where(function ($query) use ($term) {
+                    $query->whereHas('material', fn ($material) => $material->where('name', 'like', "%{$term}%")->orWhere('code', 'like', "%{$term}%"))
+                        ->orWhereHas('supplier', fn ($supplier) => $supplier->where('business_name', 'like', "%{$term}%"))
+                        ->orWhere('batch_number', 'like', "%{$term}%");
+                });
+            })
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        $materials = WarehouseMaterial::query()->where('is_active', true)->orderBy('name')->get();
+        $suppliers = WarehouseSupplier::query()->where('is_active', true)->orderBy('business_name')->get();
+
+        return view('warehouse.entries.index', compact('entries', 'materials', 'suppliers', 'currentWarehouse'));
+    }
+
+    public function storeEntry(Request $request)
+    {
+        $this->authorizePermission('warehouse.requests.create');
+        $this->ensurePrincipalWarehouseContext();
+        $warehouse = $this->currentWarehouseOrFail();
+        $validated = $request->validate([
+            'warehouse_material_id' => 'required|exists:warehouse_materials,id',
+            'warehouse_supplier_id' => 'required|exists:warehouse_suppliers,id',
+            'quantity' => 'required|numeric|min:0.01',
+            'expiration_date' => 'required|date|after_or_equal:today',
+            'batch_number' => 'nullable|string|max:100',
+            'document_number' => 'nullable|string|max:100',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        DB::transaction(function () use ($validated, $warehouse) {
+            $entry = WarehouseStockEntry::query()->create($validated + [
+                'warehouse_id' => $warehouse->id,
+                'received_by' => Auth::id(),
+            ]);
+            $stock = WarehouseStock::query()->firstOrCreate(
+                ['warehouse_id' => $warehouse->id, 'warehouse_material_id' => $validated['warehouse_material_id']],
+                ['current_qty' => 0, 'min_qty' => 0]
+            );
+            $stock = WarehouseStock::query()->lockForUpdate()->findOrFail($stock->id);
+            $stock->increment('current_qty', $validated['quantity']);
+            WarehouseStockMovement::query()->create([
+                'warehouse_id' => $warehouse->id,
+                'warehouse_material_id' => $validated['warehouse_material_id'],
+                'movement_type' => 'in',
+                'qty' => $validated['quantity'],
+                'reference_type' => WarehouseStockEntry::class,
+                'reference_id' => $entry->id,
+                'performed_by' => Auth::id(),
+                'notes' => 'Ingreso de proveedor '.$entry->supplier()->value('business_name').($entry->batch_number ? ' · Lote '.$entry->batch_number : ''),
+            ]);
+        });
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Ingreso registrado y stock actualizado.']);
+    }
+
+    public function suppliers(Request $request)
+    {
+        $this->ensureWarehouseSetup();
+        $currentWarehouse = $this->currentWarehouseOrFail();
+        $this->ensurePrincipalWarehouseContext();
+        $suppliers = WarehouseSupplier::query()
+            ->withCount('entries')
+            ->when($request->filled('search'), fn ($query) => $query->where('business_name', 'like', '%'.trim((string) $request->input('search')).'%')->orWhere('tax_id', 'like', '%'.trim((string) $request->input('search')).'%'))
+            ->orderBy('business_name')->paginate(20)->withQueryString();
+
+        return view('warehouse.suppliers.index', compact('suppliers', 'currentWarehouse'));
+    }
+
+    public function storeSupplier(Request $request)
+    {
+        $this->authorizePermission('warehouse.requests.create');
+        $this->ensurePrincipalWarehouseContext();
+        $validated = $request->validate([
+            'business_name' => 'required|string|max:255',
+            'tax_id' => 'required|string|max:20|unique:warehouse_suppliers,tax_id',
+            'contact_name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:30',
+            'email' => 'nullable|email|max:255',
+        ]);
+        WarehouseSupplier::query()->create($validated + ['is_active' => true]);
+
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Proveedor registrado.']);
     }
 
     public function updateStock(Request $request, WarehouseStock $warehouseStock)
@@ -375,6 +475,7 @@ class WarehouseRequestController extends Controller
             ->with([
                 'category',
                 'stocks' => fn ($q) => $q->where('warehouse_id', $currentWarehouse->id),
+                'stockEntries' => fn ($q) => $q->where('warehouse_id', $currentWarehouse->id)->orderBy('expiration_date'),
             ])
             ->orderBy('name');
 
