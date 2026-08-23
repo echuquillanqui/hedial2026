@@ -35,7 +35,7 @@
             <small class="text-muted">Se mostrará una alerta cuando el stock llegue a este valor.</small>
           </div>
         </div>
-        <div class="alert alert-info py-2 mt-3 mb-0"><i class="bi bi-info-circle me-1"></i> El stock inicial se registra después en <strong>Ingresos</strong>, indicando proveedor y fecha de vencimiento.</div>
+        <div class="alert alert-info py-2 mt-3 mb-0"><i class="bi bi-info-circle me-1"></i> El stock inicial se registra después en <strong>Ingresos</strong>, indicando proveedor y, cuando corresponda, fecha de vencimiento.</div>
         <div class="form-check form-switch mt-3">
           <input class="form-check-input" type="checkbox" name="automatic_consumption" value="1" id="newAutomaticConsumption">
           <label class="form-check-label" for="newAutomaticConsumption">Consumo automático por sesión</label>

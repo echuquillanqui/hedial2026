@@ -42,8 +42,9 @@
                             $stock = $material->stocks->first();
                             $nextEntry = $material->stockEntries->first();
                             $lowStock = !$stock || (float) $stock->current_qty <= (float) $stock->min_qty;
-                            $expired = $nextEntry && $nextEntry->expiration_date->isPast();
-                            $nearExpiry = $nextEntry && !$expired && $nextEntry->expiration_date->lte(today()->addDays(30));
+                            $hasExpiration = $nextEntry?->expiration_date !== null;
+                            $expired = $hasExpiration && $nextEntry->expiration_date->isPast();
+                            $nearExpiry = $hasExpiration && !$expired && $nextEntry->expiration_date->lte(today()->addDays(30));
                             $rowClass = ($lowStock || $expired || !$nextEntry) ? 'table-danger' : ($nearExpiry ? 'table-warning' : '');
                         @endphp
                         <tr class="{{ $rowClass }}">
@@ -51,7 +52,7 @@
                             <td class="fw-semibold">{{ $material->name }}</td>
                             <td>{{ $material->category?->name ?? 'Sin categoría' }}</td>
                             <td><span class="badge text-bg-{{ $lowStock ? 'danger' : 'success' }}">{{ number_format((float) ($stock?->current_qty ?? 0), 2) }} {{ $material->unit }}</span><small class="d-block {{ $lowStock ? 'text-danger fw-semibold' : 'text-muted' }}">Mín. {{ number_format((float) ($stock?->min_qty ?? 0), 2) }}</small></td>
-                            <td>@if($nextEntry)<span class="badge text-bg-{{ $expired ? 'danger' : ($nearExpiry ? 'warning' : 'success') }}">{{ $nextEntry->expiration_date->format('d/m/Y') }}</span><small class="d-block {{ $expired ? 'text-danger fw-semibold' : 'text-muted' }}">{{ $expired ? 'Vencido' : ($nextEntry->batch_number ? 'Lote '.$nextEntry->batch_number : 'Sin lote') }}</small>@else<span class="badge text-bg-danger">Sin vencimiento</span><small class="d-block text-danger">Registre un ingreso</small>@endif</td>
+                            <td>@if($hasExpiration)<span class="badge text-bg-{{ $expired ? 'danger' : ($nearExpiry ? 'warning' : 'success') }}">{{ $nextEntry->expiration_date->format('d/m/Y') }}</span><small class="d-block {{ $expired ? 'text-danger fw-semibold' : 'text-muted' }}">{{ $expired ? 'Vencido' : ($nextEntry->batch_number ? 'Lote '.$nextEntry->batch_number : 'Sin lote') }}</small>@elseif($nextEntry)<span class="badge text-bg-secondary">No vence</span><small class="d-block text-muted">{{ $nextEntry->batch_number ? 'Lote '.$nextEntry->batch_number : 'Producto sin vencimiento' }}</small>@else<span class="badge text-bg-danger">Sin ingresos</span><small class="d-block text-danger">Registre un ingreso</small>@endif</td>
                             <td>
                                 @if($material->automatic_consumption)
                                     <span class="badge rounded-pill bg-primary-subtle text-primary">
@@ -84,8 +85,6 @@
         </div>
         <div class="p-3">{{ $materials->links() }}</div>
     </div>
-</div>
-
 @if($currentWarehouse?->is_principal)
 @include('warehouse.requests.partials.material-modal')
 <div class="modal fade" id="editMaterialModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><form class="modal-content" method="POST" :action="`{{ url('almacen/materiales') }}/${edit.id}`">@csrf @method('PUT')
@@ -97,7 +96,7 @@
     <div class="col-md-5"><label class="form-label">Unidad</label><input name="unit" x-model="edit.unit" class="form-control" maxlength="50" required></div>
     <div class="col-md-6"><label class="form-label">Stock mínimo</label><input type="number" name="min_qty" x-model="edit.min_qty" min="0.01" step="0.01" class="form-control" required></div>
     <div class="col-md-6"><label class="form-label">Estado</label><select name="is_active" x-model="edit.is_active" class="form-select" required><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
-  </div><div class="alert alert-info py-2 mt-3 mb-0"><i class="bi bi-calendar-check me-1"></i> El vencimiento se registra por lote desde <a href="{{ route('warehouse.entries.index') }}">Ingresos</a> y es obligatorio.</div></div>
+  </div><div class="alert alert-info py-2 mt-3 mb-0"><i class="bi bi-calendar-check me-1"></i> El vencimiento se registra por lote desde <a href="{{ route('warehouse.entries.index') }}">Ingresos</a>. Puede omitirse para productos que no vencen.</div></div>
   <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary">Guardar cambios</button></div>
 </form></div></div>
 <div class="modal fade" id="consumptionModal" tabindex="-1" aria-hidden="true">
@@ -111,6 +110,7 @@
   </form></div>
 </div>
 @endif
+</div>
 @endsection
 
 @push('scripts')
