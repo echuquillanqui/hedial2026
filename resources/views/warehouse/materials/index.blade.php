@@ -35,7 +35,7 @@
     <div class="logistics-panel overflow-hidden">
         <div class="table-responsive">
             <table class="table logistics-table table-hover mb-0">
-                <thead><tr><th>Código</th><th>Material</th><th>Categoría</th><th>Stock sede</th><th>Consumo por sesión</th><th>Estado</th><th></th></tr></thead>
+                <thead><tr><th>Código</th><th>Material</th><th>Categoría</th><th>Stock sede</th><th>Próximo vencimiento</th><th>Consumo por sesión</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
                     @forelse($materials as $material)
                         @php($stock = $material->stocks->first())
@@ -44,6 +44,8 @@
                             <td class="fw-semibold">{{ $material->name }}</td>
                             <td>{{ $material->category?->name ?? 'Sin categoría' }}</td>
                             <td>{{ number_format((float) ($stock?->current_qty ?? 0), 2) }} {{ $material->unit }}<small class="d-block text-muted">Mín. {{ number_format((float) ($stock?->min_qty ?? 0), 2) }}</small></td>
+                            @php($nextEntry = $material->stockEntries->first(fn ($entry) => $entry->expiration_date->isToday() || $entry->expiration_date->isFuture()))
+                            <td>@if($nextEntry)<span class="badge {{ $nextEntry->expiration_date->lte(today()->addDays(30)) ? 'text-bg-warning' : 'text-bg-light' }}">{{ $nextEntry->expiration_date->format('d/m/Y') }}</span><small class="d-block text-muted">{{ $nextEntry->batch_number ? 'Lote '.$nextEntry->batch_number : 'Sin lote' }}</small>@else<span class="text-muted">Sin fecha vigente</span>@endif</td>
                             <td>
                                 @if($material->automatic_consumption)
                                     <span class="badge rounded-pill bg-primary-subtle text-primary">
@@ -66,7 +68,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="text-center py-4 text-muted">Sin materiales registrados.</td></tr>
+                        <tr><td colspan="8" class="text-center py-4 text-muted">Sin materiales registrados.</td></tr>
                     @endforelse
                 </tbody>
             </table>
