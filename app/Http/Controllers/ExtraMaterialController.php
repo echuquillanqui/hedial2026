@@ -72,6 +72,7 @@ class ExtraMaterialController extends Controller
 
         $hemodialysisMaterials = HemodialysisMaterial::query()
             ->withCount('consumptions')
+            ->where('is_active', true)
             ->orderBy('name')
             ->get();
 
@@ -172,7 +173,7 @@ class ExtraMaterialController extends Controller
 
             return back()->with('toastr', [
                 'type' => 'warning',
-                'message' => 'El material tiene atenciones previas. Se desactivó para futuras sesiones y no se eliminó el historial.',
+                'message' => 'Material retirado de la lista. Su historial de atenciones se conserva.',
             ]);
         }
 
