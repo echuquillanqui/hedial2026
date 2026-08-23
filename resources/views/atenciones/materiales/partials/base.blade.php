@@ -89,7 +89,7 @@
                                 <form action="{{ route('extra-materials.base.destroy', $baseMaterial) }}" method="POST" class="d-inline-flex">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Si el material tiene atenciones previas solo se desactivará para no afectar el historial. ¿Desea continuar?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('El material desaparecerá de esta lista. Si tiene atenciones previas, su historial se conservará. ¿Desea continuar?')">
                                         Eliminar
                                     </button>
                                 </form>
