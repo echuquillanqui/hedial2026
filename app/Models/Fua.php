@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\ClinicalService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Fua extends Model
 {
@@ -15,7 +16,7 @@ class Fua extends Model
     public const SOCIAL_WORK = ClinicalService::SOCIAL_WORK;
     public const CORRECTION = ClinicalService::CORRECTION;
 
-    protected $fillable = ['order_id', 'responsible_user_id', 'type', 'series', 'correlative', 'number', 'corrects_fua_id', 'status'];
+    protected $fillable = ['order_id', 'responsible_user_id', 'generated_by', 'type', 'series', 'correlative', 'number', 'corrects_fua_id', 'status'];
 
     public function order(): BelongsTo
     {
@@ -27,8 +28,25 @@ class Fua extends Model
         return $this->belongsTo(self::class, 'corrects_fua_id');
     }
 
+    public function corrections(): HasMany
+    {
+        return $this->hasMany(self::class, 'corrects_fua_id');
+    }
+
     public function responsibleUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_user_id');
+    }
+
+    public function generatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'generated_by');
+    }
+
+    public function effectiveType(): string
+    {
+        return $this->type === self::CORRECTION
+            ? ($this->correctedFua?->type ?? self::HEMODIALYSIS)
+            : $this->type;
     }
 }

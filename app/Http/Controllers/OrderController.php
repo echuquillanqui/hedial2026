@@ -79,7 +79,7 @@ class OrderController extends Controller
 
         $status = $request->string('status')->upper()->toString();
         $orders = Order::query()
-            ->with(['patient', 'sede', 'assignedProfessional', 'creator'])
+            ->with(['patient', 'sede', 'assignedProfessional', 'creator', 'fua'])
             ->where('attention_type', $type)
             ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
             ->when($request->filled('professional_id'), fn (Builder $query) => $query

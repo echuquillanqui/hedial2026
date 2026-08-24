@@ -88,9 +88,9 @@
                         $canSeeLaboratory = $canViewCatalog || $canViewLaboratoryResults || $canCreateLaboratoryOrders;
                         $canViewAudit = auth()->user()->can('audit.view');
                         $multisectorialMenus = collect([
-                            ['type' => \App\Support\ClinicalService::NUTRITION, 'label' => 'Órdenes Nutrición', 'permission' => 'nutrition.view'],
-                            ['type' => \App\Support\ClinicalService::PSYCHOLOGY, 'label' => 'Órdenes Psicología', 'permission' => 'psychology.view'],
-                            ['type' => \App\Support\ClinicalService::SOCIAL_WORK, 'label' => 'Órdenes Trabajo Social', 'permission' => 'social_work.view'],
+                            ['type' => \App\Support\ClinicalService::NUTRITION, 'label' => 'Nutrición', 'permission' => 'nutrition.view', 'fua_permission' => 'nutrition.fua.view'],
+                            ['type' => \App\Support\ClinicalService::PSYCHOLOGY, 'label' => 'Psicología', 'permission' => 'psychology.view', 'fua_permission' => 'psychology.fua.view'],
+                            ['type' => \App\Support\ClinicalService::SOCIAL_WORK, 'label' => 'Trabajo Social', 'permission' => 'social_work.view', 'fua_permission' => 'social_work.fua.view'],
                         ])->filter(fn ($item) => auth()->user()->can($item['permission']) || $canViewOrders);
                         $canSeeClinicalArea = $canSeeClinicalArea || $multisectorialMenus->isNotEmpty();
                     @endphp
@@ -213,9 +213,12 @@
             @foreach($multisectorialMenus as $sectorMenu)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('orders.multisectorial.*') && request('type') === $sectorMenu['type'] ? 'active' : '' }}" href="{{ route('orders.multisectorial.index', ['type' => $sectorMenu['type']]) }}">
-                    <i class="bi bi-person-lines-fill me-2"></i> {{ $sectorMenu['label'] }}
+                    <i class="bi bi-person-lines-fill me-2"></i> Órdenes {{ $sectorMenu['label'] }}
                 </a>
             </li>
+            @if(auth()->user()->can($sectorMenu['fua_permission']) || $canViewFuas)
+            <li><a class="dropdown-item" href="{{ route('fuas.multisectorial.index', ['type' => $sectorMenu['type'], 'all_dates' => 1]) }}"><i class="bi bi-file-earmark-medical me-2"></i> FUA {{ $sectorMenu['label'] }}</a></li>
+            @endif
             @endforeach
             @if($canViewFuas)
             <li>

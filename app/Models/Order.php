@@ -93,7 +93,12 @@ class Order extends Model
 
     public function fua()
     {
-        return $this->hasOne(Fua::class);
+        return $this->hasOne(Fua::class)->where('type', '!=', Fua::CORRECTION);
+    }
+
+    public function fuaCorrections()
+    {
+        return $this->hasMany(Fua::class)->where('type', Fua::CORRECTION);
     }
 
     public function nephrologyConsultation()
