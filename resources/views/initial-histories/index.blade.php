@@ -1,0 +1,6 @@
+@extends('layouts.app')
+@section('content')
+<div class="container py-4"><div class="d-flex justify-content-between mb-3"><div><h3>Historia Clínica Inicial</h3><p class="text-muted">Anexo 2 · un registro complementario por paciente.</p></div>@can('initial_history.create')<a class="btn btn-primary align-self-center" href="{{ route('initial-histories.create') }}">Nueva historia</a>@endcan</div>
+<form class="card card-body mb-3"><div class="input-group"><input class="form-control" name="search" value="{{ request('search') }}" placeholder="Paciente o DNI"><button class="btn btn-outline-primary">Buscar</button></div></form>
+<div class="card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Paciente</th><th>Fecha</th><th>Nefrólogo</th><th></th></tr></thead><tbody>@forelse($histories as $history)<tr><td>{{ $history->patient->full_name }}<br><small>{{ $history->patient->dni }}</small></td><td>{{ $history->recorded_at->format('d/m/Y') }}</td><td>{{ $history->nephrologist?->name ?: '—' }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ route('initial-histories.show', $history) }}">Ver</a></td></tr>@empty<tr><td colspan="4" class="text-center py-4">Sin registros.</td></tr>@endforelse</tbody></table></div></div><div class="mt-3">{{ $histories->links() }}</div></div>
+@endsection

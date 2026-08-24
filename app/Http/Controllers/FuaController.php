@@ -6,12 +6,27 @@ use App\Models\Fua;
 use App\Models\FuaConfiguration;
 use App\Models\Test;
 use App\Models\User;
+use App\Models\Order;
+use App\Services\FuaNumberService;
+use App\Support\ClinicalService;
+use App\Support\CurrentSede;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class FuaController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:fua.view')->only(['index', 'hemodialysisIndex', 'nephrologyIndex']);
+        $this->middleware('permission:fua.generate')->only(['bulkPdf', 'nephrologyBulkPdf']);
+        $this->middleware('permission:fua.responsible.update')->only('updateResponsible');
+        $this->middleware('permission:fua.correction.create')->only('storeCorrection');
+    }
+
     public function hemodialysisIndex(Request $request)
     {
         return $this->printIndex($request, Fua::HEMODIALYSIS);
@@ -22,6 +37,14 @@ class FuaController extends Controller
         return $this->printIndex($request, Fua::NEPHROLOGY);
     }
 
+    public function multisectorialIndex(Request $request)
+    {
+        $type = $this->validatedMultisectorialType($request);
+        $this->authorizeType($request, $type, 'view');
+
+        return $this->printIndex($request, $type);
+    }
+
     private function printIndex(Request $request, string $type)
     {
         $filters = $request->validate([
@@ -30,15 +53,28 @@ class FuaController extends Controller
             'modulo' => ['nullable', 'integer', 'between:1,4'],
             'turno' => ['nullable', 'integer', 'between:1,4'],
             'all_dates' => ['nullable', 'boolean'],
+            'professional_id' => ['nullable', 'integer', 'exists:users,id'],
+            'status' => ['nullable', 'string', 'max:30'],
+            'sede_id' => ['nullable', 'integer', 'exists:sedes,id'],
         ]);
 
         $date = $request->boolean('all_dates') ? null : ($filters['date'] ?? now()->toDateString());
+        if (CurrentSede::id() && isset($filters['sede_id']) && (int) $filters['sede_id'] !== (int) CurrentSede::id()) {
+            abort(403, 'La sede del filtro no coincide con la sede activa.');
+        }
+        $sedeId = CurrentSede::id() ?: ($filters['sede_id'] ?? null);
+        if ($sedeId) {
+            abort_unless($request->user()->sedes()->whereKey($sedeId)->exists(), 403);
+        }
         $fuas = $this->printQuery(
             $type,
             $date,
             $filters['patient'] ?? null,
             $filters['modulo'] ?? null,
             $filters['turno'] ?? null,
+            $filters['professional_id'] ?? null,
+            $filters['status'] ?? null,
+            $sedeId,
         )
             ->orderByDesc('orders.fecha_orden')
             ->orderByDesc('fuas.id')
@@ -50,6 +86,10 @@ class FuaController extends Controller
             'fuas' => $fuas,
             'date' => $date,
             'type' => $type,
+            'professionals' => User::query()->whereIn('id', Order::query()
+                ->where('attention_type', $type)->whereNotNull('assigned_professional_id')
+                ->select('assigned_professional_id'))->orderBy('name')->get(),
+            'sedes' => $request->user()->sedes()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -63,6 +103,66 @@ class FuaController extends Controller
         return $this->bulkPdfForType($request, Fua::NEPHROLOGY);
     }
 
+    public function multisectorialBulkPdf(Request $request)
+    {
+        $type = $this->validatedMultisectorialType($request);
+        $this->authorizeType($request, $type, 'generate');
+
+        return $this->bulkPdfForType($request, $type);
+    }
+
+    public function generateForOrder(Request $request, Order $order, FuaNumberService $numbers)
+    {
+        abort_unless(ClinicalService::isMultisectorial($order->attention_type), 422);
+        $this->authorizeOrderSede($order);
+        $this->authorizeType($request, $order->attention_type, 'generate');
+
+        if ($order->fua()->where('type', $order->attention_type)->exists()) {
+            throw ValidationException::withMessages(['order' => 'La orden ya tiene una FUA ordinaria.']);
+        }
+
+        $fua = $numbers->createForOrder($order);
+
+        return redirect()->route('fuas.pdf', $fua)->with('success', 'FUA generada correctamente.');
+    }
+
+    public function bulkGenerate(Request $request, FuaNumberService $numbers)
+    {
+        $data = $request->validate([
+            'orders' => ['required', 'array', 'min:1'],
+            'orders.*' => ['integer', 'distinct', 'exists:orders,id'],
+        ]);
+
+        $created = DB::transaction(function () use ($data, $request, $numbers) {
+            return Order::query()->whereIn('id', $data['orders'])->orderBy('fecha_orden')->orderBy('id')
+                ->lockForUpdate()->get()->map(function (Order $order) use ($request, $numbers) {
+                    abort_unless(ClinicalService::isMultisectorial($order->attention_type), 422);
+                    $this->authorizeOrderSede($order);
+                    $this->authorizeType($request, $order->attention_type, 'generate');
+
+                    return $order->fua()->where('type', $order->attention_type)->first()
+                        ?: $numbers->createForOrder($order);
+                });
+        });
+
+        return back()->with('success', $created->count().' FUA procesadas correctamente.');
+    }
+
+    public function storeCorrection(Request $request, Fua $fua, FuaNumberService $numbers)
+    {
+        abort_if($fua->type === Fua::CORRECTION, 422, 'Una subsanación no puede subsanar otra subsanación.');
+        abort_unless(in_array($fua->type, ClinicalService::ORDINARY_TYPES, true), 422);
+        $this->authorizeOrderSede($fua->order);
+
+        if ($fua->corrections()->exists()) {
+            throw ValidationException::withMessages(['fua' => 'La FUA ya tiene una subsanación registrada.']);
+        }
+
+        $correction = $numbers->create(Fua::CORRECTION, $fua->order, $fua);
+
+        return redirect()->route('fuas.pdf', $correction)->with('success', 'FUA de subsanación generada correctamente.');
+    }
+
     private function bulkPdfForType(Request $request, string $type)
     {
         $data = $request->validate([
@@ -73,6 +173,8 @@ class FuaController extends Controller
         $fuas = Fua::query()
             ->where('type', $type)
             ->whereIn('id', $data['fuas'])
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query
+                ->whereHas('order', fn (Builder $order) => $order->where('sede_id', $sede)))
             ->with($this->pdfRelations())
             ->get()
             ->sortBy(fn (Fua $fua) => array_search($fua->id, $data['fuas']))
@@ -83,7 +185,7 @@ class FuaController extends Controller
         $configuration = FuaConfiguration::global();
         $documents = $fuas->map(fn (Fua $fua) => [
             'fua' => $fua,
-            'responsible' => $fua->responsibleUser ?: $fua->order?->medical?->usuarioInicia,
+            'responsible' => $this->responsible($fua),
             'medications' => $this->medications($fua),
             'procedures' => $this->procedures($fua),
         ]);
@@ -94,7 +196,7 @@ class FuaController extends Controller
             'documents' => $documents,
             'configuration' => $configuration,
             'logoData' => $this->logoData($configuration->logo_path),
-        ])->setPaper('a4')->stream($type === Fua::NEPHROLOGY ? 'fuas-consultas.pdf' : 'fuas-hemodialisis.pdf');
+        ])->setPaper('a4')->stream('fuas-'.strtolower($type).'.pdf');
     }
 
     private function printQuery(
@@ -103,12 +205,18 @@ class FuaController extends Controller
         ?string $patient,
         ?int $module,
         ?int $shift,
+        ?int $professional,
+        ?string $status,
+        ?int $sede,
     ): Builder
     {
         return Fua::query()
             ->with(['order.patient', 'order.sede'])
             ->join('orders', 'orders.id', '=', 'fuas.order_id')
             ->where('fuas.type', $type)
+            ->when($sede, fn (Builder $query) => $query->where('orders.sede_id', $sede))
+            ->when($professional, fn (Builder $query) => $query->where('orders.assigned_professional_id', $professional))
+            ->when($status, fn (Builder $query) => $query->where('fuas.status', $status))
             ->when($date, fn (Builder $query) => $query->whereDate('orders.fecha_orden', $date))
             ->when($shift, fn (Builder $query) => $query->where('orders.turno', (string) $shift))
             ->when($module, function (Builder $query, int $module) use ($type) {
@@ -133,7 +241,9 @@ class FuaController extends Controller
 
     public function index(Request $request)
     {
-        $fuas = Fua::with(['order.patient', 'order.sede'])
+        $fuas = Fua::with(['order.patient', 'order.sede', 'corrections'])
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query
+                ->whereHas('order', fn (Builder $order) => $order->where('sede_id', $sede)))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->string('search')->trim();
                 $query->where(function ($query) use ($search) {
@@ -155,6 +265,7 @@ class FuaController extends Controller
 
     public function preview(Fua $fua)
     {
+        $this->authorizeFuaView(request(), $fua);
         $fua->load(['order.patient', 'order.sede', 'order.medical.usuarioInicia', 'responsibleUser']);
         $doctors = User::query()
             ->where(function ($query) {
@@ -188,12 +299,13 @@ class FuaController extends Controller
 
     public function pdf(Request $request, Fua $fua)
     {
+        $this->authorizeFuaView($request, $fua);
         $fua->load($this->pdfRelations());
-        $responsible = $fua->responsibleUser ?: $fua->order?->medical?->usuarioInicia;
+        $responsible = $this->responsible($fua);
         $medications = $this->medications($fua);
         $procedures = $this->procedures($fua);
         $configuration = FuaConfiguration::global();
-        $view = $fua->type === 'NEPHROLOGY' ? 'fuas.pdf_nephrology' : 'fuas.pdf';
+        $view = $fua->effectiveType() === Fua::NEPHROLOGY ? 'fuas.pdf_nephrology' : 'fuas.pdf';
         $logoData = $this->logoData($configuration->logo_path);
         $document = Pdf::loadView($view, [
             'fua' => $fua,
@@ -215,13 +327,13 @@ class FuaController extends Controller
         return [
             'order.patient', 'order.sede', 'order.medical.usuarioInicia',
             'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.medications',
-            'responsibleUser', 'correctedFua',
+            'responsibleUser', 'generatedBy', 'correctedFua.order.assignedProfessional',
         ];
     }
 
     private function medications(Fua $fua): array
     {
-        if ($fua->type === Fua::NEPHROLOGY) {
+        if ($fua->effectiveType() === Fua::NEPHROLOGY) {
             return $fua->order?->nephrologyConsultation?->medications
                 ?->map(fn ($medication) => [
                     'code' => $medication->fua_code,
@@ -265,15 +377,24 @@ class FuaController extends Controller
 
     private function procedures(Fua $fua): array
     {
-        if ($fua->type === Fua::NEPHROLOGY) {
+        $type = $fua->effectiveType();
+        if ($type === Fua::NEPHROLOGY) {
             return [[
-                'code' => '90937',
+                'code' => ClinicalService::cpms(ClinicalService::NEPHROLOGY),
                 'description' => 'Consulta ambulatoria especializada para la evaluación y manejo de un paciente continuador',
                 'quantity' => 1,
             ]];
         }
 
-        $rows = [['code' => '90937', 'description' => 'HEMODIÁLISIS (2DA. SESIÓN)', 'quantity' => 1]];
+        if (ClinicalService::isMultisectorial($type)) {
+            return [[
+                'code' => ClinicalService::cpms($type),
+                'description' => ClinicalService::label($type),
+                'quantity' => 1,
+            ]];
+        }
+
+        $rows = [['code' => ClinicalService::cpms(ClinicalService::HEMODIALYSIS), 'description' => 'HEMODIÁLISIS (2DA. SESIÓN)', 'quantity' => 1]];
         $frequencies = match ($fua->order?->laboratory_period) {
             'M' => ['M'],
             'B' => ['M', 'B'],
@@ -312,5 +433,43 @@ class FuaController extends Controller
         }
 
         return $rows;
+    }
+
+    private function validatedMultisectorialType(Request $request): string
+    {
+        return validator($request->only('type'), [
+            'type' => ['required', Rule::in(ClinicalService::MULTISECTORIAL_TYPES)],
+        ])->validate()['type'];
+    }
+
+    private function authorizeType(Request $request, string $type, string $action): void
+    {
+        $permission = ClinicalService::permissionPrefix($type).'.fua.'.$action;
+        abort_unless($request->user()->can($permission) || $request->user()->can('fua.'.($action === 'view' ? 'view' : 'generate')), 403);
+    }
+
+    private function authorizeFuaView(Request $request, Fua $fua): void
+    {
+        $fua->loadMissing('correctedFua');
+        $type = $fua->effectiveType();
+        if (ClinicalService::isMultisectorial($type)) {
+            $this->authorizeType($request, $type, 'view');
+        } else {
+            abort_unless($request->user()->can('fua.view'), 403);
+        }
+        $this->authorizeOrderSede($fua->order);
+    }
+
+    private function authorizeOrderSede(?Order $order): void
+    {
+        abort_unless($order, 422, 'La FUA debe estar relacionada con una orden.');
+        abort_if(CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id(), 403, 'Orden fuera de la sede activa.');
+    }
+
+    private function responsible(Fua $fua): ?User
+    {
+        return $fua->responsibleUser
+            ?: $fua->order?->assignedProfessional
+            ?: $fua->order?->medical?->usuarioInicia;
     }
 }

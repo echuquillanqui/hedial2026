@@ -17,6 +17,8 @@ use App\Http\Controllers\FuaConfigurationController;
 use App\Http\Controllers\FuaController;
 use App\Http\Controllers\NephrologyConsultationController;
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\InitialClinicalHistoryController;
+use App\Http\Controllers\HemodialysisConsentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -64,6 +66,11 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('impresiones/fuas-hemodialisis/imprimir', [FuaController::class, 'bulkPdf'])->name('fuas.hemodialysis.bulk-pdf');
     Route::get('impresiones/fuas-consultas', [FuaController::class, 'nephrologyIndex'])->name('fuas.nephrology.index');
     Route::post('impresiones/fuas-consultas/imprimir', [FuaController::class, 'nephrologyBulkPdf'])->name('fuas.nephrology.bulk-pdf');
+    Route::get('impresiones/fuas-multisectoriales', [FuaController::class, 'multisectorialIndex'])->name('fuas.multisectorial.index');
+    Route::post('impresiones/fuas-multisectoriales/imprimir', [FuaController::class, 'multisectorialBulkPdf'])->name('fuas.multisectorial.bulk-pdf');
+    Route::post('fuas/generar-multisectorial', [FuaController::class, 'bulkGenerate'])->name('fuas.multisectorial.generate-bulk');
+    Route::post('orders/{order}/fua', [FuaController::class, 'generateForOrder'])->name('fuas.orders.generate');
+    Route::post('fuas/{fua}/subsanacion', [FuaController::class, 'storeCorrection'])->name('fuas.corrections.store');
     Route::get('fuas/{fua}/vista-previa', [FuaController::class, 'preview'])->name('fuas.preview');
     Route::put('fuas/{fua}/responsable', [FuaController::class, 'updateResponsible'])->name('fuas.responsible.update');
     Route::get('fuas/{fua}/pdf', [FuaController::class, 'pdf'])->name('fuas.pdf');
@@ -92,6 +99,10 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('/users/permisos/masivo', [UserController::class, 'bulkUpdatePermissions'])->name('users.permissions-manager.bulk-update');
 
     Route::resource('patients', App\Http\Controllers\PatientController::class);
+    Route::get('historias-iniciales/{initialHistory}/pdf', [InitialClinicalHistoryController::class, 'pdf'])->name('initial-histories.pdf');
+    Route::resource('historias-iniciales', InitialClinicalHistoryController::class)->except(['destroy'])->parameters(['historias-iniciales' => 'initialHistory'])->names('initial-histories');
+    Route::get('consentimientos/{consent}/pdf', [HemodialysisConsentController::class, 'pdf'])->name('consents.pdf');
+    Route::resource('consentimientos', HemodialysisConsentController::class)->only(['index', 'create', 'store', 'show'])->parameters(['consentimientos' => 'consent'])->names('consents');
     Route::get('/patients-search', [App\Http\Controllers\PatientController::class, 'search'])->name('patients.search');
     Route::resource('referrals', App\Http\Controllers\ReferralController::class);
     Route::get('/referrals/{id}/pdf', [App\Http\Controllers\ReferralController::class, 'downloadPdf'])->name('referrals.pdf');
@@ -100,6 +111,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
 
     Route::get('orders/nephrology/create', [App\Http\Controllers\OrderController::class, 'createNephrology'])->name('orders.nephrology.create');
     Route::post('orders/nephrology', [App\Http\Controllers\OrderController::class, 'storeNephrology'])->name('orders.nephrology.store');
+    Route::get('orders/multisectorial', [OrderController::class, 'multisectorialIndex'])->name('orders.multisectorial.index');
+    Route::get('orders/multisectorial/create', [OrderController::class, 'createMultisectorial'])->name('orders.multisectorial.create');
+    Route::post('orders/multisectorial', [OrderController::class, 'storeMultisectorial'])->name('orders.multisectorial.store');
     Route::resource('orders', App\Http\Controllers\OrderController::class);
     Route::post('orders/store-bulk', [App\Http\Controllers\OrderController::class, 'storeBulk'])
         ->name('orders.store_bulk');
