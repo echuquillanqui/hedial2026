@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Support\ClinicalService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Fua extends Model
 {
-    public const HEMODIALYSIS = 'HEMODIALYSIS';
-    public const NEPHROLOGY = 'NEPHROLOGY';
-    public const CORRECTION = 'CORRECTION';
+    public const HEMODIALYSIS = ClinicalService::HEMODIALYSIS;
+    public const NEPHROLOGY = ClinicalService::NEPHROLOGY;
+    public const NUTRITION = ClinicalService::NUTRITION;
+    public const PSYCHOLOGY = ClinicalService::PSYCHOLOGY;
+    public const SOCIAL_WORK = ClinicalService::SOCIAL_WORK;
+    public const CORRECTION = ClinicalService::CORRECTION;
 
     protected $fillable = ['order_id', 'responsible_user_id', 'type', 'series', 'correlative', 'number', 'corrects_fua_id', 'status'];
 

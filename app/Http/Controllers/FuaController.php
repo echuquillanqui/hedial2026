@@ -6,12 +6,20 @@ use App\Models\Fua;
 use App\Models\FuaConfiguration;
 use App\Models\Test;
 use App\Models\User;
+use App\Support\ClinicalService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class FuaController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:fua.view')->only(['index', 'preview', 'pdf', 'hemodialysisIndex', 'nephrologyIndex']);
+        $this->middleware('permission:fua.generate')->only(['bulkPdf', 'nephrologyBulkPdf']);
+        $this->middleware('permission:fua.responsible.update')->only('updateResponsible');
+    }
+
     public function hemodialysisIndex(Request $request)
     {
         return $this->printIndex($request, Fua::HEMODIALYSIS);
@@ -267,13 +275,13 @@ class FuaController extends Controller
     {
         if ($fua->type === Fua::NEPHROLOGY) {
             return [[
-                'code' => '90937',
+                'code' => ClinicalService::cpms(ClinicalService::NEPHROLOGY),
                 'description' => 'Consulta ambulatoria especializada para la evaluación y manejo de un paciente continuador',
                 'quantity' => 1,
             ]];
         }
 
-        $rows = [['code' => '90937', 'description' => 'HEMODIÁLISIS (2DA. SESIÓN)', 'quantity' => 1]];
+        $rows = [['code' => ClinicalService::cpms(ClinicalService::HEMODIALYSIS), 'description' => 'HEMODIÁLISIS (2DA. SESIÓN)', 'quantity' => 1]];
         $frequencies = match ($fua->order?->laboratory_period) {
             'M' => ['M'],
             'B' => ['M', 'B'],

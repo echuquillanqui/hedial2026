@@ -20,6 +20,14 @@ use App\Services\FuaNumberService;
 
 class OrderController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:orders.view')->only(['index']);
+        $this->middleware('permission:orders.create')->only(['create', 'store', 'storeBulk', 'createNephrology', 'storeNephrology']);
+        $this->middleware('permission:orders.edit')->only(['edit', 'update']);
+        $this->middleware('permission:orders.delete')->only(['destroy']);
+    }
+
     /**
      * Listado de Órdenes.
      * Vista: resources/views/atenciones/ordenes/index.blade.php
