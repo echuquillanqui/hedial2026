@@ -31,6 +31,18 @@ class RolesAndPermissionsSeeder extends Seeder
             'orders.view', 'orders.create', 'orders.edit', 'orders.delete',
             'medicals.view', 'medicals.create', 'medicals.edit', 'medicals.delete',
             'nurses.view', 'nurses.create', 'nurses.edit', 'nurses.delete',
+            'nephrology.view', 'nephrology.create', 'nephrology.update', 'nephrology.print',
+
+            'fua.view', 'fua.generate', 'fua.responsible.update', 'fua.configuration.manage', 'fua.correction.create',
+            'laboratory.results.view', 'laboratory.orders.create', 'laboratory.results.update', 'laboratory.catalog.manage',
+            'materials.view', 'materials.manage', 'audit.view',
+
+            'nutrition.view', 'nutrition.create', 'nutrition.update', 'nutrition.print',
+            'nutrition.mis.view', 'nutrition.mis.create', 'nutrition.fua.view', 'nutrition.fua.generate',
+            'psychology.view', 'psychology.create', 'psychology.update', 'psychology.print',
+            'psychology.eq5d.view', 'psychology.eq5d.create', 'psychology.fua.view', 'psychology.fua.generate',
+            'social_work.view', 'social_work.create', 'social_work.update', 'social_work.print',
+            'social_work.fua.view', 'social_work.fua.generate',
 
             'reports.export.pdf', 'reports.export.excel',
 
@@ -60,6 +72,16 @@ class RolesAndPermissionsSeeder extends Seeder
                 'orders.view', 'orders.create', 'orders.edit',
                 'medicals.view', 'medicals.create', 'medicals.edit',
                 'nurses.view', 'nurses.create', 'nurses.edit',
+                'nephrology.view', 'nephrology.create', 'nephrology.update', 'nephrology.print',
+                'fua.view', 'fua.generate', 'fua.responsible.update', 'fua.configuration.manage', 'fua.correction.create',
+                'laboratory.results.view', 'laboratory.orders.create', 'laboratory.results.update', 'laboratory.catalog.manage',
+                'materials.view', 'materials.manage', 'audit.view',
+                'nutrition.view', 'nutrition.create', 'nutrition.update', 'nutrition.print',
+                'nutrition.mis.view', 'nutrition.mis.create', 'nutrition.fua.view', 'nutrition.fua.generate',
+                'psychology.view', 'psychology.create', 'psychology.update', 'psychology.print',
+                'psychology.eq5d.view', 'psychology.eq5d.create', 'psychology.fua.view', 'psychology.fua.generate',
+                'social_work.view', 'social_work.create', 'social_work.update', 'social_work.print',
+                'social_work.fua.view', 'social_work.fua.generate',
                 'reports.export.pdf', 'reports.export.excel',
 
             'warehouse.requests.view',
@@ -73,11 +95,16 @@ class RolesAndPermissionsSeeder extends Seeder
                 'referrals.view', 'referrals.create', 'referrals.edit', 'referrals.print',
                 'orders.view', 'orders.create', 'orders.edit',
                 'medicals.view', 'medicals.create', 'medicals.edit',
+                'nephrology.view', 'nephrology.create', 'nephrology.update', 'nephrology.print',
+                'fua.view', 'fua.generate', 'fua.responsible.update',
+                'laboratory.results.view', 'laboratory.orders.create',
+                'materials.view', 'audit.view',
             ],
             'enfermeria' => [
                 'dashboard.view',
                 'patients.view',
                 'nurses.view', 'nurses.create', 'nurses.edit',
+                'fua.view', 'laboratory.results.view', 'materials.view',
             ],
             'recepcion' => [
                 'dashboard.view',
@@ -95,6 +122,21 @@ class RolesAndPermissionsSeeder extends Seeder
                 'warehouse.requests.view', 'warehouse.requests.create', 'warehouse.requests.update.status',
                 'warehouse.requests.dispatch', 'warehouse.requests.print',
                 'warehouse.configuration.manage',
+            ],
+            'nutricionista' => [
+                'dashboard.view', 'patients.view', 'laboratory.results.view',
+                'nutrition.view', 'nutrition.create', 'nutrition.update', 'nutrition.print',
+                'nutrition.mis.view', 'nutrition.mis.create', 'nutrition.fua.view', 'nutrition.fua.generate',
+            ],
+            'psicologo' => [
+                'dashboard.view', 'patients.view',
+                'psychology.view', 'psychology.create', 'psychology.update', 'psychology.print',
+                'psychology.eq5d.view', 'psychology.eq5d.create', 'psychology.fua.view', 'psychology.fua.generate',
+            ],
+            'trabajo_social' => [
+                'dashboard.view', 'patients.view',
+                'social_work.view', 'social_work.create', 'social_work.update', 'social_work.print',
+                'social_work.fua.view', 'social_work.fua.generate',
             ],
         ];
 
@@ -141,6 +183,25 @@ class RolesAndPermissionsSeeder extends Seeder
         );
         $logisticsUser->syncRoles(['logistica']);
         $logisticsUser->sedes()->sync(Sede::query()->where('is_active', true)->pluck('id'));
+
+        $developmentUsers = [
+            ['username' => 'nutricionista', 'name' => 'Nutricionista de prueba', 'email' => 'nutricionista@hemodial.local', 'profession' => 'NUTRICIONISTA', 'role' => 'nutricionista'],
+            ['username' => 'psicologo', 'name' => 'Psicólogo de prueba', 'email' => 'psicologo@hemodial.local', 'profession' => 'PSICÓLOGO', 'role' => 'psicologo'],
+            ['username' => 'trabajo.social', 'name' => 'Trabajador social de prueba', 'email' => 'trabajo.social@hemodial.local', 'profession' => 'TRABAJADOR SOCIAL', 'role' => 'trabajo_social'],
+        ];
+
+        foreach ($developmentUsers as $data) {
+            $role = $data['role'];
+            unset($data['role']);
+
+            $user = User::query()->firstOrCreate(
+                ['username' => $data['username']],
+                $data + ['password' => Hash::make('Profesional@123456')]
+            );
+            $user->syncRoles([$role]);
+            $user->syncPermissions([]);
+            $user->sedes()->syncWithoutDetaching(Sede::query()->where('is_active', true)->pluck('id'));
+        }
 
         $ownerUser = User::where('username', 'rchuquillanqui')->first();
 

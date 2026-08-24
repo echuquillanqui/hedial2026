@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Fua;
 use App\Models\FuaConfiguration;
 use App\Models\Order;
+use App\Support\ClinicalService;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -12,7 +13,11 @@ class FuaNumberService
 {
     public function createForOrder(Order $order): Fua
     {
-        $type = $order->attention_type === Fua::NEPHROLOGY ? Fua::NEPHROLOGY : Fua::HEMODIALYSIS;
+        $type = match ($order->attention_type) {
+            ClinicalService::HEMODIALYSIS => Fua::HEMODIALYSIS,
+            ClinicalService::NEPHROLOGY => Fua::NEPHROLOGY,
+            default => throw new InvalidArgumentException('El tipo de atención todavía no tiene generación de FUA habilitada.'),
+        };
 
         return $this->create($type, $order);
     }
