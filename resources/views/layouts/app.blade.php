@@ -68,7 +68,7 @@
                         $canManageUsers = auth()->user()->can('users.view');
                         $canManagePatients = auth()->user()->can('patients.view');
                         $canManageSedes = auth()->user()->can('users.view');
-                        $canManageFuaConfiguration = auth()->user()->can('orders.view');
+                        $canManageFuaConfiguration = auth()->user()->can('fua.configuration.manage');
                         $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSedes || $canManageFuaConfiguration;
 
                         $canViewReferrals = auth()->user()->can('referrals.view');
@@ -76,12 +76,17 @@
                         $canViewOrders = auth()->user()->can('orders.view');
                         $canViewMedicals = auth()->user()->can('medicals.view');
                         $canViewNurses = auth()->user()->can('nurses.view');
-                        $canViewExtraMaterials = auth()->user()->can('orders.view');
-                        $canSeeClinicalArea = $canViewOrders || $canViewMedicals || $canViewNurses || $canViewExtraMaterials;
+                        $canViewExtraMaterials = auth()->user()->can('materials.view');
+                        $canViewNephrology = auth()->user()->can('nephrology.view');
+                        $canViewFuas = auth()->user()->can('fua.view');
+                        $canSeeClinicalArea = $canViewOrders || $canViewMedicals || $canViewNurses || $canViewExtraMaterials || $canViewNephrology || $canViewFuas;
 
                         $canViewWarehouse = auth()->user()->can('warehouse.requests.view');
-                        $canViewCatalog = auth()->user()->can('orders.view');
-                        $canViewAudit = $canViewOrders && ($canViewMedicals || $canViewNurses);
+                        $canViewCatalog = auth()->user()->can('laboratory.catalog.manage');
+                        $canViewLaboratoryResults = auth()->user()->can('laboratory.results.view');
+                        $canCreateLaboratoryOrders = auth()->user()->can('laboratory.orders.create');
+                        $canSeeLaboratory = $canViewCatalog || $canViewLaboratoryResults || $canCreateLaboratoryOrders;
+                        $canViewAudit = auth()->user()->can('audit.view');
                     @endphp
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
@@ -128,28 +133,34 @@
     </li>
     @endif
 
-    @if($canViewCatalog)
+    @if($canSeeLaboratory)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
         <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('catalog.*', 'laboratory.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-journal-medical me-1"></i> Laboratorio
         </button>
         <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
+            @if($canViewCatalog)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('catalog.*') ? 'active' : '' }}" href="{{ route('catalog.index') }}">
                     <i class="bi bi-journal-text me-2"></i> Catálogo
                 </a>
             </li>
+            @endif
+            @if($canCreateLaboratoryOrders)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('laboratory.orders.*') ? 'active' : '' }}" href="{{ route('laboratory.orders.create') }}">
                     <i class="bi bi-clipboard2-plus me-2"></i> Nueva orden de laboratorio
                 </a>
             </li>
+            @endif
+            @if($canViewLaboratoryResults)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('laboratory.results.*') ? 'active' : '' }}" href="{{ route('laboratory.results.index') }}">
                     <i class="bi bi-clipboard2-pulse me-2"></i> Resultados
                 </a>
             </li>
+            @endif
         </ul>
     </li>
     @endif
@@ -162,7 +173,7 @@
     </li>
     @endif
 
-    @if($canViewOrders)
+    @if($canViewFuas)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
         <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('fuas.hemodialysis.*', 'fuas.nephrology.*') ? 'active fw-bold' : '' }}"
                 type="button" @click="open = !open" :aria-expanded="open.toString()">
@@ -192,13 +203,15 @@
                     <i class="bi bi-list-check me-2"></i> Ordenes
                 </a>
             </li>
+            @endif
+            @if($canViewFuas)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active' : '' }}" href="{{ route('fuas.index') }}">
                     <i class="bi bi-files me-2"></i> FUA generadas
                 </a>
             </li>
             @endif
-            @if(($canViewOrders && ($canViewMedicals || $canViewNurses || $canViewExtraMaterials)))
+            @if(($canViewOrders || $canViewFuas) && ($canViewMedicals || $canViewNurses || $canViewNephrology || $canViewExtraMaterials))
             <li><hr class="dropdown-divider"></li>
             @endif
             @if($canViewMedicals)
@@ -215,7 +228,7 @@
                 </a>
             </li>
             @endif
-            @if($canViewMedicals)
+            @if($canViewNephrology)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}">
                     <i class="bi bi-journal-medical me-2"></i> Consultas nefrológicas

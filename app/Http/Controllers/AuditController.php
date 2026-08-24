@@ -10,6 +10,11 @@ use Illuminate\Http\Request;
 
 class AuditController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:audit.view');
+    }
+
     public function histories(Request $request)
     {
         $orders = $this->filteredOrders($request)
