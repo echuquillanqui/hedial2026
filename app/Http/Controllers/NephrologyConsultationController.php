@@ -14,6 +14,14 @@ use Illuminate\Support\Facades\DB;
 
 class NephrologyConsultationController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:nephrology.view')->only(['index']);
+        $this->middleware('permission:nephrology.create')->only(['create', 'store']);
+        $this->middleware('permission:nephrology.update')->only(['edit', 'update']);
+        $this->middleware('permission:nephrology.print')->only(['consultationPdf', 'prescriptionPdf']);
+    }
+
     public const DEFAULT_MEDICATIONS = [
         ['fua_code' => '06127', 'description' => 'Tiamina 100 mg tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
         ['fua_code' => '05491', 'description' => 'Piridoxina 50 mg tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],

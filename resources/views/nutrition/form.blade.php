@@ -1,0 +1,6 @@
+@extends('layouts.app')
+@section('content')<div class="container"><h1>Atención nutricional</h1><p><strong>Paciente:</strong> {{ $order->patient->first_name }} {{ $order->patient->surname }}</p>
+<form method="POST" action="{{ $assessment->exists ? route('nutrition.update',$assessment) : route('nutrition.store',$order) }}">@csrf @if($assessment->exists)@method('PUT')@endif
+<div class="mb-3"><label>Fecha</label><input class="form-control" type="date" name="assessment_date" value="{{ old('assessment_date',$assessment->assessment_date?->format('Y-m-d')) }}" {{ $assessment->exists ? 'readonly' : '' }} required></div>
+@foreach(['reason'=>'Motivo','appetite'=>'Apetito','dietary_intake'=>'Ingesta dietética','gastrointestinal_symptoms'=>'Síntomas gastrointestinales','functional_capacity'=>'Capacidad funcional','physical_findings'=>'Hallazgos físicos','nutritional_diagnosis'=>'Diagnóstico nutricional','intervention_plan'=>'Plan de intervención','recommendations'=>'Recomendaciones','observations'=>'Observaciones'] as $field=>$label)<div class="mb-3"><label>{{ $label }}</label><textarea class="form-control" name="{{ $field }}" {{ $field==='nutritional_diagnosis'?'required':'' }}>{{ old($field,$assessment->$field) }}</textarea></div>@endforeach
+<button class="btn btn-primary">Guardar</button></form></div>@endsection

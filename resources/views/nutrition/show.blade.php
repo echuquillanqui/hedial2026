@@ -1,0 +1,7 @@
+@extends('layouts.app')
+@section('content')<div class="container"><h1>Atención nutricional — Anexo 6</h1><p><strong>Paciente:</strong> {{ $assessment->order->patient->first_name }} {{ $assessment->order->patient->surname }} | <strong>Fecha:</strong> {{ $assessment->assessment_date->format('d/m/Y') }}</p>
+<p><strong>Peso:</strong> {{ $assessment->medical?->peso_inicial ?? $assessment->nephrologyConsultation?->weight ?? 'SIN RESULTADO' }} kg | <strong>Talla:</strong> {{ $assessment->nephrologyConsultation?->height ?? 'SIN RESULTADO' }} m | <strong>IMC:</strong> {{ $assessment->nephrologyConsultation?->bmi ?? 'SIN RESULTADO' }}</p>
+@foreach(['reason'=>'Motivo','appetite'=>'Apetito','dietary_intake'=>'Ingesta','gastrointestinal_symptoms'=>'Síntomas GI','functional_capacity'=>'Capacidad funcional','physical_findings'=>'Hallazgos','nutritional_diagnosis'=>'Diagnóstico','intervention_plan'=>'Plan','recommendations'=>'Recomendaciones','observations'=>'Observaciones'] as $field=>$label)<p><strong>{{ $label }}:</strong> {{ $assessment->$field ?: 'No consignado' }}</p>@endforeach
+@include('nutrition.laboratory-table')
+@can('nutrition.mis.create')@if(!$assessment->misAssessment)<a class="btn btn-primary" href="{{ route('mis.create',$assessment) }}">Completar MIS</a>@endif @endcan
+@can('nutrition.print')<a class="btn btn-outline-secondary" href="{{ route('nutrition.pdf',$assessment) }}">PDF</a>@endcan</div>@endsection
