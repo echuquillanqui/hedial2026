@@ -87,12 +87,14 @@
                         $canCreateLaboratoryOrders = auth()->user()->can('laboratory.orders.create');
                         $canSeeLaboratory = $canViewCatalog || $canViewLaboratoryResults || $canCreateLaboratoryOrders;
                         $canViewAudit = auth()->user()->can('audit.view');
+                        $canViewInitialHistory = auth()->user()->can('initial_history.view');
+                        $canViewConsents = auth()->user()->can('consents.view');
                         $multisectorialMenus = collect([
                             ['type' => \App\Support\ClinicalService::NUTRITION, 'label' => 'Nutrición', 'permission' => 'nutrition.view', 'fua_permission' => 'nutrition.fua.view'],
                             ['type' => \App\Support\ClinicalService::PSYCHOLOGY, 'label' => 'Psicología', 'permission' => 'psychology.view', 'fua_permission' => 'psychology.fua.view'],
                             ['type' => \App\Support\ClinicalService::SOCIAL_WORK, 'label' => 'Trabajo Social', 'permission' => 'social_work.view', 'fua_permission' => 'social_work.fua.view'],
                         ])->filter(fn ($item) => auth()->user()->can($item['permission']) || $canViewOrders);
-                        $canSeeClinicalArea = $canSeeClinicalArea || $multisectorialMenus->isNotEmpty();
+                        $canSeeClinicalArea = $canSeeClinicalArea || $multisectorialMenus->isNotEmpty() || $canViewInitialHistory || $canViewConsents;
                     @endphp
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
@@ -220,6 +222,8 @@
             <li><a class="dropdown-item" href="{{ route('fuas.multisectorial.index', ['type' => $sectorMenu['type'], 'all_dates' => 1]) }}"><i class="bi bi-file-earmark-medical me-2"></i> FUA {{ $sectorMenu['label'] }}</a></li>
             @endif
             @endforeach
+            @if($canViewInitialHistory)<li><a class="dropdown-item {{ request()->routeIs('initial-histories.*') ? 'active' : '' }}" href="{{ route('initial-histories.index') }}"><i class="bi bi-journal-medical me-2"></i> Historia Clínica Inicial</a></li>@endif
+            @if($canViewConsents)<li><a class="dropdown-item {{ request()->routeIs('consents.*') ? 'active' : '' }}" href="{{ route('consents.index') }}"><i class="bi bi-pen me-2"></i> Consentimientos</a></li>@endif
             @if($canViewFuas)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active' : '' }}" href="{{ route('fuas.index') }}">

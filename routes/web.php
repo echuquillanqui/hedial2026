@@ -17,6 +17,8 @@ use App\Http\Controllers\FuaConfigurationController;
 use App\Http\Controllers\FuaController;
 use App\Http\Controllers\NephrologyConsultationController;
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\InitialClinicalHistoryController;
+use App\Http\Controllers\HemodialysisConsentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -97,6 +99,10 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('/users/permisos/masivo', [UserController::class, 'bulkUpdatePermissions'])->name('users.permissions-manager.bulk-update');
 
     Route::resource('patients', App\Http\Controllers\PatientController::class);
+    Route::get('historias-iniciales/{initialHistory}/pdf', [InitialClinicalHistoryController::class, 'pdf'])->name('initial-histories.pdf');
+    Route::resource('historias-iniciales', InitialClinicalHistoryController::class)->except(['destroy'])->parameters(['historias-iniciales' => 'initialHistory'])->names('initial-histories');
+    Route::get('consentimientos/{consent}/pdf', [HemodialysisConsentController::class, 'pdf'])->name('consents.pdf');
+    Route::resource('consentimientos', HemodialysisConsentController::class)->only(['index', 'create', 'store', 'show'])->parameters(['consentimientos' => 'consent'])->names('consents');
     Route::get('/patients-search', [App\Http\Controllers\PatientController::class, 'search'])->name('patients.search');
     Route::resource('referrals', App\Http\Controllers\ReferralController::class);
     Route::get('/referrals/{id}/pdf', [App\Http\Controllers\ReferralController::class, 'downloadPdf'])->name('referrals.pdf');
