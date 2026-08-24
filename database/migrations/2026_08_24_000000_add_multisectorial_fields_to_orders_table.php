@@ -31,11 +31,32 @@ return new class extends Migration
 
     public function down(): void
     {
+        // MySQL can reuse either composite index for the foreign keys whose
+        // columns are at the beginning of the index. Keep patient_id and
+        // sede_id indexed because their original foreign keys remain after
+        // this migration rolls back.
+        foreach (['patient_id', 'sede_id'] as $column) {
+            $index = "orders_{$column}_index";
+
+            // A failed rollback may already have created one replacement index.
+            if (! Schema::hasIndex('orders', $index)) {
+                Schema::table('orders', function (Blueprint $table) use ($column, $index) {
+                    $table->index($column, $index);
+                });
+            }
+        }
+
+        // Remove these foreign keys in a separate ALTER before dropping the
+        // composite index. Otherwise MySQL rejects the rollback with error 1553
+        // while an index is supporting a foreign key.
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropForeign(['assigned_professional_id']);
+            $table->dropForeign(['created_by']);
+        });
+
         Schema::table('orders', function (Blueprint $table) {
             $table->dropUnique('orders_patient_attention_period_unique');
             $table->dropIndex('orders_sede_attention_professional_index');
-            $table->dropForeign(['assigned_professional_id']);
-            $table->dropForeign(['created_by']);
             $table->dropColumn([
                 'assigned_professional_id', 'created_by', 'status', 'due_date',
                 'period_key', 'completed_at',
