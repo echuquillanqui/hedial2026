@@ -31,6 +31,13 @@ return new class extends Migration
 
     public function down(): void
     {
+        // MySQL may use the composite unique index created in up() to support
+        // the patient_id foreign key. Give that constraint a replacement index
+        // before removing the composite one, otherwise rollback fails with 1553.
+        Schema::table('orders', function (Blueprint $table) {
+            $table->index('patient_id', 'orders_patient_id_index');
+        });
+
         Schema::table('orders', function (Blueprint $table) {
             $table->dropUnique('orders_patient_attention_period_unique');
             $table->dropIndex('orders_sede_attention_professional_index');
