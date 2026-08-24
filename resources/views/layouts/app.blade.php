@@ -218,6 +218,12 @@
                     <i class="bi bi-person-lines-fill me-2"></i> Órdenes {{ $sectorMenu['label'] }}
                 </a>
             </li>
+            @if($sectorMenu['type'] === \App\Support\ClinicalService::NUTRITION && auth()->user()->can('nutrition.view'))
+            <li><a class="dropdown-item {{ request()->routeIs('nutrition.*') ? 'active' : '' }}" href="{{ route('nutrition.index') }}"><i class="bi bi-heart-pulse me-2"></i> Atenciones Nutrición</a></li>
+            @endif
+            @if($sectorMenu['type'] === \App\Support\ClinicalService::NUTRITION && auth()->user()->can('nutrition.mis.view'))
+            <li><a class="dropdown-item {{ request()->routeIs('mis.*') ? 'active' : '' }}" href="{{ route('mis.index') }}"><i class="bi bi-clipboard2-data me-2"></i> Evaluaciones MIS</a></li>
+            @endif
             @if(auth()->user()->can($sectorMenu['fua_permission']) || $canViewFuas)
             <li><a class="dropdown-item" href="{{ route('fuas.multisectorial.index', ['type' => $sectorMenu['type'], 'all_dates' => 1]) }}"><i class="bi bi-file-earmark-medical me-2"></i> FUA {{ $sectorMenu['label'] }}</a></li>
             @endif

@@ -106,6 +106,11 @@ class Order extends Model
         return $this->hasOne(NephrologyConsultation::class);
     }
 
+    public function nutritionAssessment()
+    {
+        return $this->hasOne(NutritionAssessment::class);
+    }
+
     public function nurse() 
     {
         return $this->hasOne(Nurse::class, 'order_id');

@@ -19,6 +19,8 @@ use App\Http\Controllers\NephrologyConsultationController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\InitialClinicalHistoryController;
 use App\Http\Controllers\HemodialysisConsentController;
+use App\Http\Controllers\NutritionAssessmentController;
+use App\Http\Controllers\MisAssessmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -103,6 +105,18 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::resource('historias-iniciales', InitialClinicalHistoryController::class)->except(['destroy'])->parameters(['historias-iniciales' => 'initialHistory'])->names('initial-histories');
     Route::get('consentimientos/{consent}/pdf', [HemodialysisConsentController::class, 'pdf'])->name('consents.pdf');
     Route::resource('consentimientos', HemodialysisConsentController::class)->only(['index', 'create', 'store', 'show'])->parameters(['consentimientos' => 'consent'])->names('consents');
+    Route::get('nutricion/{nutrition}/pdf', [NutritionAssessmentController::class, 'pdf'])->name('nutrition.pdf');
+    Route::get('nutricion/orden/{order}/crear', [NutritionAssessmentController::class, 'create'])->name('nutrition.create');
+    Route::post('nutricion/orden/{order}', [NutritionAssessmentController::class, 'store'])->name('nutrition.store');
+    Route::get('nutricion', [NutritionAssessmentController::class, 'index'])->name('nutrition.index');
+    Route::get('nutricion/{nutrition}', [NutritionAssessmentController::class, 'show'])->name('nutrition.show');
+    Route::get('nutricion/{nutrition}/editar', [NutritionAssessmentController::class, 'edit'])->name('nutrition.edit');
+    Route::put('nutricion/{nutrition}', [NutritionAssessmentController::class, 'update'])->name('nutrition.update');
+    Route::get('mis', [MisAssessmentController::class, 'index'])->name('mis.index');
+    Route::get('mis/nutricion/{nutrition}/crear', [MisAssessmentController::class, 'create'])->name('mis.create');
+    Route::post('mis/nutricion/{nutrition}', [MisAssessmentController::class, 'store'])->name('mis.store');
+    Route::get('mis/{mis}/pdf', [MisAssessmentController::class, 'pdf'])->name('mis.pdf');
+    Route::get('mis/{mis}', [MisAssessmentController::class, 'show'])->name('mis.show');
     Route::get('/patients-search', [App\Http\Controllers\PatientController::class, 'search'])->name('patients.search');
     Route::resource('referrals', App\Http\Controllers\ReferralController::class);
     Route::get('/referrals/{id}/pdf', [App\Http\Controllers\ReferralController::class, 'downloadPdf'])->name('referrals.pdf');

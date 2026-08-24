@@ -55,6 +55,11 @@ class Patient extends Model
         return $this->hasMany(HemodialysisConsent::class);
     }
 
+    public function nutritionAssessments()
+    {
+        return $this->hasManyThrough(NutritionAssessment::class, Order::class);
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim(collect([$this->surname, $this->last_name, $this->first_name, $this->other_names])->filter()->join(' '));
