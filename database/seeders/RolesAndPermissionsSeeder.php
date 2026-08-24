@@ -76,6 +76,12 @@ class RolesAndPermissionsSeeder extends Seeder
                 'fua.view', 'fua.generate', 'fua.responsible.update', 'fua.configuration.manage', 'fua.correction.create',
                 'laboratory.results.view', 'laboratory.orders.create', 'laboratory.results.update', 'laboratory.catalog.manage',
                 'materials.view', 'materials.manage', 'audit.view',
+                'nutrition.view', 'nutrition.create', 'nutrition.update', 'nutrition.print',
+                'nutrition.mis.view', 'nutrition.mis.create', 'nutrition.fua.view', 'nutrition.fua.generate',
+                'psychology.view', 'psychology.create', 'psychology.update', 'psychology.print',
+                'psychology.eq5d.view', 'psychology.eq5d.create', 'psychology.fua.view', 'psychology.fua.generate',
+                'social_work.view', 'social_work.create', 'social_work.update', 'social_work.print',
+                'social_work.fua.view', 'social_work.fua.generate',
                 'reports.export.pdf', 'reports.export.excel',
 
             'warehouse.requests.view',

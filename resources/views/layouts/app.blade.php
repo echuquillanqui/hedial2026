@@ -87,6 +87,12 @@
                         $canCreateLaboratoryOrders = auth()->user()->can('laboratory.orders.create');
                         $canSeeLaboratory = $canViewCatalog || $canViewLaboratoryResults || $canCreateLaboratoryOrders;
                         $canViewAudit = auth()->user()->can('audit.view');
+                        $multisectorialMenus = collect([
+                            ['type' => \App\Support\ClinicalService::NUTRITION, 'label' => 'Órdenes Nutrición', 'permission' => 'nutrition.view'],
+                            ['type' => \App\Support\ClinicalService::PSYCHOLOGY, 'label' => 'Órdenes Psicología', 'permission' => 'psychology.view'],
+                            ['type' => \App\Support\ClinicalService::SOCIAL_WORK, 'label' => 'Órdenes Trabajo Social', 'permission' => 'social_work.view'],
+                        ])->filter(fn ($item) => auth()->user()->can($item['permission']) || $canViewOrders);
+                        $canSeeClinicalArea = $canSeeClinicalArea || $multisectorialMenus->isNotEmpty();
                     @endphp
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
@@ -204,6 +210,13 @@
                 </a>
             </li>
             @endif
+            @foreach($multisectorialMenus as $sectorMenu)
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('orders.multisectorial.*') && request('type') === $sectorMenu['type'] ? 'active' : '' }}" href="{{ route('orders.multisectorial.index', ['type' => $sectorMenu['type']]) }}">
+                    <i class="bi bi-person-lines-fill me-2"></i> {{ $sectorMenu['label'] }}
+                </a>
+            </li>
+            @endforeach
             @if($canViewFuas)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active' : '' }}" href="{{ route('fuas.index') }}">

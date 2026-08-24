@@ -21,6 +21,39 @@ final class ClinicalService
         self::SOCIAL_WORK,
     ];
 
+    public const MULTISECTORIAL_TYPES = [
+        self::NUTRITION,
+        self::PSYCHOLOGY,
+        self::SOCIAL_WORK,
+    ];
+
+    public static function isMultisectorial(string $type): bool
+    {
+        return in_array($type, self::MULTISECTORIAL_TYPES, true);
+    }
+
+    public static function label(string $type): string
+    {
+        return match ($type) {
+            self::NUTRITION => 'NUTRICIÓN',
+            self::PSYCHOLOGY => 'PSICOLOGÍA',
+            self::SOCIAL_WORK => 'TRABAJO SOCIAL',
+            self::HEMODIALYSIS => 'HEMODIÁLISIS',
+            self::NEPHROLOGY => 'CONSULTA NEFROLÓGICA',
+            default => throw new InvalidArgumentException('Tipo de atención no válido.'),
+        };
+    }
+
+    public static function permissionPrefix(string $type): string
+    {
+        return match ($type) {
+            self::NUTRITION => 'nutrition',
+            self::PSYCHOLOGY => 'psychology',
+            self::SOCIAL_WORK => 'social_work',
+            default => throw new InvalidArgumentException('Tipo multisectorial no válido.'),
+        };
+    }
+
     public static function cpms(string $type): string
     {
         return match ($type) {

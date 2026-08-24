@@ -100,6 +100,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
 
     Route::get('orders/nephrology/create', [App\Http\Controllers\OrderController::class, 'createNephrology'])->name('orders.nephrology.create');
     Route::post('orders/nephrology', [App\Http\Controllers\OrderController::class, 'storeNephrology'])->name('orders.nephrology.store');
+    Route::get('orders/multisectorial', [OrderController::class, 'multisectorialIndex'])->name('orders.multisectorial.index');
+    Route::get('orders/multisectorial/create', [OrderController::class, 'createMultisectorial'])->name('orders.multisectorial.create');
+    Route::post('orders/multisectorial', [OrderController::class, 'storeMultisectorial'])->name('orders.multisectorial.store');
     Route::resource('orders', App\Http\Controllers\OrderController::class);
     Route::post('orders/store-bulk', [App\Http\Controllers\OrderController::class, 'storeBulk'])
         ->name('orders.store_bulk');
