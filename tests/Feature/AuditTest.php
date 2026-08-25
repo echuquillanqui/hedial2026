@@ -139,7 +139,7 @@ class AuditTest extends TestCase
             ->assertSee('SIN CONSULTA NEFROLOGICA');
     }
 
-    public function test_pending_documents_uses_monthly_active_patients_and_monthly_documents(): void
+    public function test_pending_documents_uses_monthly_documents_for_all_patients(): void
     {
         [$user, $sede] = $this->auditScenario();
         $patient = Patient::factory()->create([
@@ -178,7 +178,30 @@ class AuditTest extends TestCase
             ->withSession(['current_sede_id' => $sede->id])
             ->get(route('audit.pending-documents', ['month' => today()->subMonth()->format('Y-m'), 'search' => 'CONTROL MENSUAL']))
             ->assertOk()
-            ->assertDontSee('CONTROL MENSUAL');
+            ->assertSee('CONTROL MENSUAL');
+    }
+
+    public function test_pending_documents_includes_patients_without_any_generated_records(): void
+    {
+        [$user, $sede] = $this->auditScenario();
+        $patient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'SIN NINGUN DOCUMENTO',
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.pending-documents', [
+                'month' => today()->format('Y-m'),
+                'search' => 'SIN NINGUN DOCUMENTO',
+            ]))
+            ->assertOk()
+            ->assertSee('SIN NINGUN DOCUMENTO')
+            ->assertSee('Consentimiento')
+            ->assertSee('Consulta nefrológica')
+            ->assertSee('Laboratorio')
+            ->assertSee(route('consents.create', ['patient_id' => $patient->id]), false)
+            ->assertSee(route('orders.nephrology.create', ['patient_id' => $patient->id]), false);
     }
 
     public function test_pending_documents_can_filter_patients_missing_every_document(): void

@@ -85,11 +85,8 @@ class AuditController extends Controller
             ->when($request->filled('sequence'), fn (Builder $query) => $query->where('secuencia', $request->input('sequence')))
             ->when($request->filled('shift'), fn (Builder $query) => $query->where('turno', $request->input('shift')))
             ->when($request->filled('module'), fn (Builder $query) => $query->where('modulo', $request->input('module')))
-            // Cualquier atención clínica identifica a los pacientes activos del mes. Así también
-            // aparecen quienes todavía no tienen alguna de las otras órdenes mensuales creada.
-            ->whereHas('orders', fn (Builder $orders) => $orders
-                ->whereIn('attention_type', [ClinicalService::HEMODIALYSIS, ClinicalService::NEPHROLOGY])
-                ->whereBetween('fecha_orden', [$monthStart, $monthEnd]))
+            // Se parte del padrón completo de la sede: no tener ninguna orden o documento
+            // generado durante el mes significa que el paciente tiene todo pendiente.
             ->where(function (Builder $query) use ($missing, $hasConsentThisMonth, $hasConsultationThisMonth, $hasLaboratoryThisMonth) {
                 match ($missing) {
                     'consent' => $query->whereDoesntHave('hemodialysisConsents', $hasConsentThisMonth),
