@@ -174,6 +174,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::resource('medicals', App\Http\Controllers\MedicalController::class);
     Route::get('consultas/{consultation}/consulta.pdf', [NephrologyConsultationController::class, 'consultationPdf'])->name('consultations.pdf');
     Route::get('consultas/{consultation}/receta.pdf', [NephrologyConsultationController::class, 'prescriptionPdf'])->name('consultations.prescription.pdf');
+    Route::post('consultas/imprimir/bloque', [NephrologyConsultationController::class, 'bulkPdf'])->name('consultations.bulk-pdf');
     Route::resource('consultas', NephrologyConsultationController::class)
         ->only(['index', 'edit', 'update'])
         ->parameters(['consultas' => 'consultation'])

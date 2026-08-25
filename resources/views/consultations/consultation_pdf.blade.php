@@ -6,7 +6,8 @@
         @page { size: A4 portrait; margin: 8mm 12mm; }
         * { box-sizing: border-box; }
         body { color: #172033; font-family: DejaVu Sans, sans-serif; font-size: 8px; line-height: 1.12; margin: 0; }
-        .sheet { border: 1px solid #cbd5e1; border-top: 4px solid #2563eb; padding: 3mm 4mm; }
+        .sheet { border: 1px solid #cbd5e1; border-top: 4px solid #2563eb; padding: 3mm 4mm; page-break-after: always; }
+        .sheet:last-child { page-break-after: auto; }
         table { border-collapse: collapse; width: 100%; }
         td { padding: 1.5px 3px; vertical-align: top; }
         .header { background: #eff6ff; border: 0; height: 58px; margin-bottom: 4px; page-break-inside: avoid; }
@@ -47,6 +48,7 @@
     </style>
 </head>
 <body>
+@foreach(($consultations ?? collect([$consultation])) as $consultation)
 @php
     $patient = $consultation->patient;
     $doctor = $consultation->doctor;
@@ -131,5 +133,6 @@
     <table style="width:55%"><tr><td class="label" style="width:26%">Nombre y apellido:</td><td>{{ $doctor?->name ?: '—' }}</td></tr><tr><td class="label">Profesión:</td><td>{{ $doctor?->profession ?: 'Médico Cirujano' }}</td></tr><tr><td class="label">Especialidad:</td><td>Nefrología</td></tr><tr><td class="label">N° C.M.P. / R.N.E.:</td><td>{{ $doctor?->license_number ?: '—' }} / {{ $doctor?->specialty_number ?: '—' }}</td></tr></table>
     <div class="signature" style="border-top:0">@include('pdf.partials.digital_stamp', ['user' => $doctor, 'role' => 'doctor'])</div>
 </div>
+@endforeach
 </body>
 </html>

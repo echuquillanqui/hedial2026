@@ -86,6 +86,41 @@ class NephrologyConsultationTest extends TestCase
             ->assertDontSee($orphan->patient->full_name);
     }
 
+    public function test_consultation_index_filters_by_date_and_patient_schedule(): void
+    {
+        $user = User::factory()->create();
+        $expected = Patient::factory()->create(['secuencia' => 'L-M-V', 'turno' => '2', 'modulo' => '3']);
+        $hidden = Patient::factory()->create(['secuencia' => 'M-J-S', 'turno' => '1', 'modulo' => '1']);
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$expected->id, $hidden->id],
+            'fecha_orden' => '2026-08-14',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', [
+            'date' => '2026-08-14', 'sequence' => 'L-M-V', 'shift' => 2, 'module' => 3,
+        ]))->assertOk()->assertSee($expected->full_name)->assertDontSee($hidden->full_name)
+            ->assertSee('Imprimir bloque')->assertSee('Consulta')->assertSee('Receta')->assertSee('FUA');
+    }
+
+    public function test_consultations_and_prescriptions_can_be_printed_in_bulk(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(2)->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(), 'fecha_orden' => '2026-08-14',
+        ]);
+        $ids = NephrologyConsultation::pluck('id')->all();
+
+        foreach (['consultation', 'prescription'] as $type) {
+            $response = $this->actingAs($user)->withoutMiddleware()->post(route('consultations.bulk-pdf'), [
+                'consultations' => $ids, 'document_type' => $type,
+            ]);
+            $response->assertOk()->assertHeader('content-type', 'application/pdf');
+            $this->assertSame(2, preg_match_all('/\/Type\s*\/Page\b/', $response->getContent()));
+        }
+    }
+
     public function test_prescription_pdf_is_available(): void
     {
         $user = User::factory()->create();
