@@ -40,8 +40,11 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
-        // Si no viene fecha en el request, usamos la de hoy por defecto
-        $dateFilter = $request->get('date', date('Y-m-d'));
+        // La vista inicia en hoy, pero permite consultar todo el historial y
+        // combinarlo libremente con los demás filtros.
+        $dateFilter = $request->boolean('all_dates')
+            ? null
+            : $request->input('date', now()->toDateString());
 
         $currentSedeId = CurrentSede::id();
 

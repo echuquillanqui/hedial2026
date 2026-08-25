@@ -38,8 +38,13 @@
                 </div>
                 <div class="col-md-2">
                     <label class="filter-label">Fecha</label>
-                    <input type="date" name="date" class="form-control form-control-sm border-success filter-input" 
-                           value="{{ request('date', date('Y-m-d')) }}">
+                    <input id="dateFilter" type="date" name="date" class="form-control form-control-sm border-success filter-input"
+                           value="{{ request('date', date('Y-m-d')) }}" @disabled(request()->boolean('all_dates'))>
+                    <div class="form-check mt-1">
+                        <input id="allDatesFilter" type="checkbox" name="all_dates" value="1"
+                               class="form-check-input filter-input" @checked(request()->boolean('all_dates'))>
+                        <label for="allDatesFilter" class="form-check-label small fw-semibold text-success">Todas las fechas</label>
+                    </div>
                 </div>
                 <div class="col-md-2">
                     <label class="filter-label">Turno</label>
@@ -224,6 +229,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Lógica Filtros Reactivos
     const filterForm = document.getElementById('filterForm');
+    const dateFilter = document.getElementById('dateFilter');
+    const allDatesFilter = document.getElementById('allDatesFilter');
+
+    allDatesFilter.addEventListener('change', () => {
+        dateFilter.disabled = allDatesFilter.checked;
+    });
+
     document.querySelectorAll('.filter-input').forEach(input => {
         input.addEventListener(input.type === 'text' ? 'keyup' : 'change', () => {
             clearTimeout(window.filterTimer);

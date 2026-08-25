@@ -140,6 +140,47 @@ class FuaNumberingAndOrderEditingTest extends TestCase
         }
     }
 
+    public function test_order_list_can_show_all_dates_without_an_additional_filter(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $firstOrder = $this->order($patient, Fua::HEMODIALYSIS, 'HISTORICO-1');
+        $secondOrder = $this->order($patient, Fua::HEMODIALYSIS, 'HISTORICO-2');
+        $secondOrder->update(['fecha_orden' => '2026-08-20']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'all_dates' => 1,
+        ]));
+
+        $response->assertOk()
+            ->assertSee($firstOrder->codigo_unico)
+            ->assertSee($secondOrder->codigo_unico)
+            ->assertSee('id="allDatesFilter"', false)
+            ->assertSee('checked', false);
+    }
+
+    public function test_all_dates_can_be_combined_with_additional_order_filters(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $matchingOrder = $this->order($patient, Fua::HEMODIALYSIS, 'TODAS-FILTRADA');
+        $matchingOrder->update(['fecha_orden' => '2026-08-20', 'sala' => 'MODULO 2', 'turno' => '3']);
+        $otherOrder = $this->order($patient, Fua::HEMODIALYSIS, 'TODAS-EXCLUIDA');
+        $otherOrder->update(['fecha_orden' => '2026-08-21', 'sala' => 'MODULO 1', 'turno' => '1']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'all_dates' => 1,
+            'sala' => 'MODULO 2',
+            'turno' => 3,
+        ]));
+
+        $response->assertOk()
+            ->assertSee($matchingOrder->codigo_unico)
+            ->assertDontSee($otherOrder->codigo_unico)
+            ->assertSee('value="MODULO 2" selected', false)
+            ->assertSee('value="3" selected', false);
+    }
+
     private function order(Patient $patient, string $type, string $code): Order
     {
         return Order::create([
