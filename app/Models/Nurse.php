@@ -15,7 +15,7 @@ class Nurse extends Model
         'order_id', 'frecuencia_hd', 'numero_hd', 'puesto', 'numero_maquina', 'marca_modelo',
         'aspecto_dializador', 'filtro', 'pa_inicial', 'pa_final', 'peso_inicial', 'peso_final',
         'uf', 'acceso_venoso', 'acceso_arterial', 'epo2000', 'epo4000', 'hierro', 
-        'vitamina_b12', 'calcitriol', 'otros_medicamentos', 's', 'o', 'a', 'p', 
+        'vitamina_b12', 'calcitriol', 'otros_medicamentos', 'transfusions', 'dressings', 's', 'o', 'a', 'p',
         'observacion_final', 'enfermero_que_inicia_id', 'enfermero_que_finaliza_id'
     ];
 
