@@ -135,6 +135,8 @@
                         </div>
                         @endforeach
                         <div class="col-md-3"><label>Otros Medicamentos</label><input type="text" name="otros_medicamentos" class="form-control form-control-sm" value="{{ $nurse->otros_medicamentos }}"></div>
+                        <div class="col-md-6"><label>Transfusiones realizadas</label><textarea name="transfusions" class="form-control form-control-sm" rows="2" placeholder="Componente, volumen, hora y reacción, si corresponde">{{ $nurse->transfusions }}</textarea></div>
+                        <div class="col-md-6"><label>Curaciones realizadas</label><textarea name="dressings" class="form-control form-control-sm" rows="2" placeholder="Tipo de curación, acceso y hallazgos">{{ $nurse->dressings }}</textarea></div>
                     </div>
                 </div>
 

@@ -24,6 +24,7 @@ use App\Http\Controllers\MisAssessmentController;
 use App\Http\Controllers\PsychologyAssessmentController;
 use App\Http\Controllers\Eq5dAssessmentController;
 use App\Http\Controllers\SocialWorkAssessmentController;
+use App\Http\Controllers\NursingAnnexController;
 
 /*
 |--------------------------------------------------------------------------
@@ -138,6 +139,10 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('servicio-social/{socialWork}',[SocialWorkAssessmentController::class,'show'])->name('social-work.show');
     Route::get('servicio-social/{socialWork}/editar',[SocialWorkAssessmentController::class,'edit'])->name('social-work.edit');
     Route::put('servicio-social/{socialWork}',[SocialWorkAssessmentController::class,'update'])->name('social-work.update');
+    Route::get('anexos/enfermeria', [NursingAnnexController::class, 'index'])->name('nursing-annexes.index');
+    Route::post('anexos/enfermeria/{order}/descarte', [NursingAnnexController::class, 'storeDiscard'])->name('nursing-annexes.discards.store');
+    Route::get('anexos/enfermeria/descarte/{category}/pdf', [NursingAnnexController::class, 'discardPdf'])->name('nursing-annexes.discards.pdf');
+    Route::get('anexos/enfermeria/atenciones/pdf', [NursingAnnexController::class, 'carePdf'])->name('nursing-annexes.care.pdf');
     Route::get('/patients-search', [App\Http\Controllers\PatientController::class, 'search'])->name('patients.search');
     Route::resource('referrals', App\Http\Controllers\ReferralController::class);
     Route::get('/referrals/{id}/pdf', [App\Http\Controllers\ReferralController::class, 'downloadPdf'])->name('referrals.pdf');

@@ -260,6 +260,9 @@
                 </a>
             </li>
             @endif
+            @can('annexes.nursing.view')
+            <li><a class="dropdown-item {{ request()->routeIs('nursing-annexes.*') ? 'active' : '' }}" href="{{ route('nursing-annexes.index') }}"><i class="bi bi-file-earmark-spreadsheet me-2"></i> Anexos 11 y 12</a></li>
+            @endcan
             @if($canViewNephrology)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}">

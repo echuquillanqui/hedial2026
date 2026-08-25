@@ -38,6 +38,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'fua.view', 'fua.generate', 'fua.responsible.update', 'fua.configuration.manage', 'fua.correction.create',
             'laboratory.results.view', 'laboratory.orders.create', 'laboratory.results.update', 'laboratory.catalog.manage',
             'materials.view', 'materials.manage', 'audit.view',
+            'annexes.nursing.view', 'annexes.nursing.record', 'annexes.nursing.print',
 
             'nutrition.view', 'nutrition.create', 'nutrition.update', 'nutrition.print',
             'nutrition.mis.view', 'nutrition.mis.create', 'nutrition.fua.view', 'nutrition.fua.generate',
@@ -80,6 +81,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'fua.view', 'fua.generate', 'fua.responsible.update', 'fua.configuration.manage', 'fua.correction.create',
                 'laboratory.results.view', 'laboratory.orders.create', 'laboratory.results.update', 'laboratory.catalog.manage',
                 'materials.view', 'materials.manage', 'audit.view',
+                'annexes.nursing.view', 'annexes.nursing.record', 'annexes.nursing.print',
                 'nutrition.view', 'nutrition.create', 'nutrition.update', 'nutrition.print',
                 'nutrition.mis.view', 'nutrition.mis.create', 'nutrition.fua.view', 'nutrition.fua.generate',
                 'psychology.view', 'psychology.create', 'psychology.update', 'psychology.print',
@@ -111,6 +113,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'patients.view',
                 'nurses.view', 'nurses.create', 'nurses.edit',
                 'fua.view', 'laboratory.results.view', 'materials.view',
+                'annexes.nursing.view', 'annexes.nursing.record', 'annexes.nursing.print',
             ],
             'recepcion' => [
                 'dashboard.view',

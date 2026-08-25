@@ -133,4 +133,9 @@ class Order extends Model
     {
         return $this->hasMany(HemodialysisMaterialConsumption::class, 'order_id');
     }
+
+    public function disposableDiscards()
+    {
+        return $this->hasMany(DisposableDiscard::class);
+    }
 }
