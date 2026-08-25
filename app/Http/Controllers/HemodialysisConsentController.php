@@ -17,7 +17,7 @@ class HemodialysisConsentController extends Controller
     {
         $this->middleware('permission:consents.view')->only(['index', 'show']);
         $this->middleware('permission:consents.create')->only(['create', 'store']);
-        $this->middleware('permission:consents.print')->only('pdf');
+        $this->middleware('permission:consents.print')->only(['pdf', 'bulkPdf']);
     }
 
     public function index(Request $request)
@@ -26,6 +26,8 @@ class HemodialysisConsentController extends Controller
         $consents = HemodialysisConsent::query()->with(['patient', 'sede', 'physician'])
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->whereDate('consented_at', $date)
+            ->when($request->filled('sequence'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $request->string('sequence'))))
+            ->when($request->filled('shift'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('turno', $request->string('shift'))))
             ->when($request->filled('search'), fn ($query) => $query->whereHas('patient', function ($patient) use ($request) {
                 $search = trim((string) $request->search);
                 $patient->where('dni', 'like', "%{$search}%")->orWhere('first_name', 'like', "%{$search}%")
@@ -88,6 +90,24 @@ class HemodialysisConsentController extends Controller
         $consent->load(['patient', 'sede', 'physician']);
         return Pdf::loadView('consents.pdf', $branding->data() + compact('consent'))->setPaper('a4')
             ->stream('consentimiento-hemodialisis-'.$consent->id.'.pdf');
+    }
+
+    public function bulkPdf(Request $request, PdfBrandingService $branding)
+    {
+        $data = $request->validate([
+            'consent_ids' => ['required', 'array', 'min:1'],
+            'consent_ids.*' => ['integer', 'distinct', 'exists:hemodialysis_consents,id'],
+        ]);
+
+        $consents = HemodialysisConsent::query()->with(['patient', 'sede', 'physician'])
+            ->whereIn('id', $data['consent_ids'])
+            ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+            ->orderBy('consented_at')->get();
+
+        abort_unless($consents->count() === count($data['consent_ids']), 403);
+
+        return Pdf::loadView('consents.bulk-pdf', $branding->data() + compact('consents'))->setPaper('a4')
+            ->stream('consentimientos-hemodialisis.pdf');
     }
 
     private function authorizeSede(HemodialysisConsent $consent): void

@@ -1,0 +1,3 @@
+<style>
+@page{margin:1.3cm 1.5cm}body{font-family:DejaVu Sans;font-size:10.5px;line-height:1.25;color:#111}.center{text-align:center}.consent-page{page-break-after:always}.consent-page:last-child{page-break-after:auto}.signature-row{width:100%;border-collapse:collapse;margin-top:38px;table-layout:fixed}.signature-row td{width:50%;padding:0 24px;text-align:center;vertical-align:bottom}.signature-row .signature-space{height:62px}.signature-image{max-height:55px;max-width:170px}.signature-line{border-top:1px solid #222;padding-top:4px;min-height:30px}.physician-signature{width:42%;margin:55px auto 0;text-align:center}.physician-signature .signature-space{height:62px}.footer{text-align:center;font-size:8px;margin-top:14px}
+</style>
