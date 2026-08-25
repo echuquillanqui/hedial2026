@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\DB;
 
 class CatalogController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:laboratory.catalog.manage');
+    }
+
     public function index()
     {
         $tests = Test::query()

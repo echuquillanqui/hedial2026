@@ -12,6 +12,12 @@ use App\Services\WarehouseConsumptionService;
 
 class MedicalController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:medicals.view')->only(['index', 'show']);
+        $this->middleware('permission:medicals.edit')->only(['edit', 'update']);
+    }
+
     /**
      * Listado con búsqueda interactiva y filtros.
      */

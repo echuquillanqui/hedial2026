@@ -16,6 +16,12 @@ use App\Support\CurrentSede;
 
 class ExtraMaterialController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:materials.view')->only(['index', 'monthlyReport']);
+        $this->middleware('permission:materials.manage')->except(['index', 'monthlyReport']);
+    }
+
     public function index(Request $request)
     {
         $month = $request->input('month', now()->format('Y-m'));
