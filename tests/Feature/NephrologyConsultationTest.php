@@ -67,26 +67,23 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('FUA');
     }
 
-    public function test_consultation_stores_default_prescription_rows(): void
+    public function test_consultations_can_only_be_generated_from_nephrology_orders(): void
     {
         $user = User::factory()->create();
         $patient = Patient::factory()->create();
 
-        $response = $this->actingAs($user)->withoutMiddleware()->post(route('consultations.store'), [
+        $orphan = NephrologyConsultation::create([
             'patient_id' => $patient->id,
             'consultation_date' => '2026-08-14',
-            'diagnosis' => 'Enfermedad renal crónica',
-            'medications' => array_map(fn ($item) => $item + [
-                'prescribed_quantity' => 1,
-                'delivered_quantity' => 0,
-            ], NephrologyConsultationController::DEFAULT_MEDICATIONS),
         ]);
 
-        $response->assertRedirect(route('consultations.index'));
-        $consultation = NephrologyConsultation::with('medications')->firstOrFail();
-        $this->assertSame(6, $consultation->medications->count());
-        $this->assertSame('06127', $consultation->medications->first()->fua_code);
-        $this->assertSame('13.00', $consultation->medications->firstWhere('fua_code', '3107')->prescribed_quantity);
+        $routes = collect(app('router')->getRoutes());
+        $this->assertFalse($routes->contains(fn ($route) => $route->getName() === 'consultations.create'));
+        $this->assertFalse($routes->contains(fn ($route) => $route->getName() === 'consultations.store'));
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
+            ->assertOk()
+            ->assertDontSee($orphan->patient->full_name);
     }
 
     public function test_prescription_pdf_is_available(): void

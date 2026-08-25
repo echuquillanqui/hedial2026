@@ -20,6 +20,7 @@ use App\Services\FuaNumberService;
 use App\Services\MultisectorialOrderService;
 use App\Support\ClinicalService;
 use App\Models\User;
+use App\Models\HemodialysisConsent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
 
@@ -276,6 +277,7 @@ class OrderController extends Controller
             ]));
 
             $this->createRelatedRecords($order, $order->patient);
+            $this->createMonthlyConsent($order, $patient, $request->user());
             app(FuaNumberService::class)->createForOrder($order);
 
             DB::commit();
@@ -333,6 +335,7 @@ class OrderController extends Controller
 
                 // 3. Crear registros clínicos relacionados (medicals, nurses y treatments)
                 $this->createRelatedRecords($order, $patient, $horasHD);
+                $this->createMonthlyConsent($order, $patient, $request->user());
                 app(FuaNumberService::class)->createForOrder($order);
 
             }
@@ -503,6 +506,36 @@ class OrderController extends Controller
     /**
      * Lógica compartida para crear Medical, Nurse y Treatment.
      */
+    private function createMonthlyConsent(Order $order, Patient $patient, User $creator): void
+    {
+        $attentionDate = $order->fecha_orden->copy();
+
+        if (HemodialysisConsent::query()
+            ->where('patient_id', $patient->id)
+            ->whereBetween('consented_at', [
+                $attentionDate->copy()->startOfMonth(),
+                $attentionDate->copy()->endOfMonth(),
+            ])->exists()) {
+            return;
+        }
+
+        $profession = mb_strtolower((string) $creator->profession);
+        $isPhysician = $creator->hasRole('medico')
+            || str_contains($profession, 'medic')
+            || str_contains($profession, 'nefro');
+
+        HemodialysisConsent::create([
+            'patient_id' => $patient->id,
+            'sede_id' => $patient->sede_id,
+            'physician_id' => $isPhysician ? $creator->id : null,
+            'created_by' => $creator->id,
+            'consented_at' => $attentionDate->startOfDay(),
+            'version' => '02',
+            'accepted' => true,
+            'notes' => 'Generado automáticamente con la primera atención de hemodiálisis del mes.',
+        ]);
+    }
+
     private function createRelatedRecords($order, $patient = null, $horasHD = null)
     {
         // 1. Crear Medical
