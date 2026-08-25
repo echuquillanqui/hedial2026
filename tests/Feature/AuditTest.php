@@ -138,6 +138,37 @@ class AuditTest extends TestCase
             ->assertDontSee('SIN CONSULTA NEFROLOGICA');
     }
 
+    public function test_pending_documents_can_include_missing_records_from_all_dates(): void
+    {
+        [$user, $sede] = $this->auditScenario();
+        $pastPatient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'PENDIENTE HISTORICO',
+        ]);
+        Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $pastPatient->id,
+            'codigo_unico' => 'ORD-PENDING-PAST',
+            'fecha_orden' => today()->subMonth(),
+            'attention_type' => 'NEPHROLOGY',
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.pending-documents', ['date' => today()->toDateString()]))
+            ->assertOk()
+            ->assertDontSee('PENDIENTE HISTORICO');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.pending-documents', ['all_dates' => 1]))
+            ->assertOk()
+            ->assertSee('PENDIENTE HISTORICO')
+            ->assertSee('Todas las fechas')
+            ->assertSee('name="all_dates"', false)
+            ->assertSee('checked', false);
+    }
+
     private function auditScenario(): array
     {
         $user = User::factory()->create();

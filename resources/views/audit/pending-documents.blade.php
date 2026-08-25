@@ -10,7 +10,14 @@
     <form method="GET" class="card card-body shadow-sm mb-4" data-audit-filters>
         <div class="row g-3 align-items-end">
             <div class="col-xl-3 col-md-6"><label class="form-label">Paciente, DNI o H.C.</label><input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Buscar..."></div>
-            <div class="col-xl-2 col-md-3"><label class="form-label">Fecha</label><input type="date" name="date" value="{{ $date }}" class="form-control"></div>
+            <div class="col-xl-2 col-md-3">
+                <label class="form-label">Fecha</label>
+                <input id="pendingDateFilter" type="date" name="date" value="{{ $date }}" class="form-control" @disabled($allDates)>
+                <div class="form-check mt-1">
+                    <input id="pendingAllDatesFilter" type="checkbox" name="all_dates" value="1" class="form-check-input" @checked($allDates)>
+                    <label for="pendingAllDatesFilter" class="form-check-label small fw-semibold">Todas las fechas</label>
+                </div>
+            </div>
             <div class="col-xl-2 col-md-3"><label class="form-label">Pendiente</label><select name="missing" class="form-select"><option value="">Cualquier documento</option><option value="consent" @selected(request('missing') === 'consent')>Consentimiento</option><option value="consultation" @selected(request('missing') === 'consultation')>Consulta nefrológica</option><option value="laboratory" @selected(request('missing') === 'laboratory')>Laboratorio</option></select></div>
             <div class="col-xl-2 col-md-4"><label class="form-label">Secuencia</label><select name="sequence" class="form-select"><option value="">Todas</option>@foreach(['L-M-V','M-J-S'] as $value)<option @selected(request('sequence') === $value)>{{ $value }}</option>@endforeach</select></div>
             <div class="col-xl-1 col-md-3"><label class="form-label">Turno</label><select name="shift" class="form-select"><option value="">Todos</option>@foreach(range(1,4) as $value)<option value="{{ $value }}" @selected((string)request('shift') === (string)$value)>{{ $value }}</option>@endforeach</select></div>
@@ -26,7 +33,8 @@
             @php
                 $hemodialysisOrders = $patient->orders->where('attention_type', \App\Support\ClinicalService::HEMODIALYSIS);
                 $nephrologyOrders = $patient->orders->where('attention_type', \App\Support\ClinicalService::NEPHROLOGY);
-                $missingConsent = $hemodialysisOrders->isNotEmpty() && $patient->hemodialysisConsents->isEmpty();
+                $consentDates = $patient->hemodialysisConsents->map(fn ($consent) => $consent->consented_at->toDateString());
+                $missingConsent = $hemodialysisOrders->contains(fn ($order) => !$consentDates->contains($order->fecha_orden->toDateString()));
                 $missingConsultation = $nephrologyOrders->contains(fn ($order) => !$order->nephrologyConsultation);
                 $missingLaboratory = $hemodialysisOrders->contains(fn ($order) => $order->laboratory_period && !$order->laboratoryOrder);
             @endphp

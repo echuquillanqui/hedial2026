@@ -12,7 +12,7 @@
     .modal-content { border-radius: 15px; overflow: hidden; }
 </style>
 
-<div class="container px-0 py-0">
+<div class="container-fluid px-0 py-0">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold text-uppercase m-0 text-success"><i class="bi bi-file-earmark-medical me-2"></i> Control de Órdenes</h4>
         <div class="d-flex gap-2">
