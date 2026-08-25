@@ -348,6 +348,9 @@
             <i class="bi bi-shield-check me-1"></i> AUDITORÍA
         </button>
         <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
+            <li><a class="dropdown-item {{ request()->routeIs('audit.pending-documents') ? 'active' : '' }}" href="{{ route('audit.pending-documents') }}">
+                <i class="bi bi-exclamation-triangle me-2"></i> DOCUMENTOS PENDIENTES
+            </a></li>
             <li><a class="dropdown-item {{ request()->routeIs('audit.histories') ? 'active' : '' }}" href="{{ route('audit.histories') }}">
                 <i class="bi bi-journal-check me-2"></i> HISTORIAS
             </a></li>

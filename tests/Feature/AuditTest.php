@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Fua;
+use App\Models\HemodialysisConsent;
+use App\Models\LaboratoryOrder;
 use App\Models\Medical;
 use App\Models\Nurse;
 use App\Models\Order;
@@ -78,6 +80,62 @@ class AuditTest extends TestCase
                 ->assertSee('form.requestSubmit()', false)
                 ->assertSeeInOrder([$previousColumn, 'Módulo']);
         }
+    }
+
+    public function test_pending_documents_lists_only_missing_records_that_apply_to_each_patient(): void
+    {
+        [$user, $sede, $hemodialysisOrder] = $this->auditScenario();
+        $hemodialysisOrder->update(['laboratory_period' => 'T']);
+        $nephrologyPatient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'SIN CONSULTA NEFROLOGICA',
+            'secuencia' => 'M-J-S',
+            'turno' => '2',
+            'modulo' => '3',
+        ]);
+        Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $nephrologyPatient->id,
+            'codigo_unico' => 'ORD-NEF-PENDING',
+            'fecha_orden' => today(),
+            'attention_type' => 'NEPHROLOGY',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.pending-documents', ['date' => today()->toDateString()]));
+
+        $response->assertOk()
+            ->assertSee('PACIENTE AUDITADO')
+            ->assertSee('SIN CONSULTA NEFROLOGICA')
+            ->assertSee('Consentimiento')
+            ->assertSee('Laboratorio (T)')
+            ->assertSee('Consulta nefrológica')
+            ->assertSee(route('consents.create', ['patient_id' => $hemodialysisOrder->patient_id]), false)
+            ->assertSee(route('orders.nephrology.create', ['patient_id' => $nephrologyPatient->id]), false);
+
+        HemodialysisConsent::create([
+            'patient_id' => $hemodialysisOrder->patient_id,
+            'sede_id' => $sede->id,
+            'created_by' => $user->id,
+            'consented_at' => now(),
+            'version' => '1.0',
+            'accepted' => true,
+        ]);
+        LaboratoryOrder::create([
+            'patient_id' => $hemodialysisOrder->patient_id,
+            'order_id' => $hemodialysisOrder->id,
+            'patient_name' => $hemodialysisOrder->patient->full_name,
+            'period' => 'T',
+            'sampled_at' => today(),
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.pending-documents', ['date' => today()->toDateString(), 'missing' => 'laboratory']))
+            ->assertOk()
+            ->assertDontSee('PACIENTE AUDITADO')
+            ->assertDontSee('SIN CONSULTA NEFROLOGICA');
     }
 
     private function auditScenario(): array

@@ -9,24 +9,4 @@
     </div>
 </form>
 
-@once
-    @push('scripts')
-        <script>
-            document.querySelectorAll('[data-audit-filters]').forEach((form) => {
-                let timer;
-                const submit = () => form.requestSubmit();
-
-                form.querySelectorAll('select, input[type="date"]').forEach((field) => {
-                    field.addEventListener('change', submit);
-                });
-
-                form.querySelectorAll('input[type="text"]').forEach((field) => {
-                    field.addEventListener('input', () => {
-                        window.clearTimeout(timer);
-                        timer = window.setTimeout(submit, 450);
-                    });
-                });
-            });
-        </script>
-    @endpush
-@endonce
+@include('audit._filters-script')
