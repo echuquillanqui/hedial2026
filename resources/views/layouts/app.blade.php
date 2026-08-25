@@ -79,8 +79,6 @@
                         $canViewExtraMaterials = auth()->user()->can('materials.view');
                         $canViewNephrology = auth()->user()->can('nephrology.view');
                         $canViewFuas = auth()->user()->can('fua.view');
-                        $canSeeClinicalArea = $canViewOrders || $canViewMedicals || $canViewNurses || $canViewExtraMaterials || $canViewNephrology || $canViewFuas;
-
                         $canViewWarehouse = auth()->user()->can('warehouse.requests.view');
                         $canViewCatalog = auth()->user()->can('laboratory.catalog.manage');
                         $canViewLaboratoryResults = auth()->user()->can('laboratory.results.view');
@@ -94,7 +92,13 @@
                             ['type' => \App\Support\ClinicalService::PSYCHOLOGY, 'label' => 'Psicología', 'permission' => 'psychology.view', 'fua_permission' => 'psychology.fua.view'],
                             ['type' => \App\Support\ClinicalService::SOCIAL_WORK, 'label' => 'Trabajo Social', 'permission' => 'social_work.view', 'fua_permission' => 'social_work.fua.view'],
                         ])->filter(fn ($item) => auth()->user()->can($item['permission']) || $canViewOrders);
-                        $canSeeClinicalArea = $canSeeClinicalArea || $multisectorialMenus->isNotEmpty() || $canViewInitialHistory || $canViewConsents;
+                        $canSeeHemodialysis = $canViewOrders || $canViewMedicals || $canViewNurses || $canViewExtraMaterials
+                            || auth()->user()->can('annexes.nursing.view')
+                            || auth()->user()->can('homologation.reports.view')
+                            || auth()->user()->can('homologation.technical.manage')
+                            || auth()->user()->can('homologation.epidemiology.manage');
+                        $canSeeNephrology = $canViewNephrology || $canViewInitialHistory || $canViewConsents;
+                        $canSeeMultisectorial = $multisectorialMenus->isNotEmpty();
                     @endphp
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
@@ -198,53 +202,19 @@
     </li>
     @endif
 
-    @if($canSeeClinicalArea)
+    @if($canSeeHemodialysis)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.*', 'medicals.*', 'consultations.*', 'nurses.*', 'extra-materials.*', 'fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.index', 'orders.create', 'orders.store', 'orders.edit', 'orders.update', 'orders.destroy', 'orders.store_bulk', 'medicals.*', 'nurses.*', 'enfermeria.*', 'extra-materials.*', 'nursing-annexes.*', 'homologation.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
-            <i class="bi bi-clipboard2-pulse-fill me-1"></i> Área Clínica
+            <i class="bi bi-heart-pulse-fill me-1"></i> Hemodiálisis
         </button>
         <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
             @if($canViewOrders)
             <li>
-                <a class="dropdown-item {{ request()->routeIs('orders.*') ? 'active' : '' }}" href="{{ route('orders.index') }}">
-                    <i class="bi bi-list-check me-2"></i> Ordenes
+                <a class="dropdown-item {{ request()->routeIs('orders.index', 'orders.create', 'orders.store', 'orders.edit', 'orders.update', 'orders.destroy', 'orders.store_bulk') ? 'active' : '' }}" href="{{ route('orders.index') }}">
+                    <i class="bi bi-list-check me-2"></i> Órdenes de hemodiálisis
                 </a>
             </li>
-            @endif
-            @foreach($multisectorialMenus as $sectorMenu)
-            <li>
-                <a class="dropdown-item {{ request()->routeIs('orders.multisectorial.*') && request('type') === $sectorMenu['type'] ? 'active' : '' }}" href="{{ route('orders.multisectorial.index', ['type' => $sectorMenu['type']]) }}">
-                    <i class="bi bi-person-lines-fill me-2"></i> Órdenes {{ $sectorMenu['label'] }}
-                </a>
-            </li>
-            @if($sectorMenu['type'] === \App\Support\ClinicalService::NUTRITION && auth()->user()->can('nutrition.view'))
-            <li><a class="dropdown-item {{ request()->routeIs('nutrition.*') ? 'active' : '' }}" href="{{ route('nutrition.index') }}"><i class="bi bi-heart-pulse me-2"></i> Atenciones Nutrición</a></li>
-            @endif
-            @if($sectorMenu['type'] === \App\Support\ClinicalService::NUTRITION && auth()->user()->can('nutrition.mis.view'))
-            <li><a class="dropdown-item {{ request()->routeIs('mis.*') ? 'active' : '' }}" href="{{ route('mis.index') }}"><i class="bi bi-clipboard2-data me-2"></i> Evaluaciones MIS</a></li>
-            @endif
-            @if($sectorMenu['type'] === \App\Support\ClinicalService::PSYCHOLOGY && auth()->user()->can('psychology.view'))
-            <li><a class="dropdown-item {{ request()->routeIs('psychology.*','eq5d.*') ? 'active' : '' }}" href="{{ route('psychology.index') }}"><i class="bi bi-chat-heart me-2"></i> Salud Mental / EQ-5D</a></li>
-            @endif
-            @if($sectorMenu['type'] === \App\Support\ClinicalService::SOCIAL_WORK && auth()->user()->can('social_work.view'))
-            <li><a class="dropdown-item {{ request()->routeIs('social-work.*') ? 'active' : '' }}" href="{{ route('social-work.index') }}"><i class="bi bi-people me-2"></i> Atenciones Servicio Social</a></li>
-            @endif
-            @if(auth()->user()->can($sectorMenu['fua_permission']) || $canViewFuas)
-            <li><a class="dropdown-item" href="{{ route('fuas.multisectorial.index', ['type' => $sectorMenu['type'], 'all_dates' => 1]) }}"><i class="bi bi-file-earmark-medical me-2"></i> FUA {{ $sectorMenu['label'] }}</a></li>
-            @endif
-            @endforeach
-            @if($canViewInitialHistory)<li><a class="dropdown-item {{ request()->routeIs('initial-histories.*') ? 'active' : '' }}" href="{{ route('initial-histories.index') }}"><i class="bi bi-journal-medical me-2"></i> Historia Clínica Inicial</a></li>@endif
-            @if($canViewConsents)<li><a class="dropdown-item {{ request()->routeIs('consents.*') ? 'active' : '' }}" href="{{ route('consents.index') }}"><i class="bi bi-pen me-2"></i> Consentimientos</a></li>@endif
-            @if($canViewFuas)
-            <li>
-                <a class="dropdown-item {{ request()->routeIs('fuas.index', 'fuas.preview', 'fuas.pdf') ? 'active' : '' }}" href="{{ route('fuas.index') }}">
-                    <i class="bi bi-files me-2"></i> FUA generadas
-                </a>
-            </li>
-            @endif
-            @if(($canViewOrders || $canViewFuas) && ($canViewMedicals || $canViewNurses || $canViewNephrology || $canViewExtraMaterials))
-            <li><hr class="dropdown-divider"></li>
             @endif
             @if($canViewMedicals)
             <li>
@@ -269,13 +239,6 @@
             @endcan
             @can('homologation.technical.manage')<li><a class="dropdown-item" href="{{ route('homologation.technical') }}"><i class="bi bi-droplet me-2"></i> Anexos 14–15 · Área técnica</a></li>@endcan
             @can('homologation.epidemiology.manage')<li><a class="dropdown-item" href="{{ route('homologation.epidemiology') }}"><i class="bi bi-shield-plus me-2"></i> Anexo 17 · Epidemiología</a></li>@endcan
-            @if($canViewNephrology)
-            <li>
-                <a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}">
-                    <i class="bi bi-journal-medical me-2"></i> Consultas nefrológicas
-                </a>
-            </li>
-            @endif
             @if($canViewExtraMaterials)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('extra-materials.*') ? 'active' : '' }}" href="{{ route('extra-materials.index') }}">
@@ -283,6 +246,52 @@
                 </a>
             </li>
             @endif
+        </ul>
+    </li>
+    @endif
+
+    @if($canSeeNephrology)
+    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.nephrology.*', 'consultations.*', 'initial-histories.*', 'consents.*') ? 'active fw-bold' : '' }}"
+                type="button" @click="open = !open" :aria-expanded="open.toString()">
+            <i class="bi bi-journal-medical me-1"></i> Consultas nefrológicas
+        </button>
+        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
+            @if($canViewOrders)
+            <li><a class="dropdown-item {{ request()->routeIs('orders.nephrology.*') ? 'active' : '' }}" href="{{ route('orders.nephrology.create') }}"><i class="bi bi-clipboard2-plus me-2"></i> Generar órdenes</a></li>
+            @endif
+            @if($canViewNephrology)
+            <li><a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}"><i class="bi bi-person-vcard me-2"></i> Atenciones nefrológicas</a></li>
+            @endif
+            @if($canViewInitialHistory)<li><a class="dropdown-item {{ request()->routeIs('initial-histories.*') ? 'active' : '' }}" href="{{ route('initial-histories.index') }}"><i class="bi bi-journal-text me-2"></i> Historia clínica inicial</a></li>@endif
+            @if($canViewConsents)<li><a class="dropdown-item {{ request()->routeIs('consents.*') ? 'active' : '' }}" href="{{ route('consents.index') }}"><i class="bi bi-pen me-2"></i> Consentimientos</a></li>@endif
+        </ul>
+    </li>
+    @endif
+
+    @if($canSeeMultisectorial)
+    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.multisectorial.*', 'nutrition.*', 'mis.*', 'psychology.*', 'eq5d.*', 'social-work.*', 'fuas.multisectorial.*') ? 'active fw-bold' : '' }}"
+                type="button" @click="open = !open" :aria-expanded="open.toString()">
+            <i class="bi bi-people-fill me-1"></i> Multisectorial
+        </button>
+        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
+            @foreach($multisectorialMenus as $sectorMenu)
+            <li><h6 class="dropdown-header">{{ $sectorMenu['label'] }}</h6></li>
+            <li><a class="dropdown-item {{ request()->routeIs('orders.multisectorial.*') && request('type') === $sectorMenu['type'] ? 'active' : '' }}" href="{{ route('orders.multisectorial.index', ['type' => $sectorMenu['type']]) }}"><i class="bi bi-list-check me-2"></i> Órdenes</a></li>
+            @if($sectorMenu['type'] === \App\Support\ClinicalService::NUTRITION && auth()->user()->can('nutrition.view'))
+            <li><a class="dropdown-item {{ request()->routeIs('nutrition.*') ? 'active' : '' }}" href="{{ route('nutrition.index') }}"><i class="bi bi-heart-pulse me-2"></i> Atenciones</a></li>
+            @if(auth()->user()->can('nutrition.mis.view'))<li><a class="dropdown-item {{ request()->routeIs('mis.*') ? 'active' : '' }}" href="{{ route('mis.index') }}"><i class="bi bi-clipboard2-data me-2"></i> Evaluaciones MIS</a></li>@endif
+            @elseif($sectorMenu['type'] === \App\Support\ClinicalService::PSYCHOLOGY && auth()->user()->can('psychology.view'))
+            <li><a class="dropdown-item {{ request()->routeIs('psychology.*','eq5d.*') ? 'active' : '' }}" href="{{ route('psychology.index') }}"><i class="bi bi-chat-heart me-2"></i> Atenciones / EQ-5D</a></li>
+            @elseif($sectorMenu['type'] === \App\Support\ClinicalService::SOCIAL_WORK && auth()->user()->can('social_work.view'))
+            <li><a class="dropdown-item {{ request()->routeIs('social-work.*') ? 'active' : '' }}" href="{{ route('social-work.index') }}"><i class="bi bi-people me-2"></i> Atenciones</a></li>
+            @endif
+            @if(auth()->user()->can($sectorMenu['fua_permission']) || $canViewFuas)
+            <li><a class="dropdown-item {{ request()->routeIs('fuas.multisectorial.*') && request('type') === $sectorMenu['type'] ? 'active' : '' }}" href="{{ route('fuas.multisectorial.index', ['type' => $sectorMenu['type'], 'all_dates' => 1]) }}"><i class="bi bi-file-earmark-medical me-2"></i> FUA</a></li>
+            @endif
+            @if(!$loop->last)<li><hr class="dropdown-divider"></li>@endif
+            @endforeach
         </ul>
     </li>
     @endif
