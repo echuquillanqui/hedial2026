@@ -19,7 +19,7 @@ class NephrologyConsultationController extends Controller
     {
         $this->middleware('permission:nephrology.view')->only(['index']);
         $this->middleware('permission:nephrology.update')->only(['edit', 'update']);
-        $this->middleware('permission:nephrology.print')->only(['consultationPdf', 'prescriptionPdf']);
+        $this->middleware('permission:nephrology.print')->only(['consultationPdf', 'prescriptionPdf', 'bulkPdf']);
     }
 
     public const DEFAULT_MEDICATIONS = [
@@ -47,7 +47,12 @@ class NephrologyConsultationController extends Controller
                 $search = $request->string('search')->trim();
                 $query->whereHas('patient', fn ($patient) => $patient->where('dni', 'like', "%{$search}%")
                     ->orWhere('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"));
-            })->latest('consultation_date')->paginate(15)->withQueryString();
+            })
+            ->when($request->filled('date'), fn ($query) => $query->whereDate('consultation_date', $request->date))
+            ->when($request->filled('sequence'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $request->sequence)))
+            ->when($request->filled('shift'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('turno', $request->shift)))
+            ->when($request->filled('module'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $request->module)))
+            ->latest('consultation_date')->paginate(15)->withQueryString();
 
         return view('consultations.index', compact('consultations'));
     }
@@ -132,6 +137,30 @@ class NephrologyConsultationController extends Controller
 
         return Pdf::loadView('consultations.consultation_pdf', compact('consultation', 'configuration', 'logoData'))->setPaper('a4')
             ->stream('consulta-nefrologica-'.$consultation->id.'.pdf');
+    }
+
+    public function bulkPdf(Request $request)
+    {
+        $data = $request->validate([
+            'consultations' => ['required', 'array', 'min:1'],
+            'consultations.*' => ['integer', 'distinct', 'exists:nephrology_consultations,id'],
+            'document_type' => ['required', 'in:consultation,prescription'],
+        ]);
+
+        $consultations = NephrologyConsultation::query()
+            ->whereIn('id', $data['consultations'])
+            ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
+            ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+            ->with(['patient', 'doctor', 'sede', 'medications'])->get()
+            ->sortBy(fn ($item) => array_search($item->id, $data['consultations']))->values();
+
+        abort_unless($consultations->count() === count($data['consultations']), 403);
+        $configuration = FuaConfiguration::global();
+        $logoData = $this->logoData($configuration->logo_path);
+        $view = $data['document_type'] === 'consultation' ? 'consultations.consultation_pdf' : 'consultations.prescription_pdf';
+
+        return Pdf::loadView($view, compact('consultations', 'configuration', 'logoData'))->setPaper('a4')
+            ->stream($data['document_type'].'-nefrologia-bloque.pdf');
     }
 
     /** Use the logo uploaded in FUA settings and keep an embedded fallback for reliable PDFs. */

@@ -15,6 +15,8 @@
         .prescription + .prescription { page-break-before: avoid; }
         .prescription:first-child { border-bottom: 1px dashed #8a96a3; }
         .prescription:last-child { padding-top: 5mm; }
+        .consultation-prescriptions { page-break-after: always; }
+        .consultation-prescriptions:last-child { page-break-after: auto; }
         .header { position: relative; min-height: 40px; text-align: center; border-bottom: 2px solid #183b6b; padding: 0 80px 4px; }
         .company-logo { position: absolute; top: 0; left: 4px; width: 70px; height: 38px; object-fit: contain; }
         .header h1 { margin: 0; color: #183b6b; font-size: 14px; }
@@ -36,6 +38,8 @@
     </style>
 </head>
 <body>
+@foreach(($consultations ?? collect([$consultation])) as $consultation)
+<div class="consultation-prescriptions">
 @for ($copy = 0; $copy < 2; $copy++)
     <section class="prescription">
         <div class="header">
@@ -89,5 +93,7 @@
         </div>
     </section>
 @endfor
+</div>
+@endforeach
 </body>
 </html>
