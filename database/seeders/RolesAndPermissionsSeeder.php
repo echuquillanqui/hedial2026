@@ -39,6 +39,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'laboratory.results.view', 'laboratory.orders.create', 'laboratory.results.update', 'laboratory.catalog.manage',
             'materials.view', 'materials.manage', 'audit.view',
             'annexes.nursing.view', 'annexes.nursing.record', 'annexes.nursing.print',
+            'homologation.reports.view', 'homologation.events.manage', 'homologation.technical.manage', 'homologation.epidemiology.manage', 'homologation.print',
 
             'nutrition.view', 'nutrition.create', 'nutrition.update', 'nutrition.print',
             'nutrition.mis.view', 'nutrition.mis.create', 'nutrition.fua.view', 'nutrition.fua.generate',
@@ -82,6 +83,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'laboratory.results.view', 'laboratory.orders.create', 'laboratory.results.update', 'laboratory.catalog.manage',
                 'materials.view', 'materials.manage', 'audit.view',
                 'annexes.nursing.view', 'annexes.nursing.record', 'annexes.nursing.print',
+                'homologation.reports.view', 'homologation.events.manage', 'homologation.technical.manage', 'homologation.epidemiology.manage', 'homologation.print',
                 'nutrition.view', 'nutrition.create', 'nutrition.update', 'nutrition.print',
                 'nutrition.mis.view', 'nutrition.mis.create', 'nutrition.fua.view', 'nutrition.fua.generate',
                 'psychology.view', 'psychology.create', 'psychology.update', 'psychology.print',

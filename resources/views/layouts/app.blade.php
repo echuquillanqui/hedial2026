@@ -263,6 +263,12 @@
             @can('annexes.nursing.view')
             <li><a class="dropdown-item {{ request()->routeIs('nursing-annexes.*') ? 'active' : '' }}" href="{{ route('nursing-annexes.index') }}"><i class="bi bi-file-earmark-spreadsheet me-2"></i> Anexos 11 y 12</a></li>
             @endcan
+            @can('homologation.reports.view')
+            <li><a class="dropdown-item" href="{{ route('homologation.patients') }}"><i class="bi bi-people me-2"></i> Anexos 13 · Pacientes</a></li>
+            <li><a class="dropdown-item" href="{{ route('homologation.vascular') }}"><i class="bi bi-heart-pulse me-2"></i> Anexo 16 · Acceso vascular</a></li>
+            @endcan
+            @can('homologation.technical.manage')<li><a class="dropdown-item" href="{{ route('homologation.technical') }}"><i class="bi bi-droplet me-2"></i> Anexos 14–15 · Área técnica</a></li>@endcan
+            @can('homologation.epidemiology.manage')<li><a class="dropdown-item" href="{{ route('homologation.epidemiology') }}"><i class="bi bi-shield-plus me-2"></i> Anexo 17 · Epidemiología</a></li>@endcan
             @if($canViewNephrology)
             <li>
                 <a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}">
