@@ -181,6 +181,41 @@ class AuditTest extends TestCase
             ->assertDontSee('CONTROL MENSUAL');
     }
 
+    public function test_pending_documents_can_filter_patients_missing_every_document(): void
+    {
+        [$user, $sede, $order] = $this->auditScenario();
+        $missingEverything = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'FALTA TODO',
+        ]);
+        Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $missingEverything->id,
+            'codigo_unico' => 'ORD-MISSING-ALL',
+            'fecha_orden' => today(),
+            'attention_type' => 'HEMODIALYSIS',
+        ]);
+        HemodialysisConsent::create([
+            'patient_id' => $order->patient_id,
+            'sede_id' => $sede->id,
+            'created_by' => $user->id,
+            'consented_at' => now(),
+            'version' => '1.0',
+            'accepted' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.pending-documents', [
+                'month' => today()->format('Y-m'),
+                'missing' => 'all',
+            ]))
+            ->assertOk()
+            ->assertSee('Todos los documentos')
+            ->assertSee('FALTA TODO')
+            ->assertDontSee('PACIENTE AUDITADO');
+    }
+
     private function auditScenario(): array
     {
         $user = User::factory()->create();

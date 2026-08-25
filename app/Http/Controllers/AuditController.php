@@ -57,7 +57,7 @@ class AuditController extends Controller
     {
         $validated = $request->validate([
             'month' => ['nullable', 'date_format:Y-m'],
-            'missing' => ['nullable', 'in:consent,consultation,laboratory'],
+            'missing' => ['nullable', 'in:consent,consultation,laboratory,all'],
         ]);
         $month = $validated['month'] ?? today()->format('Y-m');
         $monthStart = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
@@ -95,6 +95,10 @@ class AuditController extends Controller
                     'consent' => $query->whereDoesntHave('hemodialysisConsents', $hasConsentThisMonth),
                     'consultation' => $query->whereDoesntHave('orders', $hasConsultationThisMonth),
                     'laboratory' => $query->whereDoesntHave('laboratoryOrders', $hasLaboratoryThisMonth),
+                    'all' => $query
+                        ->whereDoesntHave('hemodialysisConsents', $hasConsentThisMonth)
+                        ->whereDoesntHave('orders', $hasConsultationThisMonth)
+                        ->whereDoesntHave('laboratoryOrders', $hasLaboratoryThisMonth),
                     default => $query
                         ->whereDoesntHave('hemodialysisConsents', $hasConsentThisMonth)
                         ->orWhereDoesntHave('orders', $hasConsultationThisMonth)
