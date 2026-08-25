@@ -97,7 +97,7 @@
                             || auth()->user()->can('homologation.reports.view')
                             || auth()->user()->can('homologation.technical.manage')
                             || auth()->user()->can('homologation.epidemiology.manage');
-                        $canSeeNephrology = $canViewNephrology || $canViewInitialHistory || $canViewConsents;
+                        $canSeeNephrology = $canViewNephrology || $canViewInitialHistory || $canViewConsents || $canViewReferrals || $canViewOrders;
                         $canSeeMultisectorial = $multisectorialMenus->isNotEmpty();
                     @endphp
                     <ul class="navbar-nav me-auto">
@@ -177,14 +177,6 @@
     </li>
     @endif
 
-    @if($canViewReferrals)
-    <li class="nav-item">
-        <a class="nav-link px-3 {{ request()->routeIs('referrals.*') ? 'active fw-bold' : '' }}" href="{{ route('referrals.index') }}">
-            <i class="bi bi-file-earmark-plus me-1"></i> Referencias
-        </a>
-    </li>
-    @endif
-
     @if($canViewFuas)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
         <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('fuas.hemodialysis.*', 'fuas.nephrology.*') ? 'active fw-bold' : '' }}"
@@ -252,9 +244,9 @@
 
     @if($canSeeNephrology)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.nephrology.*', 'consultations.*', 'initial-histories.*', 'consents.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.nephrology.*', 'consultations.*', 'initial-histories.*', 'consents.*', 'referrals.*') ? 'active fw-bold' : '' }}"
                 type="button" @click="open = !open" :aria-expanded="open.toString()">
-            <i class="bi bi-journal-medical me-1"></i> Consultas nefrológicas
+            <i class="bi bi-journal-medical me-1"></i> Nefrología
         </button>
         <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
             @if($canViewOrders)
@@ -262,6 +254,9 @@
             @endif
             @if($canViewNephrology)
             <li><a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}"><i class="bi bi-person-vcard me-2"></i> Atenciones nefrológicas</a></li>
+            @endif
+            @if($canViewReferrals)
+            <li><a class="dropdown-item {{ request()->routeIs('referrals.*') ? 'active' : '' }}" href="{{ route('referrals.index') }}"><i class="bi bi-file-earmark-plus me-2"></i> Referencias</a></li>
             @endif
             @if($canViewInitialHistory)<li><a class="dropdown-item {{ request()->routeIs('initial-histories.*') ? 'active' : '' }}" href="{{ route('initial-histories.index') }}"><i class="bi bi-journal-text me-2"></i> Historia clínica inicial</a></li>@endif
             @if($canViewConsents)<li><a class="dropdown-item {{ request()->routeIs('consents.*') ? 'active' : '' }}" href="{{ route('consents.index') }}"><i class="bi bi-pen me-2"></i> Consentimientos</a></li>@endif

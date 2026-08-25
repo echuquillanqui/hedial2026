@@ -114,6 +114,49 @@ class MultisectorialOrderTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_multisectorial_orders_can_be_generated_in_bulk_for_filtered_patients(): void
+    {
+        $nutritionist = User::query()->where('username', 'nutricionista')->firstOrFail();
+        $included = Patient::factory()->count(2)->create([
+            'sede_id' => $this->sede->id,
+            'insurance_type' => 'SIS',
+            'secuencia' => 'L-M-V',
+            'turno' => '2',
+            'modulo' => '3',
+            'created_at' => now(),
+        ]);
+        $excluded = Patient::factory()->create([
+            'sede_id' => $this->sede->id,
+            'insurance_type' => 'SIS',
+            'secuencia' => 'M-J-S',
+            'turno' => '1',
+            'modulo' => '1',
+        ]);
+
+        $this->actingAs($nutritionist)->withSession($this->sedeSession())
+            ->get(route('orders.multisectorial.create', [
+                'type' => ClinicalService::NUTRITION,
+                'secuencia' => 'L-M-V',
+                'turno' => '2',
+                'modulo' => '3',
+            ]))
+            ->assertOk()
+            ->assertSee($included->first()->full_name)
+            ->assertDontSee($excluded->full_name);
+
+        $this->actingAs($nutritionist)->withSession($this->sedeSession())
+            ->post(route('orders.multisectorial.store-bulk'), [
+                'type' => ClinicalService::NUTRITION,
+                'patient_ids' => $included->pluck('id')->all(),
+                'assigned_professional_id' => $nutritionist->id,
+                'fecha_orden' => '2026-09-10',
+            ])
+            ->assertRedirect(route('orders.multisectorial.index', ['type' => ClinicalService::NUTRITION]));
+
+        $this->assertSame(2, Order::query()->where('attention_type', ClinicalService::NUTRITION)->count());
+        $this->assertDatabaseMissing('orders', ['patient_id' => $excluded->id, 'attention_type' => ClinicalService::NUTRITION]);
+    }
+
     public function test_navigation_keeps_multisectorial_work_outside_the_hemodialysis_menu(): void
     {
         $nutritionist = User::query()->where('username', 'nutricionista')->firstOrFail();
