@@ -1,0 +1,2 @@
+<h2 class="h5">Laboratorio utilizado (solo lectura)</h2><table class="table table-sm"><thead><tr><th>Examen</th><th>Resultado</th><th>Unidad</th><th>Fecha</th></tr></thead><tbody>
+@forelse($assessment->laboratoryResults as $result)<tr><td>{{ $result->test->name }}</td><td>{{ $result->result_value ?? 'SIN RESULTADO' }}</td><td>{{ $result->test->unit ?: '—' }}</td><td>{{ ($result->order->sampled_at ?? $result->completed_at)?->format('d/m/Y') }}</td></tr>@empty<tr><td colspan="4">SIN RESULTADO</td></tr>@endforelse</tbody></table>

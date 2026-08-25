@@ -1,0 +1,6 @@
+@extends('layouts.app')
+@section('content')<div class="container"><h1>Atención en Nutrición — Anexo 6</h1>
+<h2 class="h5 mt-4">Órdenes pendientes</h2><div class="table-responsive"><table class="table"><thead><tr><th>Paciente</th><th>Vencimiento</th><th></th></tr></thead><tbody>
+@forelse($pendingOrders as $order)<tr><td>{{ $order->patient->full_name ?? $order->patient->first_name.' '.$order->patient->surname }}</td><td>{{ $order->due_date?->format('d/m/Y') }}</td><td>@can('nutrition.create')<a class="btn btn-primary btn-sm" href="{{ route('nutrition.create',$order) }}">Atender</a>@endcan</td></tr>@empty<tr><td colspan="3">Sin órdenes pendientes.</td></tr>@endforelse</tbody></table></div>
+<h2 class="h5 mt-4">Historial</h2><div class="table-responsive"><table class="table"><thead><tr><th>Fecha</th><th>Paciente</th><th>MIS</th><th></th></tr></thead><tbody>
+@foreach($assessments as $item)<tr><td>{{ $item->assessment_date->format('d/m/Y') }}</td><td>{{ $item->order->patient->first_name }} {{ $item->order->patient->surname }}</td><td>{{ $item->misAssessment?->total_score ?? 'PENDIENTE' }}</td><td><a href="{{ route('nutrition.show',$item) }}">Ver</a></td></tr>@endforeach</tbody></table></div>{{ $assessments->links() }}</div>@endsection

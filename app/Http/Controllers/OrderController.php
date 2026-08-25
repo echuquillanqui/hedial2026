@@ -17,9 +17,22 @@ use App\Models\Fua;
 use App\Models\NephrologyConsultation;
 use App\Models\FuaConfiguration;
 use App\Services\FuaNumberService;
+use App\Services\MultisectorialOrderService;
+use App\Support\ClinicalService;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:orders.view')->only(['index']);
+        $this->middleware('permission:orders.create')->only(['create', 'store', 'storeBulk', 'createNephrology', 'storeNephrology']);
+        $this->middleware('permission:orders.edit')->only(['edit', 'update']);
+        $this->middleware('permission:orders.delete')->only(['destroy']);
+    }
+
     /**
      * Listado de Órdenes.
      * Vista: resources/views/atenciones/ordenes/index.blade.php
@@ -57,6 +70,86 @@ class OrderController extends Controller
             ->appends($request->all()); // Muy importante para mantener filtros en la paginación
 
         return view('atenciones.ordenes.index', compact('orders'));
+    }
+
+    public function multisectorialIndex(Request $request)
+    {
+        $type = $this->validatedMultisectorialType($request);
+        $this->authorizeMultisectorial($request, $type, 'view');
+
+        $status = $request->string('status')->upper()->toString();
+        $orders = Order::query()
+            ->with(['patient', 'sede', 'assignedProfessional', 'creator', 'fua'])
+            ->where('attention_type', $type)
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
+            ->when($request->filled('professional_id'), fn (Builder $query) => $query
+                ->where('assigned_professional_id', $request->integer('professional_id')))
+            ->when($request->filled('search'), function (Builder $query) use ($request) {
+                $search = trim((string) $request->input('search'));
+                $query->whereHas('patient', fn (Builder $patient) => $patient
+                    ->where('dni', 'like', "%{$search}%")
+                    ->orWhere('medical_history_number', 'like', "%{$search}%")
+                    ->orWhere('first_name', 'like', "%{$search}%")
+                    ->orWhere('surname', 'like', "%{$search}%"));
+            })
+            ->when($status === 'REALIZADA', fn (Builder $query) => $query->where('status', MultisectorialOrderService::COMPLETED))
+            ->when($status === 'VENCIDA', fn (Builder $query) => $query->where('status', '!=', MultisectorialOrderService::COMPLETED)
+                ->whereDate('due_date', '<', today()))
+            ->when($status === 'PROXIMA', fn (Builder $query) => $query->where('status', '!=', MultisectorialOrderService::COMPLETED)
+                ->whereBetween('due_date', [today(), today()->addDays(30)]))
+            ->when($status === 'PENDIENTE', fn (Builder $query) => $query->where('status', '!=', MultisectorialOrderService::COMPLETED)
+                ->whereDate('due_date', '>', today()->addDays(30)))
+            ->orderBy('due_date')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('atenciones.ordenes.multisectorial_index', [
+            'orders' => $orders,
+            'type' => $type,
+            'professionals' => $this->professionalsFor($type),
+        ]);
+    }
+
+    public function createMultisectorial(Request $request)
+    {
+        $type = $this->validatedMultisectorialType($request);
+        $this->authorizeMultisectorial($request, $type, 'create');
+
+        return view('atenciones.ordenes.create_multisectorial', [
+            'type' => $type,
+            'patients' => Patient::query()
+                ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
+                ->orderBy('surname')->orderBy('last_name')->get(),
+            'professionals' => $this->professionalsFor($type),
+        ]);
+    }
+
+    public function storeMultisectorial(Request $request, MultisectorialOrderService $service)
+    {
+        $type = $this->validatedMultisectorialType($request);
+        $this->authorizeMultisectorial($request, $type, 'create');
+
+        $data = $request->validate([
+            'patient_id' => ['required', 'integer', 'exists:patients,id'],
+            'assigned_professional_id' => ['required', 'integer', 'exists:users,id'],
+            'fecha_orden' => ['required', 'date'],
+        ]);
+        $patient = Patient::query()->findOrFail($data['patient_id']);
+        abort_if(CurrentSede::id() && (int) $patient->sede_id !== (int) CurrentSede::id(), 403, 'Paciente fuera de la sede activa.');
+
+        $allowedProfessional = $this->professionalsFor($type)->contains('id', (int) $data['assigned_professional_id']);
+        abort_unless($allowedProfessional, 422, 'El profesional no corresponde al tipo de atención o a la sede activa.');
+
+        $service->create(
+            $patient,
+            $type,
+            (int) $data['assigned_professional_id'],
+            $data['fecha_orden'],
+            (int) $request->user()->id,
+        );
+
+        return redirect()->route('orders.multisectorial.index', ['type' => $type])
+            ->with('success', 'Orden multisectorial registrada correctamente.');
     }
 
     /**
@@ -419,6 +512,42 @@ class OrderController extends Controller
             ->all();
 
         $laboratoryOrder->items()->createMany($items);
+    }
+
+    private function validatedMultisectorialType(Request $request): string
+    {
+        $data = validator($request->only('type'), [
+            'type' => ['required', Rule::in(ClinicalService::MULTISECTORIAL_TYPES)],
+        ])->validate();
+
+        return $data['type'];
+    }
+
+    private function authorizeMultisectorial(Request $request, string $type, string $action): void
+    {
+        $specificPermission = ClinicalService::permissionPrefix($type).'.'.$action;
+        $generalPermission = 'orders.'.($action === 'view' ? 'view' : 'create');
+
+        abort_unless($request->user()->can($specificPermission) || $request->user()->can($generalPermission), 403);
+    }
+
+    private function professionalsFor(string $type)
+    {
+        $definitions = match ($type) {
+            ClinicalService::NUTRITION => ['nutricionista', 'NUTRIC'],
+            ClinicalService::PSYCHOLOGY => ['psicologo', 'PSIC'],
+            ClinicalService::SOCIAL_WORK => ['trabajo_social', 'SOCIAL'],
+        };
+
+        return User::query()
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query
+                ->whereHas('sedes', fn (Builder $sedes) => $sedes->whereKey($sede)))
+            ->where(function (Builder $query) use ($definitions) {
+                $query->whereHas('roles', fn (Builder $roles) => $roles->where('name', $definitions[0]))
+                    ->orWhere('profession', 'like', '%'.$definitions[1].'%');
+            })
+            ->orderBy('name')
+            ->get();
     }
 
 }

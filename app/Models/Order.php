@@ -10,6 +10,7 @@ use App\Models\Nurse;
 use App\Models\Treatment;
 use App\Models\ExtraMaterial;
 use App\Models\HemodialysisMaterialConsumption;
+use App\Services\MultisectorialOrderService;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Order extends Model
@@ -18,20 +19,28 @@ class Order extends Model
 
     protected $casts = [
         'fecha_orden' => 'date',
+        'due_date' => 'date',
+        'completed_at' => 'datetime',
         'es_covid' => 'boolean',
     ];
 
     protected $fillable = [
         'sede_id',
         'patient_id',
+        'assigned_professional_id',
+        'created_by',
         'codigo_unico',
         'sala',
         'turno',
         'es_covid',
         'attention_type',
+        'status',
         'laboratory_period',
         'horas_dialisis',
-        'fecha_orden'
+        'fecha_orden',
+        'due_date',
+        'period_key',
+        'completed_at',
     ];
 
     public function sede(): BelongsTo
@@ -43,6 +52,33 @@ class Order extends Model
     public function patient() 
     {
         return $this->belongsTo(Patient::class, 'patient_id');
+    }
+
+    public function assignedProfessional()
+    {
+        return $this->belongsTo(User::class, 'assigned_professional_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function getScheduleStatusAttribute(): string
+    {
+        if ($this->status === MultisectorialOrderService::COMPLETED || $this->completed_at) {
+            return 'REALIZADA';
+        }
+
+        if ($this->due_date?->lt(today())) {
+            return 'VENCIDA';
+        }
+
+        if ($this->due_date && $this->due_date->lte(today()->addDays(30))) {
+            return 'PRÓXIMA';
+        }
+
+        return 'PENDIENTE';
     }
 
     public function medical() 
@@ -57,13 +93,25 @@ class Order extends Model
 
     public function fua()
     {
-        return $this->hasOne(Fua::class);
+        return $this->hasOne(Fua::class)->where('type', '!=', Fua::CORRECTION);
+    }
+
+    public function fuaCorrections()
+    {
+        return $this->hasMany(Fua::class)->where('type', Fua::CORRECTION);
     }
 
     public function nephrologyConsultation()
     {
         return $this->hasOne(NephrologyConsultation::class);
     }
+
+    public function nutritionAssessment()
+    {
+        return $this->hasOne(NutritionAssessment::class);
+    }
+    public function psychologyAssessment() { return $this->hasOne(PsychologyAssessment::class); }
+    public function socialWorkAssessment() { return $this->hasOne(SocialWorkAssessment::class); }
 
     public function nurse() 
     {

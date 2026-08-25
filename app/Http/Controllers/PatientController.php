@@ -10,6 +10,14 @@ use Illuminate\Validation\Rule;
 
 class PatientController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:patients.view')->only(['index', 'show', 'search']);
+        $this->middleware('permission:patients.create')->only(['create', 'store']);
+        $this->middleware('permission:patients.edit')->only(['edit', 'update']);
+        $this->middleware('permission:patients.delete')->only(['destroy']);
+    }
+
     public function index()
     {
         $currentSedeId = CurrentSede::id();
@@ -42,6 +50,8 @@ class PatientController extends Controller
             'insurance_regime'       => ['nullable', Rule::in(['SUBSIDIADO', 'SEMICONTRIBUTIVO'])],
             'gender'                 => ['nullable', Rule::in(['F', 'M'])],
             'birth_date'             => 'nullable|date|before:today',
+            'province'               => 'nullable|string|max:100',
+            'phone'                  => 'nullable|string|max:30',
             'fua_non_signature_reason' => 'nullable|string|max:500',
             'sede_id'                => ['required', 'exists:sedes,id'],
         ]);
@@ -80,6 +90,8 @@ class PatientController extends Controller
             'surname'                => 'required|string|max:100',
             'last_name'              => 'required|string|max:100',
             'insurance_type'         => ['nullable', Rule::in(['ESSALUD', 'SIS', 'SALUDPOL'])],
+            'province'               => 'nullable|string|max:100',
+            'phone'                  => 'nullable|string|max:30',
             'fua_non_signature_reason' => 'nullable|string|max:500',
             'sede_id'                => ['required', 'exists:sedes,id'],
         ]);
@@ -149,7 +161,9 @@ class PatientController extends Controller
                     'age' => $p->age,
                     'address' => $p->address,
                     'district' => $p->district,
+                    'province' => $p->province,
                     'department' => $p->department,
+                    'phone' => $p->phone,
                     'sede_id' => $p->sede_id,
                 ];
             });

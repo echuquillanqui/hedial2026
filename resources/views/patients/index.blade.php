@@ -191,7 +191,7 @@
                         id: null, dni: '', affiliation_code: '', medical_history_number: '', 
                         first_name: '', other_names: '', surname: '', last_name: '', 
                         is_insured: true, insurance_type: 'ESSALUD', insurance_regime: 'SUBSIDIADO', 
-                        gender: 'M', birth_date: '', age: '', address: '', district: '', department: '', secuencia:'L-M-V', turno: "1", modulo: "1", sede_id: this.currentSedeId
+                        gender: 'M', birth_date: '', age: '', address: '', district: '', province: '', department: '', phone: '', secuencia:'L-M-V', turno: "1", modulo: "1", sede_id: this.currentSedeId
                     };
                 }
                 
