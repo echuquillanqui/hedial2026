@@ -6,6 +6,7 @@ use App\Models\Fua;
 use App\Models\HemodialysisConsent;
 use App\Models\LaboratoryOrder;
 use App\Models\Medical;
+use App\Models\NephrologyConsultation;
 use App\Models\Nurse;
 use App\Models\Order;
 use App\Models\Patient;
@@ -103,13 +104,13 @@ class AuditTest extends TestCase
 
         $response = $this->actingAs($user)
             ->withSession(['current_sede_id' => $sede->id])
-            ->get(route('audit.pending-documents', ['date' => today()->toDateString()]));
+            ->get(route('audit.pending-documents', ['month' => today()->format('Y-m')]));
 
         $response->assertOk()
             ->assertSee('PACIENTE AUDITADO')
             ->assertSee('SIN CONSULTA NEFROLOGICA')
             ->assertSee('Consentimiento')
-            ->assertSee('Laboratorio (T)')
+            ->assertSee('Laboratorio')
             ->assertSee('Consulta nefrológica')
             ->assertSee(route('consents.create', ['patient_id' => $hemodialysisOrder->patient_id]), false)
             ->assertSee(route('orders.nephrology.create', ['patient_id' => $nephrologyPatient->id]), false);
@@ -132,41 +133,52 @@ class AuditTest extends TestCase
 
         $this->actingAs($user)
             ->withSession(['current_sede_id' => $sede->id])
-            ->get(route('audit.pending-documents', ['date' => today()->toDateString(), 'missing' => 'laboratory']))
+            ->get(route('audit.pending-documents', ['month' => today()->format('Y-m'), 'missing' => 'laboratory']))
             ->assertOk()
             ->assertDontSee('PACIENTE AUDITADO')
-            ->assertDontSee('SIN CONSULTA NEFROLOGICA');
+            ->assertSee('SIN CONSULTA NEFROLOGICA');
     }
 
-    public function test_pending_documents_can_include_missing_records_from_all_dates(): void
+    public function test_pending_documents_uses_monthly_active_patients_and_monthly_documents(): void
     {
         [$user, $sede] = $this->auditScenario();
-        $pastPatient = Patient::factory()->create([
+        $patient = Patient::factory()->create([
             'sede_id' => $sede->id,
-            'first_name' => 'PENDIENTE HISTORICO',
+            'first_name' => 'CONTROL MENSUAL',
         ]);
         Order::create([
             'sede_id' => $sede->id,
-            'patient_id' => $pastPatient->id,
-            'codigo_unico' => 'ORD-PENDING-PAST',
-            'fecha_orden' => today()->subMonth(),
-            'attention_type' => 'NEPHROLOGY',
+            'patient_id' => $patient->id,
+            'codigo_unico' => 'ORD-MONTHLY-HD',
+            'fecha_orden' => today()->startOfMonth(),
+            'attention_type' => 'HEMODIALYSIS',
         ]);
 
         $this->actingAs($user)
             ->withSession(['current_sede_id' => $sede->id])
-            ->get(route('audit.pending-documents', ['date' => today()->toDateString()]))
+            ->get(route('audit.pending-documents', ['month' => today()->format('Y-m')]))
             ->assertOk()
-            ->assertDontSee('PENDIENTE HISTORICO');
+            ->assertSee('CONTROL MENSUAL')
+            ->assertSee('Consulta nefrológica')
+            ->assertSee('Consentimiento')
+            ->assertSee('Laboratorio');
+
+        HemodialysisConsent::create(['patient_id' => $patient->id, 'sede_id' => $sede->id, 'created_by' => $user->id, 'consented_at' => today()->startOfMonth(), 'version' => '1.0', 'accepted' => true]);
+        LaboratoryOrder::create(['patient_id' => $patient->id, 'patient_name' => $patient->full_name, 'period' => 'M', 'sampled_at' => today()->startOfMonth()]);
+        $nephrologyOrder = Order::create(['sede_id' => $sede->id, 'patient_id' => $patient->id, 'codigo_unico' => 'ORD-MONTHLY-NEF', 'fecha_orden' => today()->endOfMonth(), 'attention_type' => 'NEPHROLOGY']);
+        NephrologyConsultation::create(['order_id' => $nephrologyOrder->id, 'patient_id' => $patient->id, 'sede_id' => $sede->id, 'consultation_date' => today()->endOfMonth()]);
 
         $this->actingAs($user)
             ->withSession(['current_sede_id' => $sede->id])
-            ->get(route('audit.pending-documents', ['all_dates' => 1]))
+            ->get(route('audit.pending-documents', ['month' => today()->format('Y-m'), 'search' => 'CONTROL MENSUAL']))
             ->assertOk()
-            ->assertSee('PENDIENTE HISTORICO')
-            ->assertSee('Todas las fechas')
-            ->assertSee('name="all_dates"', false)
-            ->assertSee('checked', false);
+            ->assertDontSee('CONTROL MENSUAL');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.pending-documents', ['month' => today()->subMonth()->format('Y-m'), 'search' => 'CONTROL MENSUAL']))
+            ->assertOk()
+            ->assertDontSee('CONTROL MENSUAL');
     }
 
     private function auditScenario(): array
