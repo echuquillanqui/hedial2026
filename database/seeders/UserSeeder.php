@@ -21,15 +21,16 @@ class UserSeeder extends Seeder
             throw new RuntimeException('Debe ejecutar SedeSeeder antes de UserSeeder.');
         }
 
-        $admin = User::create([
-            'name' => 'Raúl Eduardo Chuquillanqui Yupanqui',
+        $admin = User::firstOrCreate([
             'username' => 'rchuquillanqui',
+        ], [
+            'name' => 'Raúl Eduardo Chuquillanqui Yupanqui',
             'dni' => '46589634',
             'email' => 'raul@hemodial.com',
             'password' => Hash::make('12345678'),
             'profession' => 'Ingeniero de Sistemas',
         ]);
-        $admin->sedes()->attach($huancayo);
+        $admin->sedes()->syncWithoutDetaching([$huancayo->id]);
 
         $nurses = [
             ['name' => 'Lic. Ana Martínez', 'username' => 'amartinez', 'dni' => '87654321', 'email' => 'ana@hemodial.com', 'license_number' => 'CEP 54321'],
@@ -48,19 +49,19 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($nurses as $nurseData) {
-            $nurse = User::create($nurseData + [
+            $nurse = User::firstOrCreate(['username' => $nurseData['username']], $nurseData + [
                 'password' => Hash::make('password'),
                 'profession' => 'ENFERMERA',
             ]);
-            $nurse->sedes()->attach($huancayo);
+            $nurse->sedes()->syncWithoutDetaching([$huancayo->id]);
         }
 
         foreach ($nephrologists as $nephrologistData) {
-            $nephrologist = User::create($nephrologistData + [
+            $nephrologist = User::firstOrCreate(['username' => $nephrologistData['username']], $nephrologistData + [
                 'password' => Hash::make('password'),
                 'profession' => 'MEDICO',
             ]);
-            $nephrologist->sedes()->attach($huancayo);
+            $nephrologist->sedes()->syncWithoutDetaching([$huancayo->id]);
         }
     }
 }

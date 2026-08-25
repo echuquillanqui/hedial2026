@@ -1,0 +1,2 @@
+@extends('layouts.app')
+@section('content')<div class="container"><h1>MIS — Anexo 7</h1><table class="table"><thead><tr><th>Fecha</th><th>Paciente</th><th>Puntaje</th><th></th></tr></thead><tbody>@foreach($items as $mis)<tr><td>{{ $mis->assessed_at->format('d/m/Y') }}</td><td>{{ $mis->nutritionAssessment->order->patient->first_name }} {{ $mis->nutritionAssessment->order->patient->surname }}</td><td>{{ $mis->total_score ?? 'PENDIENTE' }}</td><td><a href="{{ route('mis.show',$mis) }}">Ver</a></td></tr>@endforeach</tbody></table>{{ $items->links() }}</div>@endsection

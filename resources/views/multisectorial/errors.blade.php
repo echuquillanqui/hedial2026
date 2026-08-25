@@ -1,0 +1,1 @@
+@if($errors->any())<div class="alert alert-danger shadow-sm"><div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Revise los campos indicados</div><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif

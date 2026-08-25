@@ -13,6 +13,11 @@ class Patient extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'birth_date' => 'date',
+        'is_insured' => 'boolean',
+    ];
+
     // Permite asignación masiva de todos los campos definidos como nullables en la migración
     protected $guarded = [];
 
@@ -38,6 +43,21 @@ class Patient extends Model
     public function laboratoryOrders(): HasMany
     {
         return $this->hasMany(LaboratoryOrder::class);
+    }
+
+    public function initialClinicalHistory()
+    {
+        return $this->hasOne(InitialClinicalHistory::class);
+    }
+
+    public function hemodialysisConsents(): HasMany
+    {
+        return $this->hasMany(HemodialysisConsent::class);
+    }
+
+    public function nutritionAssessments()
+    {
+        return $this->hasManyThrough(NutritionAssessment::class, Order::class);
     }
 
     public function getFullNameAttribute(): string

@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\Storage;
 
 class FuaConfigurationController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:fua.configuration.manage');
+    }
+
     public function edit()
     {
         return view('fuas.configuration', ['configuration' => FuaConfiguration::global()]);

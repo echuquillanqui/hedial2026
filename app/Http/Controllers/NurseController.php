@@ -16,6 +16,12 @@ use App\Services\WarehouseConsumptionService;
 
 class NurseController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:nurses.view')->only(['index', 'show', 'printSingle', 'printBulk', 'checkBulkPrint']);
+        $this->middleware('permission:nurses.edit')->only(['edit', 'update', 'storeModuleAssignment']);
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
