@@ -54,20 +54,26 @@ class AuditController extends Controller
 
     public function pendingDocuments(Request $request)
     {
-        $date = $request->date('date')?->toDateString() ?? today()->toDateString();
+        $allDates = $request->boolean('all_dates');
+        $date = $allDates ? null : ($request->date('date')?->toDateString() ?? today()->toDateString());
         $missing = $request->input('missing');
 
-        $consentIsMissing = fn (Builder $query) => $query
-            ->where('attention_type', ClinicalService::HEMODIALYSIS)
-            ->whereDate('fecha_orden', $date)
-            ->whereDoesntHave('patient.hemodialysisConsents', fn (Builder $consents) => $consents->whereDate('consented_at', $date));
+        $consentIsMissing = function (Builder $query) use ($date) {
+            $query->where('attention_type', ClinicalService::HEMODIALYSIS)
+                ->when($date, fn (Builder $orders, string $value) => $orders->whereDate('fecha_orden', $value))
+                ->whereDoesntHave('patient.hemodialysisConsents', function (Builder $consents) use ($date) {
+                    $date
+                        ? $consents->whereDate('consented_at', $date)
+                        : $consents->whereRaw('DATE(hemodialysis_consents.consented_at) = DATE(orders.fecha_orden)');
+                });
+        };
         $consultationIsMissing = fn (Builder $query) => $query
             ->where('attention_type', ClinicalService::NEPHROLOGY)
-            ->whereDate('fecha_orden', $date)
+            ->when($date, fn (Builder $orders, string $value) => $orders->whereDate('fecha_orden', $value))
             ->whereDoesntHave('nephrologyConsultation');
         $laboratoryIsMissing = fn (Builder $query) => $query
             ->where('attention_type', ClinicalService::HEMODIALYSIS)
-            ->whereDate('fecha_orden', $date)
+            ->when($date, fn (Builder $orders, string $value) => $orders->whereDate('fecha_orden', $value))
             ->whereNotNull('laboratory_period')
             ->whereDoesntHave('laboratoryOrder');
 
@@ -94,15 +100,16 @@ class AuditController extends Controller
                 }),
             })
             ->with(['orders' => fn ($query) => $query
-                ->whereDate('fecha_orden', $date)
+                ->when($date, fn ($orders, string $value) => $orders->whereDate('fecha_orden', $value))
                 ->whereIn('attention_type', [ClinicalService::HEMODIALYSIS, ClinicalService::NEPHROLOGY])
                 ->with(['nephrologyConsultation', 'laboratoryOrder']),
-                'hemodialysisConsents' => fn ($query) => $query->whereDate('consented_at', $date),
+                'hemodialysisConsents' => fn ($query) => $query
+                    ->when($date, fn ($consents, string $value) => $consents->whereDate('consented_at', $value)),
             ])
             ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')
             ->paginate(25)->withQueryString();
 
-        return view('audit.pending-documents', compact('patients', 'date'));
+        return view('audit.pending-documents', compact('patients', 'date', 'allDates'));
     }
 
     private function filteredOrders(Request $request): Builder
