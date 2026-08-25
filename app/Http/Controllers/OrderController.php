@@ -84,6 +84,12 @@ class OrderController extends Controller
             ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
             ->when($request->filled('professional_id'), fn (Builder $query) => $query
                 ->where('assigned_professional_id', $request->integer('professional_id')))
+            ->when($request->filled('date'), fn (Builder $query) => $query
+                ->whereDate('fecha_orden', $request->input('date')))
+            ->when($request->filled('turno'), fn (Builder $query) => $query
+                ->where('turno', $request->input('turno')))
+            ->when($request->filled('modulo'), fn (Builder $query) => $query
+                ->whereHas('patient', fn (Builder $patient) => $patient->where('modulo', $request->input('modulo'))))
             ->when($request->filled('search'), function (Builder $query) use ($request) {
                 $search = trim((string) $request->input('search'));
                 $query->whereHas('patient', fn (Builder $patient) => $patient
@@ -115,11 +121,26 @@ class OrderController extends Controller
         $type = $this->validatedMultisectorialType($request);
         $this->authorizeMultisectorial($request, $type, 'create');
 
+        $patients = Patient::query()
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
+            ->when($request->filled('secuencia'), fn (Builder $query) => $query->where('secuencia', $request->input('secuencia')))
+            ->when($request->filled('turno'), fn (Builder $query) => $query->where('turno', $request->input('turno')))
+            ->when($request->filled('modulo'), fn (Builder $query) => $query->where('modulo', $request->input('modulo')))
+            ->when($request->filled('search'), function (Builder $query) use ($request) {
+                $search = trim((string) $request->input('search'));
+                $query->where(function (Builder $patient) use ($search) {
+                    $patient->where('dni', 'like', "%{$search}%")
+                        ->orWhere('medical_history_number', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('surname', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('surname')->orderBy('last_name')->get();
+
         return view('atenciones.ordenes.create_multisectorial', [
             'type' => $type,
-            'patients' => Patient::query()
-                ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
-                ->orderBy('surname')->orderBy('last_name')->get(),
+            'patients' => $patients,
             'professionals' => $this->professionalsFor($type),
         ]);
     }
@@ -150,6 +171,35 @@ class OrderController extends Controller
 
         return redirect()->route('orders.multisectorial.index', ['type' => $type])
             ->with('success', 'Orden multisectorial registrada correctamente.');
+    }
+
+    public function storeMultisectorialBulk(Request $request, MultisectorialOrderService $service)
+    {
+        $type = $this->validatedMultisectorialType($request);
+        $this->authorizeMultisectorial($request, $type, 'create');
+
+        $data = $request->validate([
+            'patient_ids' => ['required', 'array', 'min:1'],
+            'patient_ids.*' => ['integer', 'distinct', 'exists:patients,id'],
+            'assigned_professional_id' => ['required', 'integer', 'exists:users,id'],
+            'fecha_orden' => ['required', 'date'],
+        ]);
+
+        abort_unless($this->professionalsFor($type)->contains('id', (int) $data['assigned_professional_id']), 422,
+            'El profesional no corresponde al tipo de atención o a la sede activa.');
+
+        $patients = Patient::query()->whereIn('id', $data['patient_ids'])->get();
+        abort_if(CurrentSede::id() && $patients->contains(fn (Patient $patient) => (int) $patient->sede_id !== (int) CurrentSede::id()),
+            403, 'Uno de los pacientes está fuera de la sede activa.');
+
+        DB::transaction(function () use ($patients, $type, $data, $request, $service) {
+            foreach ($patients as $patient) {
+                $service->create($patient, $type, (int) $data['assigned_professional_id'], $data['fecha_orden'], (int) $request->user()->id);
+            }
+        });
+
+        return redirect()->route('orders.multisectorial.index', ['type' => $type])
+            ->with('success', $patients->count().' órdenes generadas correctamente.');
     }
 
     /**
