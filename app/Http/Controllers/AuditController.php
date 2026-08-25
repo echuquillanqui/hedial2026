@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Patient;
+use App\Support\ClinicalService;
 use App\Support\CurrentSede;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -49,6 +50,59 @@ class AuditController extends Controller
             ->withQueryString();
 
         return view('audit.fissal', compact('orders'));
+    }
+
+    public function pendingDocuments(Request $request)
+    {
+        $date = $request->date('date')?->toDateString() ?? today()->toDateString();
+        $missing = $request->input('missing');
+
+        $consentIsMissing = fn (Builder $query) => $query
+            ->where('attention_type', ClinicalService::HEMODIALYSIS)
+            ->whereDate('fecha_orden', $date)
+            ->whereDoesntHave('patient.hemodialysisConsents', fn (Builder $consents) => $consents->whereDate('consented_at', $date));
+        $consultationIsMissing = fn (Builder $query) => $query
+            ->where('attention_type', ClinicalService::NEPHROLOGY)
+            ->whereDate('fecha_orden', $date)
+            ->whereDoesntHave('nephrologyConsultation');
+        $laboratoryIsMissing = fn (Builder $query) => $query
+            ->where('attention_type', ClinicalService::HEMODIALYSIS)
+            ->whereDate('fecha_orden', $date)
+            ->whereNotNull('laboratory_period')
+            ->whereDoesntHave('laboratoryOrder');
+
+        $patients = Patient::query()
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
+            ->when($request->filled('search'), function (Builder $query) use ($request) {
+                $search = trim((string) $request->input('search'));
+                $query->where(fn (Builder $patient) => $patient
+                    ->where('dni', 'like', "%{$search}%")
+                    ->orWhere('medical_history_number', 'like', "%{$search}%")
+                    ->orWhere('first_name', 'like', "%{$search}%")
+                    ->orWhere('surname', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%"));
+            })
+            ->when($request->filled('sequence'), fn (Builder $query) => $query->where('secuencia', $request->input('sequence')))
+            ->when($request->filled('shift'), fn (Builder $query) => $query->where('turno', $request->input('shift')))
+            ->when($request->filled('module'), fn (Builder $query) => $query->where('modulo', $request->input('module')))
+            ->whereHas('orders', match ($missing) {
+                'consent' => $consentIsMissing,
+                'consultation' => $consultationIsMissing,
+                'laboratory' => $laboratoryIsMissing,
+                default => fn (Builder $orders) => $orders->where(function (Builder $orders) use ($consentIsMissing, $consultationIsMissing, $laboratoryIsMissing) {
+                    $orders->where($consentIsMissing)->orWhere($consultationIsMissing)->orWhere($laboratoryIsMissing);
+                }),
+            })
+            ->with(['orders' => fn ($query) => $query
+                ->whereDate('fecha_orden', $date)
+                ->whereIn('attention_type', [ClinicalService::HEMODIALYSIS, ClinicalService::NEPHROLOGY])
+                ->with(['nephrologyConsultation', 'laboratoryOrder']),
+                'hemodialysisConsents' => fn ($query) => $query->whereDate('consented_at', $date),
+            ])
+            ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')
+            ->paginate(25)->withQueryString();
+
+        return view('audit.pending-documents', compact('patients', 'date'));
     }
 
     private function filteredOrders(Request $request): Builder
