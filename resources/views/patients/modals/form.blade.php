@@ -86,6 +86,9 @@
                             <label class="form-label small fw-bold">Dirección</label>
                             <input type="text" name="address" x-model="currentPatient.address" class="form-control rounded-3 border-0 shadow-sm">
                         </div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">Provincia</label><input type="text" name="province" x-model="currentPatient.province" class="form-control rounded-3 border-0 shadow-sm"></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">Departamento</label><input type="text" name="department" x-model="currentPatient.department" class="form-control rounded-3 border-0 shadow-sm"></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold">Teléfono</label><input type="text" name="phone" x-model="currentPatient.phone" class="form-control rounded-3 border-0 shadow-sm"></div>
 
                         <div class="col-12">
                             <label class="form-label small fw-bold" for="fua_non_signature_reason">Motivo de no firma de FUA</label>

@@ -60,7 +60,7 @@ class NutritionAndMisTest extends TestCase
         $payload=['assessed_at'=>'2026-08-15','weight_change_score'=>1,'dietary_intake_score'=>1,'gastrointestinal_score'=>0,'functional_capacity_score'=>0,'comorbidity_score'=>1,'fat_stores_score'=>1,'muscle_wasting_score'=>1];
         $this->actingAs($this->user)->withSession($this->session())->post(route('mis.store',$nutrition),$payload)->assertRedirect();
         $mis=MisAssessment::firstOrFail(); $this->assertSame($albumin->id,$mis->albumin_result_id); $this->assertSame($transferrin->id,$mis->transferrin_result_id);
-        $this->assertSame(1,$mis->albumin_score); $this->assertSame(1,$mis->transferrin_score); $this->assertNull($mis->total_score);
+        $this->assertSame(1,$mis->albumin_score); $this->assertSame(2,$mis->transferrin_score); $this->assertNull($mis->total_score);
         $this->assertFalse(Schema::hasColumn('mis_assessments','albumin_value'));
     }
 

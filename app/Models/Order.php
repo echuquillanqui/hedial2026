@@ -110,6 +110,8 @@ class Order extends Model
     {
         return $this->hasOne(NutritionAssessment::class);
     }
+    public function psychologyAssessment() { return $this->hasOne(PsychologyAssessment::class); }
+    public function socialWorkAssessment() { return $this->hasOne(SocialWorkAssessment::class); }
 
     public function nurse() 
     {

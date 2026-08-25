@@ -24,7 +24,10 @@ class MisAssessmentController extends Controller
         $nutrition->load('laboratoryResults.test','nephrologyConsultation');
         $normalize = fn ($value) => str()->of($value)->ascii()->lower();
         $albumin = $nutrition->laboratoryResults->first(fn ($item) => $normalize($item->test->name)->contains('albumina'));
-        $transferrin = $nutrition->laboratoryResults->first(fn ($item) => $normalize($item->test->name)->contains('transferrina'));
+        $transferrin = $nutrition->laboratoryResults->first(function ($item) use ($normalize) {
+            $name = $normalize($item->test->name);
+            return $name->contains('transferrina') || $name->contains('ctfh') || $name->contains('capacidad total de fijacion');
+        });
         $bmi = $nutrition->nephrologyConsultation?->bmi;
         $automatic = ['bmi_score'=>$scores->bmi($bmi), 'albumin_score'=>$scores->albumin($albumin?->result_value), 'transferrin_score'=>$scores->transferrin($transferrin?->result_value)];
         $all = array_merge(array_intersect_key($data, array_flip(['weight_change_score','dietary_intake_score','gastrointestinal_score','functional_capacity_score','comorbidity_score','fat_stores_score','muscle_wasting_score'])), $automatic);

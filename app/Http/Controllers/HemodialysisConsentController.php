@@ -49,7 +49,7 @@ class HemodialysisConsentController extends Controller
             'consented_at' => ['required', 'date'], 'version' => ['required', 'string', 'max:30'], 'accepted' => ['required', 'boolean'],
             'representative_name' => ['nullable', 'required_with:representative_document', 'string', 'max:255'],
             'representative_document' => ['nullable', 'string', 'max:30'], 'representative_relationship' => ['nullable', 'string', 'max:80'],
-            'patient_signature' => ['nullable', 'image', 'max:2048'], 'fingerprint' => ['nullable', 'image', 'max:2048'], 'notes' => ['nullable', 'string'],
+            'patient_signature' => ['nullable', 'image', 'max:2048'], 'representative_signature' => ['nullable', 'image', 'max:2048'], 'fingerprint' => ['nullable', 'image', 'max:2048'], 'notes' => ['nullable', 'string'],
         ]);
         $patient = Patient::findOrFail($data['patient_id']);
         abort_if(CurrentSede::id() && (int) $patient->sede_id !== (int) CurrentSede::id(), 403);
@@ -62,10 +62,11 @@ class HemodialysisConsentController extends Controller
             ->where('consented_at', $data['consented_at'])->where('version', $data['version'])->exists()) {
             throw ValidationException::withMessages(['version' => 'Ya existe un consentimiento de esta versión en la fecha indicada.']);
         }
-        unset($data['patient_signature'], $data['fingerprint']);
+        unset($data['patient_signature'], $data['representative_signature'], $data['fingerprint']);
         $data['sede_id'] = $patient->sede_id;
         $data['created_by'] = $request->user()->id;
         if ($request->hasFile('patient_signature')) $data['patient_signature_path'] = $request->file('patient_signature')->store('consents/signatures', 'public');
+        if ($request->hasFile('representative_signature')) $data['representative_signature_path'] = $request->file('representative_signature')->store('consents/representatives', 'public');
         if ($request->hasFile('fingerprint')) $data['fingerprint_path'] = $request->file('fingerprint')->store('consents/fingerprints', 'public');
         $consent = HemodialysisConsent::create($data);
 

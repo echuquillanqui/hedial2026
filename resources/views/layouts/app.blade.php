@@ -224,6 +224,12 @@
             @if($sectorMenu['type'] === \App\Support\ClinicalService::NUTRITION && auth()->user()->can('nutrition.mis.view'))
             <li><a class="dropdown-item {{ request()->routeIs('mis.*') ? 'active' : '' }}" href="{{ route('mis.index') }}"><i class="bi bi-clipboard2-data me-2"></i> Evaluaciones MIS</a></li>
             @endif
+            @if($sectorMenu['type'] === \App\Support\ClinicalService::PSYCHOLOGY && auth()->user()->can('psychology.view'))
+            <li><a class="dropdown-item {{ request()->routeIs('psychology.*','eq5d.*') ? 'active' : '' }}" href="{{ route('psychology.index') }}"><i class="bi bi-chat-heart me-2"></i> Salud Mental / EQ-5D</a></li>
+            @endif
+            @if($sectorMenu['type'] === \App\Support\ClinicalService::SOCIAL_WORK && auth()->user()->can('social_work.view'))
+            <li><a class="dropdown-item {{ request()->routeIs('social-work.*') ? 'active' : '' }}" href="{{ route('social-work.index') }}"><i class="bi bi-people me-2"></i> Atenciones Servicio Social</a></li>
+            @endif
             @if(auth()->user()->can($sectorMenu['fua_permission']) || $canViewFuas)
             <li><a class="dropdown-item" href="{{ route('fuas.multisectorial.index', ['type' => $sectorMenu['type'], 'all_dates' => 1]) }}"><i class="bi bi-file-earmark-medical me-2"></i> FUA {{ $sectorMenu['label'] }}</a></li>
             @endif

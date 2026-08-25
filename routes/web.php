@@ -21,6 +21,9 @@ use App\Http\Controllers\InitialClinicalHistoryController;
 use App\Http\Controllers\HemodialysisConsentController;
 use App\Http\Controllers\NutritionAssessmentController;
 use App\Http\Controllers\MisAssessmentController;
+use App\Http\Controllers\PsychologyAssessmentController;
+use App\Http\Controllers\Eq5dAssessmentController;
+use App\Http\Controllers\SocialWorkAssessmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -117,6 +120,24 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('mis/nutricion/{nutrition}', [MisAssessmentController::class, 'store'])->name('mis.store');
     Route::get('mis/{mis}/pdf', [MisAssessmentController::class, 'pdf'])->name('mis.pdf');
     Route::get('mis/{mis}', [MisAssessmentController::class, 'show'])->name('mis.show');
+    Route::get('psicologia/{psychology}/pdf',[PsychologyAssessmentController::class,'pdf'])->name('psychology.pdf');
+    Route::get('psicologia/orden/{order}/crear',[PsychologyAssessmentController::class,'create'])->name('psychology.create');
+    Route::post('psicologia/orden/{order}',[PsychologyAssessmentController::class,'store'])->name('psychology.store');
+    Route::get('psicologia',[PsychologyAssessmentController::class,'index'])->name('psychology.index');
+    Route::get('psicologia/{psychology}',[PsychologyAssessmentController::class,'show'])->name('psychology.show');
+    Route::get('psicologia/{psychology}/editar',[PsychologyAssessmentController::class,'edit'])->name('psychology.edit');
+    Route::put('psicologia/{psychology}',[PsychologyAssessmentController::class,'update'])->name('psychology.update');
+    Route::get('eq5d/psicologia/{psychology}/crear',[Eq5dAssessmentController::class,'create'])->name('eq5d.create');
+    Route::post('eq5d/psicologia/{psychology}',[Eq5dAssessmentController::class,'store'])->name('eq5d.store');
+    Route::get('eq5d/{eq5d}/pdf',[Eq5dAssessmentController::class,'pdf'])->name('eq5d.pdf');
+    Route::get('eq5d/{eq5d}',[Eq5dAssessmentController::class,'show'])->name('eq5d.show');
+    Route::get('servicio-social/{socialWork}/pdf',[SocialWorkAssessmentController::class,'pdf'])->name('social-work.pdf');
+    Route::get('servicio-social/orden/{order}/crear',[SocialWorkAssessmentController::class,'create'])->name('social-work.create');
+    Route::post('servicio-social/orden/{order}',[SocialWorkAssessmentController::class,'store'])->name('social-work.store');
+    Route::get('servicio-social',[SocialWorkAssessmentController::class,'index'])->name('social-work.index');
+    Route::get('servicio-social/{socialWork}',[SocialWorkAssessmentController::class,'show'])->name('social-work.show');
+    Route::get('servicio-social/{socialWork}/editar',[SocialWorkAssessmentController::class,'edit'])->name('social-work.edit');
+    Route::put('servicio-social/{socialWork}',[SocialWorkAssessmentController::class,'update'])->name('social-work.update');
     Route::get('/patients-search', [App\Http\Controllers\PatientController::class, 'search'])->name('patients.search');
     Route::resource('referrals', App\Http\Controllers\ReferralController::class);
     Route::get('/referrals/{id}/pdf', [App\Http\Controllers\ReferralController::class, 'downloadPdf'])->name('referrals.pdf');

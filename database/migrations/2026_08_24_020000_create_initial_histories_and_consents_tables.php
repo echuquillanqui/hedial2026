@@ -33,12 +33,8 @@ return new class extends Migration
 
         Schema::create('initial_history_laboratory_results', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('initial_clinical_history_id')
-                ->constrained(indexName: 'initial_history_lab_history_fk')
-                ->cascadeOnDelete();
-            $table->foreignId('laboratory_order_item_id')
-                ->constrained(indexName: 'initial_history_lab_order_item_fk')
-                ->restrictOnDelete();
+            $table->foreignId('initial_clinical_history_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('laboratory_order_item_id')->constrained()->restrictOnDelete();
             $table->timestamps();
             $table->unique(['initial_clinical_history_id', 'laboratory_order_item_id'], 'initial_history_lab_unique');
         });

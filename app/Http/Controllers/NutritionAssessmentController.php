@@ -70,7 +70,7 @@ class NutritionAssessmentController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate(['assessment_date' => ['required','date'], 'reason' => ['nullable','string'], 'appetite' => ['nullable','string'],
+        return $request->validate(['assessment_date' => ['required','date'], 'clinical_history'=>['nullable','string'], 'nutritional_history'=>['nullable','string'], 'general_recommendations'=>['nullable','string'], 'dietary_recommendations'=>['nullable','string'], 'reason' => ['nullable','string'], 'appetite' => ['nullable','string'],
             'dietary_intake' => ['nullable','string'], 'gastrointestinal_symptoms' => ['nullable','string'], 'functional_capacity' => ['nullable','string'],
             'physical_findings' => ['nullable','string'], 'nutritional_diagnosis' => ['required','string'], 'intervention_plan' => ['nullable','string'],
             'recommendations' => ['nullable','string'], 'observations' => ['nullable','string']]);
