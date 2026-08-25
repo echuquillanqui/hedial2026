@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Patient;
 use App\Support\ClinicalService;
 use App\Support\CurrentSede;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -54,28 +55,21 @@ class AuditController extends Controller
 
     public function pendingDocuments(Request $request)
     {
-        $allDates = $request->boolean('all_dates');
-        $date = $allDates ? null : ($request->date('date')?->toDateString() ?? today()->toDateString());
+        $validated = $request->validate([
+            'month' => ['nullable', 'date_format:Y-m'],
+            'missing' => ['nullable', 'in:consent,consultation,laboratory'],
+        ]);
+        $month = $validated['month'] ?? today()->format('Y-m');
+        $monthStart = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
         $missing = $request->input('missing');
 
-        $consentIsMissing = function (Builder $query) use ($date) {
-            $query->where('attention_type', ClinicalService::HEMODIALYSIS)
-                ->when($date, fn (Builder $orders, string $value) => $orders->whereDate('fecha_orden', $value))
-                ->whereDoesntHave('patient.hemodialysisConsents', function (Builder $consents) use ($date) {
-                    $date
-                        ? $consents->whereDate('consented_at', $date)
-                        : $consents->whereRaw('DATE(hemodialysis_consents.consented_at) = DATE(orders.fecha_orden)');
-                });
-        };
-        $consultationIsMissing = fn (Builder $query) => $query
+        $hasConsentThisMonth = fn (Builder $query) => $query->whereBetween('consented_at', [$monthStart, $monthEnd]);
+        $hasConsultationThisMonth = fn (Builder $query) => $query
             ->where('attention_type', ClinicalService::NEPHROLOGY)
-            ->when($date, fn (Builder $orders, string $value) => $orders->whereDate('fecha_orden', $value))
-            ->whereDoesntHave('nephrologyConsultation');
-        $laboratoryIsMissing = fn (Builder $query) => $query
-            ->where('attention_type', ClinicalService::HEMODIALYSIS)
-            ->when($date, fn (Builder $orders, string $value) => $orders->whereDate('fecha_orden', $value))
-            ->whereNotNull('laboratory_period')
-            ->whereDoesntHave('laboratoryOrder');
+            ->whereHas('nephrologyConsultation', fn (Builder $consultation) => $consultation
+                ->whereBetween('consultation_date', [$monthStart, $monthEnd]));
+        $hasLaboratoryThisMonth = fn (Builder $query) => $query->whereBetween('sampled_at', [$monthStart, $monthEnd]);
 
         $patients = Patient::query()
             ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
@@ -91,25 +85,42 @@ class AuditController extends Controller
             ->when($request->filled('sequence'), fn (Builder $query) => $query->where('secuencia', $request->input('sequence')))
             ->when($request->filled('shift'), fn (Builder $query) => $query->where('turno', $request->input('shift')))
             ->when($request->filled('module'), fn (Builder $query) => $query->where('modulo', $request->input('module')))
-            ->whereHas('orders', match ($missing) {
-                'consent' => $consentIsMissing,
-                'consultation' => $consultationIsMissing,
-                'laboratory' => $laboratoryIsMissing,
-                default => fn (Builder $orders) => $orders->where(function (Builder $orders) use ($consentIsMissing, $consultationIsMissing, $laboratoryIsMissing) {
-                    $orders->where($consentIsMissing)->orWhere($consultationIsMissing)->orWhere($laboratoryIsMissing);
-                }),
+            // Cualquier atención clínica identifica a los pacientes activos del mes. Así también
+            // aparecen quienes todavía no tienen alguna de las otras órdenes mensuales creada.
+            ->whereHas('orders', fn (Builder $orders) => $orders
+                ->whereIn('attention_type', [ClinicalService::HEMODIALYSIS, ClinicalService::NEPHROLOGY])
+                ->whereBetween('fecha_orden', [$monthStart, $monthEnd]))
+            ->where(function (Builder $query) use ($missing, $hasConsentThisMonth, $hasConsultationThisMonth, $hasLaboratoryThisMonth) {
+                match ($missing) {
+                    'consent' => $query->whereDoesntHave('hemodialysisConsents', $hasConsentThisMonth),
+                    'consultation' => $query->whereDoesntHave('orders', $hasConsultationThisMonth),
+                    'laboratory' => $query->whereDoesntHave('laboratoryOrders', $hasLaboratoryThisMonth),
+                    default => $query
+                        ->whereDoesntHave('hemodialysisConsents', $hasConsentThisMonth)
+                        ->orWhereDoesntHave('orders', $hasConsultationThisMonth)
+                        ->orWhereDoesntHave('laboratoryOrders', $hasLaboratoryThisMonth),
+                };
             })
             ->with(['orders' => fn ($query) => $query
-                ->when($date, fn ($orders, string $value) => $orders->whereDate('fecha_orden', $value))
-                ->whereIn('attention_type', [ClinicalService::HEMODIALYSIS, ClinicalService::NEPHROLOGY])
+                ->where(function (Builder $orders) use ($monthStart, $monthEnd) {
+                    $orders->where(fn (Builder $hemodialysis) => $hemodialysis
+                        ->where('attention_type', ClinicalService::HEMODIALYSIS)
+                        ->whereBetween('fecha_orden', [$monthStart, $monthEnd]))
+                        ->orWhere(fn (Builder $nephrology) => $nephrology
+                            ->where('attention_type', ClinicalService::NEPHROLOGY)
+                            ->whereHas('nephrologyConsultation', fn (Builder $consultation) => $consultation
+                                ->whereBetween('consultation_date', [$monthStart, $monthEnd])));
+                })
                 ->with(['nephrologyConsultation', 'laboratoryOrder']),
                 'hemodialysisConsents' => fn ($query) => $query
-                    ->when($date, fn ($consents, string $value) => $consents->whereDate('consented_at', $value)),
+                    ->whereBetween('consented_at', [$monthStart, $monthEnd]),
+                'laboratoryOrders' => fn ($query) => $query
+                    ->whereBetween('sampled_at', [$monthStart, $monthEnd]),
             ])
             ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')
             ->paginate(25)->withQueryString();
 
-        return view('audit.pending-documents', compact('patients', 'date', 'allDates'));
+        return view('audit.pending-documents', compact('patients', 'month'));
     }
 
     private function filteredOrders(Request $request): Builder
