@@ -1,0 +1,1 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">@include('consents.pdf-styles')</head><body>@foreach($consents as $consent)<section class="consent-page">@include('consents.pdf-content', ['consent' => $consent])</section>@endforeach</body></html>

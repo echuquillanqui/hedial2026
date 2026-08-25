@@ -109,6 +109,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('historias-iniciales/{initialHistory}/pdf', [InitialClinicalHistoryController::class, 'pdf'])->name('initial-histories.pdf');
     Route::resource('historias-iniciales', InitialClinicalHistoryController::class)->except(['destroy'])->parameters(['historias-iniciales' => 'initialHistory'])->names('initial-histories');
     Route::get('consentimientos/{consent}/pdf', [HemodialysisConsentController::class, 'pdf'])->name('consents.pdf');
+    Route::post('consentimientos/pdf/bloque', [HemodialysisConsentController::class, 'bulkPdf'])->name('consents.bulk-pdf');
     Route::resource('consentimientos', HemodialysisConsentController::class)->only(['index', 'create', 'store', 'show'])->parameters(['consentimientos' => 'consent'])->names('consents');
     Route::get('nutricion/{nutrition}/pdf', [NutritionAssessmentController::class, 'pdf'])->name('nutrition.pdf');
     Route::get('nutricion/orden/{order}/crear', [NutritionAssessmentController::class, 'create'])->name('nutrition.create');
