@@ -22,15 +22,17 @@ class HemodialysisConsentController extends Controller
 
     public function index(Request $request)
     {
+        $date = $request->date('date')?->toDateString() ?? today()->toDateString();
         $consents = HemodialysisConsent::query()->with(['patient', 'sede', 'physician'])
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+            ->whereDate('consented_at', $date)
             ->when($request->filled('search'), fn ($query) => $query->whereHas('patient', function ($patient) use ($request) {
                 $search = trim((string) $request->search);
                 $patient->where('dni', 'like', "%{$search}%")->orWhere('first_name', 'like', "%{$search}%")
                     ->orWhere('surname', 'like', "%{$search}%");
             }))->latest('consented_at')->paginate(20)->withQueryString();
 
-        return view('consents.index', compact('consents'));
+        return view('consents.index', compact('consents', 'date'));
     }
 
     public function create(Request $request)

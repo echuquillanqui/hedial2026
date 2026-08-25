@@ -174,7 +174,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('consultas/{consultation}/consulta.pdf', [NephrologyConsultationController::class, 'consultationPdf'])->name('consultations.pdf');
     Route::get('consultas/{consultation}/receta.pdf', [NephrologyConsultationController::class, 'prescriptionPdf'])->name('consultations.prescription.pdf');
     Route::resource('consultas', NephrologyConsultationController::class)
-        ->except(['show', 'destroy'])
+        ->only(['index', 'edit', 'update'])
         ->parameters(['consultas' => 'consultation'])
         ->names('consultations');
     Route::resource('nurses', NurseController::class);

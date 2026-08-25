@@ -93,6 +93,57 @@ class InitialHistoryAndConsentTest extends TestCase
         $this->assertFalse(collect(app('router')->getRoutes())->contains(fn ($route) => $route->getName() === 'consents.update'));
     }
 
+    public function test_first_hemodialysis_attention_each_month_generates_one_consent_automatically(): void
+    {
+        foreach (['2026-08-05', '2026-08-20', '2026-09-01'] as $date) {
+            $this->actingAs($this->doctor)->withSession($this->session())->post(route('orders.store'), [
+                'patient_id' => $this->patient->id,
+                'sala' => 'Sala 1',
+                'turno' => '1',
+                'horas_dialisis' => 3.5,
+                'fecha_orden' => $date,
+            ])->assertRedirect(route('orders.index'));
+        }
+
+        $this->assertSame(2, HemodialysisConsent::query()->count());
+        $this->assertDatabaseHas('hemodialysis_consents', [
+            'patient_id' => $this->patient->id,
+            'physician_id' => $this->doctor->id,
+            'created_by' => $this->doctor->id,
+            'accepted' => true,
+            'version' => '02',
+        ]);
+        $this->assertSame(
+            ['2026-08-05', '2026-09-01'],
+            HemodialysisConsent::query()->orderBy('consented_at')->get()
+                ->map(fn (HemodialysisConsent $consent) => $consent->consented_at->format('Y-m-d'))->all()
+        );
+    }
+
+    public function test_consent_index_defaults_to_today_and_reacts_to_an_explicit_date(): void
+    {
+        HemodialysisConsent::query()->create([
+            'patient_id' => $this->patient->id, 'sede_id' => $this->sede->id,
+            'created_by' => $this->doctor->id, 'consented_at' => today()->startOfDay(),
+            'version' => '02', 'accepted' => true,
+        ]);
+        HemodialysisConsent::query()->create([
+            'patient_id' => $this->patient->id, 'sede_id' => $this->sede->id,
+            'created_by' => $this->doctor->id, 'consented_at' => today()->subDay()->startOfDay(),
+            'version' => '02', 'accepted' => true,
+        ]);
+
+        $this->actingAs($this->doctor)->withSession($this->session())->get(route('consents.index'))
+            ->assertOk()->assertViewHas('date', today()->toDateString())
+            ->assertSee('id="consent-date"', false)
+            ->assertSee('requestSubmit()', false);
+
+        $yesterday = today()->subDay()->toDateString();
+        $this->actingAs($this->doctor)->withSession($this->session())->get(route('consents.index', ['date' => $yesterday]))
+            ->assertOk()->assertViewHas('date', $yesterday)
+            ->assertViewHas('consents', fn ($consents) => $consents->total() === 1);
+    }
+
     public function test_sector_professional_cannot_modify_history_or_create_consents(): void
     {
         $nutritionist = User::query()->where('username', 'nutricionista')->firstOrFail();

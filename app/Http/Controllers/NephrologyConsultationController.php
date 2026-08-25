@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FuaConfiguration;
+use App\Models\Fua;
 use App\Models\NephrologyConsultation;
 use App\Models\Patient;
 use App\Models\User;
@@ -17,7 +18,6 @@ class NephrologyConsultationController extends Controller
     public function __construct()
     {
         $this->middleware('permission:nephrology.view')->only(['index']);
-        $this->middleware('permission:nephrology.create')->only(['create', 'store']);
         $this->middleware('permission:nephrology.update')->only(['edit', 'update']);
         $this->middleware('permission:nephrology.print')->only(['consultationPdf', 'prescriptionPdf']);
     }
@@ -41,6 +41,7 @@ class NephrologyConsultationController extends Controller
     public function index(Request $request)
     {
         $consultations = NephrologyConsultation::with(['patient', 'doctor', 'order.fua'])
+            ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->string('search')->trim();
@@ -79,6 +80,7 @@ class NephrologyConsultationController extends Controller
     public function edit(NephrologyConsultation $consultation)
     {
         $this->authorizeSede($consultation);
+        abort_unless($consultation->order?->attention_type === Fua::NEPHROLOGY, 404);
         $medications = $consultation->medications;
 
         if ($medications->isEmpty()) {
@@ -96,7 +98,9 @@ class NephrologyConsultationController extends Controller
 
     public function update(Request $request, NephrologyConsultation $consultation)
     {
-        $this->authorizeSede($consultation); $data = $this->validated($request);
+        $this->authorizeSede($consultation);
+        abort_unless($consultation->order?->attention_type === Fua::NEPHROLOGY, 404);
+        $data = $this->validated($request);
         $data['diagnosis'] = $this->diagnosisSummary($data);
         DB::transaction(function () use ($data, $consultation) {
             $medications = $data['medications']; unset($data['medications']);

@@ -4,7 +4,7 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div><h3 class="mb-0 fw-bold">Consultas nefrológicas</h3><small class="text-muted">Historia clínica y recetas médicas</small></div>
-        <a href="{{ route('consultations.create') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> Nueva consulta</a>
+        <a href="{{ route('orders.nephrology.create') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> Generar orden de consulta</a>
     </div>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     <div class="card shadow-sm">
