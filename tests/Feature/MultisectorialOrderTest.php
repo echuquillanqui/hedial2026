@@ -114,6 +114,19 @@ class MultisectorialOrderTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_navigation_keeps_multisectorial_work_outside_the_hemodialysis_menu(): void
+    {
+        $nutritionist = User::query()->where('username', 'nutricionista')->firstOrFail();
+
+        $this->actingAs($nutritionist)->withSession($this->sedeSession())
+            ->get(route('orders.multisectorial.index', ['type' => ClinicalService::NUTRITION]))
+            ->assertOk()
+            ->assertSee('Multisectorial')
+            ->assertSee('Nutrición')
+            ->assertDontSee('Área Clínica')
+            ->assertDontSee('Órdenes de hemodiálisis');
+    }
+
     public function test_schedule_exposes_pending_upcoming_overdue_and_completed_states(): void
     {
         $order = new Order(['status' => 'PENDING', 'due_date' => '2026-10-30']);
