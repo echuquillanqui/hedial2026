@@ -2,15 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Models\Area;
 use App\Models\Fua;
 use App\Models\HemodialysisConsent;
 use App\Models\LaboratoryOrder;
+use App\Models\LaboratoryOrderItem;
 use App\Models\Medical;
 use App\Models\NephrologyConsultation;
 use App\Models\Nurse;
 use App\Models\Order;
 use App\Models\Patient;
 use App\Models\Sede;
+use App\Models\Test;
 use App\Models\Treatment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -137,6 +140,24 @@ class AuditTest extends TestCase
             ->assertOk()
             ->assertDontSee('PACIENTE AUDITADO')
             ->assertSee('SIN CONSULTA NEFROLOGICA');
+    }
+
+    public function test_ktv_uses_laboratory_sample_date_results_and_same_day_hemodialysis(): void
+    {
+        [$user, $sede, $order] = $this->auditScenario();
+        $order->medical->update(['hora_hd' => 4, 'peso_inicial' => 68, 'peso_seco' => 65, 'uf' => 2]);
+        $order->nurse->update(['peso_inicial' => 68, 'peso_final' => 65]);
+        $laboratory = LaboratoryOrder::create(['patient_id' => $order->patient_id, 'patient_name' => $order->patient->full_name, 'period' => 'M', 'sampled_at' => today()]);
+        $area = Area::create(['name' => 'Bioquímica']);
+        foreach (['Urea pre diálisis' => '100', 'Urea post diálisis' => '30', 'Albúmina' => '4.2'] as $name => $value) {
+            $test = Test::create(['area_id' => $area->id, 'name' => $name, 'type' => 'number']);
+            LaboratoryOrderItem::create(['laboratory_order_id' => $laboratory->id, 'test_id' => $test->id, 'result_value' => $value]);
+        }
+
+        $this->actingAs($user)->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.ktv', ['date' => today()->toDateString()]))
+            ->assertOk()->assertSee('Auditoría KTV')->assertSee('PACIENTE AUDITADO')
+            ->assertSee('30')->assertSee('100')->assertSee('4.2')->assertSee('68')->assertSee('65');
     }
 
     public function test_pending_documents_uses_monthly_documents_for_all_patients(): void

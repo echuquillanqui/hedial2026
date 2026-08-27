@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LaboratoryOrder;
 use App\Models\Order;
 use App\Models\Patient;
 use App\Support\ClinicalService;
@@ -122,6 +123,40 @@ class AuditController extends Controller
             ->paginate(25)->withQueryString();
 
         return view('audit.pending-documents', compact('patients', 'month'));
+    }
+
+    public function ktv(Request $request)
+    {
+        $date = $request->input('date', today()->toDateString());
+
+        $laboratories = LaboratoryOrder::query()
+            ->whereDate('sampled_at', $date)
+            ->whereHas('patient', fn (Builder $query) => $query
+                ->when(CurrentSede::id(), fn (Builder $patient, int $sede) => $patient->where('sede_id', $sede))
+                ->when($request->filled('search'), function (Builder $patient) use ($request) {
+                    $search = trim((string) $request->input('search'));
+                    $patient->where(fn (Builder $query) => $query
+                        ->where('dni', 'like', "%{$search}%")
+                        ->orWhere('medical_history_number', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('surname', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%"));
+                }))
+            ->with([
+                'patient',
+                'items.test',
+                'order.medical',
+                'order.nurse',
+                'patient.orders' => fn ($query) => $query
+                    ->where('attention_type', ClinicalService::HEMODIALYSIS)
+                    ->whereDate('fecha_orden', $date)
+                    ->with(['medical', 'nurse']),
+            ])
+            ->orderBy(Patient::select('surname')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('audit.ktv', compact('laboratories'));
     }
 
     private function filteredOrders(Request $request): Builder
