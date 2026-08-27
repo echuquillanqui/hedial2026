@@ -357,6 +357,9 @@
             <li><a class="dropdown-item {{ request()->routeIs('audit.fissal') ? 'active' : '' }}" href="{{ route('audit.fissal') }}">
                 <i class="bi bi-table me-2"></i> FISSAL
             </a></li>
+            <li><a class="dropdown-item {{ request()->routeIs('audit.ktv') ? 'active' : '' }}" href="{{ route('audit.ktv') }}">
+                <i class="bi bi-calculator me-2"></i> KTV
+            </a></li>
         </ul>
     </li>
     @endif

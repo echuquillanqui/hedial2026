@@ -47,6 +47,7 @@ Auth::routes();
 Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('auditoria/historias', [AuditController::class, 'histories'])->name('audit.histories');
     Route::get('auditoria/fissal', [AuditController::class, 'fissal'])->name('audit.fissal');
+    Route::get('auditoria/ktv', [AuditController::class, 'ktv'])->name('audit.ktv');
     Route::get('auditoria/pendientes', [AuditController::class, 'pendingDocuments'])->name('audit.pending-documents');
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::get('/home/export/pdf', [App\Http\Controllers\HomeController::class, 'exportPdf'])->name('home.export.pdf');
