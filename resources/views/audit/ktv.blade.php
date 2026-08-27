@@ -32,7 +32,10 @@
                 $uf = $nurse?->uf ?: $medical?->uf; $dry = $medical?->peso_seco ?: $laboratory->patient?->peso_seco;
                 $ratio = is_numeric($upost) && is_numeric($upre) && (float)$upre > 0 ? (float)$upost / (float)$upre : null;
                 $logArgument = $ratio !== null && is_numeric($time) ? $ratio - (0.008 * (float)$time) : null;
-                $ktv = $logArgument !== null && $logArgument > 0 ? -log($logArgument) + (4 - (3.5 * $ratio)) * ((float)($uf ?: 0) / (float)($final ?: $dry ?: 1)) : null;
+                $weight = is_numeric($final) && (float)$final > 0 ? (float)$final : (is_numeric($dry) && (float)$dry > 0 ? (float)$dry : null);
+                $ktv = $logArgument !== null && $logArgument > 0 && $weight !== null
+                    ? -log($logArgument) + (4 - (3.5 * $ratio)) * ((is_numeric($uf) ? (float)$uf : 0) / $weight)
+                    : null;
             @endphp
             <tr><td class="text-nowrap fw-semibold">{{ $laboratory->patient?->full_name ?: $laboratory->patient_name }}</td><td>{{ $laboratory->patient?->dni ?: '—' }}</td><td class="text-nowrap">{{ $laboratory->sampled_at?->format('d/m/Y') }}</td><td>{{ $upost ?? '—' }}</td><td>{{ $upre ?? '—' }}</td><td>{{ $time ?: '—' }}</td><td>{{ $initial ?: '—' }}</td><td>{{ $final ?: '—' }}</td><td>{{ $uf ?: '—' }}</td><td>{{ $dry ?: '—' }}</td><td class="fw-bold text-success">{{ is_finite($ktv ?? NAN) ? number_format($ktv, 2) : '—' }}</td>@foreach($testColumns as $name)<td>{{ $results[$name] ?? '—' }}</td>@endforeach</tr>
         @empty<tr><td colspan="23" class="text-center text-muted py-5">No hay laboratorios para la fecha seleccionada.</td></tr>@endforelse
