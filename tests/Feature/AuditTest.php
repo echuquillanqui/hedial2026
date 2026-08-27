@@ -160,6 +160,26 @@ class AuditTest extends TestCase
             ->assertSee('30')->assertSee('100')->assertSee('4.2')->assertSee('68')->assertSee('65');
     }
 
+    public function test_ktv_does_not_divide_by_zero_when_no_valid_weight_is_available(): void
+    {
+        [$user, $sede, $order] = $this->auditScenario();
+        $order->medical->update(['hora_hd' => 4, 'peso_seco' => 0, 'uf' => 2]);
+        $order->nurse->update(['peso_final' => 0]);
+        $laboratory = LaboratoryOrder::create(['patient_id' => $order->patient_id, 'patient_name' => $order->patient->full_name, 'period' => 'M', 'sampled_at' => today()]);
+        $area = Area::create(['name' => 'Bioquímica']);
+
+        foreach (['Urea pre diálisis' => '100', 'Urea post diálisis' => '30'] as $name => $value) {
+            $test = Test::create(['area_id' => $area->id, 'name' => $name, 'type' => 'number']);
+            LaboratoryOrderItem::create(['laboratory_order_id' => $laboratory->id, 'test_id' => $test->id, 'result_value' => $value]);
+        }
+
+        $this->actingAs($user)->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.ktv', ['date' => today()->toDateString()]))
+            ->assertOk()
+            ->assertSee('PACIENTE AUDITADO')
+            ->assertSee('<td class="fw-bold text-success">—</td>', false);
+    }
+
     public function test_pending_documents_uses_monthly_documents_for_all_patients(): void
     {
         [$user, $sede] = $this->auditScenario();
