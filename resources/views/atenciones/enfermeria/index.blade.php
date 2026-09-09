@@ -22,7 +22,7 @@
             <div>
                 <div class="fw-bold">
                     <i class="bi bi-grid-3x3-gap-fill me-2"></i>
-                    Módulo asignado para hoy: MÓDULO {{ $moduleAssignment->module }}
+                    Módulo asignado para hoy: {{ $moduleAssignment->includesAllModules() ? 'TODOS' : 'MÓDULO '.$moduleAssignment->module }}
                 </div>
                 <small>La lista de pacientes se filtrará automáticamente según esta selección.</small>
             </div>
@@ -50,6 +50,9 @@
                             <label for="moduleAssignmentSelect" class="form-label fw-bold">Módulo de trabajo</label>
                             <select name="module" id="moduleAssignmentSelect" class="form-select" required autofocus>
                                 <option value="">Elegir módulo</option>
+                                @if(\App\Models\NurseModuleAssignment::allModulesEnabledToday())
+                                    <option value="{{ \App\Models\NurseModuleAssignment::ALL_MODULES }}" @selected(optional($moduleAssignment)->module === \App\Models\NurseModuleAssignment::ALL_MODULES)>TODOS</option>
+                                @endif
                                 @foreach(range(1, 4) as $module)
                                     <option value="{{ $module }}" @selected(optional($moduleAssignment)->module === $module)>MÓDULO {{ $module }}</option>
                                 @endforeach
@@ -82,7 +85,7 @@
                     <select name="modulo" id="moduloSelect" class="form-select form-select-sm">
                         @if($requiresModuleAssignment)
                             <option value="{{ optional($moduleAssignment)->module }}" selected>
-                                {{ $moduleAssignment ? 'MÓDULO '.$moduleAssignment->module : 'SIN ASIGNAR' }}
+                                {{ $moduleAssignment ? ($moduleAssignment->includesAllModules() ? 'TODOS' : 'MÓDULO '.$moduleAssignment->module) : 'SIN ASIGNAR' }}
                             </option>
                         @else
                         <option value="">TODOS</option>
