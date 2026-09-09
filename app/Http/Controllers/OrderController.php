@@ -257,7 +257,6 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             'patient_id'     => 'required|exists:patients,id',
-            'sala'           => 'required|string',
             'turno'          => 'required|string',
             'horas_dialisis' => 'required|numeric|min:0.5',
             'fecha_orden'    => 'required|date',
@@ -275,6 +274,7 @@ class OrderController extends Controller
 
             $order = Order::create(array_merge($validated, [
                 'codigo_unico' => $this->generateCode(),
+                'sala' => 'MODULO '.$patient->modulo,
                 'sede_id' => $patient->sede_id,
                 'attention_type' => Fua::HEMODIALYSIS,
             ]));
@@ -301,7 +301,6 @@ class OrderController extends Controller
     {
         $request->validate([
             'patient_ids'      => 'required|array|min:1',
-            'sala'             => 'required|string',
             'fecha_orden'      => 'required|date',
             'horas_individual' => 'required|array', // Captura el array de la vista
             'laboratory_periods' => 'required|array',
@@ -326,7 +325,8 @@ class OrderController extends Controller
                 $order = Order::create([
                     'patient_id'     => $id,
                     'codigo_unico'   => $this->generateCode(),
-                    'sala'           => $request->sala,
+                    // La sala pertenece al paciente, no a la selección global del lote.
+                    'sala'           => 'MODULO '.$patient->modulo,
                     'turno'          => $patient->turno,
                     'es_covid'       => isset($request->covid_flags[$id]),
                     'laboratory_period' => $laboratoryPeriod,
