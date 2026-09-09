@@ -166,6 +166,9 @@ class InitialHistoryAndConsentTest extends TestCase
         $this->assertStringContainsString('class="system-logo"', $html);
         $this->assertStringContainsString('src="data:image/png;base64,LOGO_SUBIDO"', $html);
         $this->assertStringContainsString('right:0', $html);
+        $this->assertStringContainsString('@page{margin:1.3cm 2cm}', $html);
+        $this->assertStringContainsString('.consent-copy{text-align:justify}', $html);
+        $this->assertStringContainsString('class="consent-copy"', $html);
     }
 
     public function test_sector_professional_cannot_modify_history_or_create_consents(): void
