@@ -16,7 +16,7 @@
                 @forelse($nurses as $nurse)
                 <tr>
                     <td class="ps-3">
-                        <div class="fw-bold text-primary">{{ $nurse->order->sala }}</div>
+                        <div class="fw-bold text-primary">MÓDULO {{ $nurse->order->patient->modulo ?: '—' }}</div>
                         <div class="badge bg-secondary" style="font-size: 0.65rem;">{{ $nurse->order->turno }}º TURNO</div>
                     </td>
                     <td>

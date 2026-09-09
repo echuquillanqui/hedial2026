@@ -81,7 +81,7 @@
                             <span class="text-muted fw-bold" style="font-size: 0.7rem;">{{ $medical->order->codigo_unico }}</span>
                         </td>
                         <td class="text-center">
-                            <span class="badge bg-light text-success border border-success">{{ $medical->order->sala }}</span>
+                            <span class="badge bg-light text-success border border-success">MÓDULO {{ $medical->order->patient->modulo ?: '—' }}</span>
                         </td>
                         <td class="text-center small fw-bold">T-{{ $medical->order->turno }}</td>
                         <td class="text-center">

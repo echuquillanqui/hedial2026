@@ -181,6 +181,7 @@ class NurseModuleAssignmentTest extends TestCase
         $patient = Patient::factory()->create([
             'sede_id' => $sede->id,
             'first_name' => $patientName,
+            'modulo' => (string) $module,
         ]);
         $order = Order::create([
             'sede_id' => $sede->id,

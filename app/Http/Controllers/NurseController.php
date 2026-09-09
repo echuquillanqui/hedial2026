@@ -85,10 +85,7 @@ class NurseController extends Controller
             });
         })
         ->when($moduleFilter, function ($query, $modulo) {
-            $query->whereHas('order', function($q) use ($modulo) {
-                // Ajustado a tu base de datos de medicina: 'MODULO ' . $valor
-                $q->where('sala', 'MODULO ' . $modulo);
-            });
+            $query->whereHas('order.patient', fn ($q) => $q->where('modulo', $modulo));
         })
         ->when($request->estado, function ($query, $estado) {
             if ($estado === 'finalizado') {
