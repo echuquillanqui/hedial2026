@@ -359,6 +359,27 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame(2, Fua::where('type', Fua::HEMODIALYSIS)->count());
     }
 
+    public function test_bulk_dialysis_orders_use_each_patients_assigned_module(): void
+    {
+        $user = User::factory()->create();
+        $firstPatient = Patient::factory()->create(['turno' => '1', 'modulo' => '2']);
+        $secondPatient = Patient::factory()->create(['turno' => '1', 'modulo' => '4']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->post(route('orders.store_bulk'), [
+            'patient_ids' => [$firstPatient->id, $secondPatient->id],
+            // Una sala enviada por un cliente antiguo no debe sobrescribir el módulo del paciente.
+            'sala' => 'MODULO 1',
+            'fecha_orden' => '2026-08-14',
+            'horas_individual' => [$firstPatient->id => 3.5, $secondPatient->id => 3.5],
+            'laboratory_periods' => [$firstPatient->id => '', $secondPatient->id => ''],
+        ]);
+
+        $response->assertRedirect(route('orders.index'));
+        $this->assertDatabaseHas('orders', ['patient_id' => $firstPatient->id, 'sala' => 'MODULO 2']);
+        $this->assertDatabaseHas('orders', ['patient_id' => $secondPatient->id, 'sala' => 'MODULO 4']);
+        $this->assertDatabaseMissing('orders', ['sala' => 'MODULO 1']);
+    }
+
     public function test_dialysis_orders_can_be_created_without_laboratory(): void
     {
         $user = User::factory()->create();
