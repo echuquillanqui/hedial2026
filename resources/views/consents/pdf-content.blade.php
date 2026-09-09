@@ -1,4 +1,9 @@
-<div class="center"><b>ANEXO N.° 3</b><h3>CONSENTIMIENTO INFORMADO PARA TRATAMIENTO DE HEMODIÁLISIS</h3></div>
+<header class="consent-header">
+    <div class="consent-heading"><b>ANEXO N.° 3</b><h3>CONSENTIMIENTO INFORMADO PARA TRATAMIENTO DE HEMODIÁLISIS</h3></div>
+    @if($logoData)
+        <img class="system-logo" src="{{ $logoData }}" alt="Logo institucional">
+    @endif
+</header>
 <p><b>Fecha:</b> {{ $consent->consented_at->format('d/m/Y') }}<br><b>Nombres y apellidos del paciente:</b> {{ $consent->patient->full_name }}<br><b>DNI N.°:</b> {{ $consent->patient->dni }} &nbsp; <b>Edad:</b> {{ $consent->patient->birth_date?->diffInYears($consent->consented_at) ?? $consent->patient->age }} &nbsp; <b>Domicilio:</b> {{ $consent->patient->address }}</p>
 <p>Usted ha sido diagnosticada(o) con Enfermedad Renal Crónica Terminal, para lo cual tendrá que continuar con sus sesiones de hemodiálisis como tratamiento sustitutivo renal. Dicho procedimiento se realiza a través de un dializador con la finalidad de limpiar la sangre de las sustancias y del exceso de líquidos que sus riñones no son capaces de eliminar.</p>
 <p>Este procedimiento se realiza a través de un acceso vascular como catéter venoso central, fístula arterio-venosa o injerto. Si tiene una fístula o injerto se realizarán dos punciones en cada sesión; si porta un catéter se efectuará la conexión al sistema de hemodiálisis.</p>

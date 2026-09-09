@@ -144,6 +144,30 @@ class InitialHistoryAndConsentTest extends TestCase
             ->assertViewHas('consents', fn ($consents) => $consents->total() === 1);
     }
 
+    public function test_consent_index_offers_bulk_printing_and_pdf_places_system_logo_in_header(): void
+    {
+        $consent = HemodialysisConsent::query()->create([
+            'patient_id' => $this->patient->id, 'sede_id' => $this->sede->id,
+            'physician_id' => $this->doctor->id, 'created_by' => $this->doctor->id,
+            'consented_at' => today()->startOfDay(), 'version' => '02', 'accepted' => true,
+        ])->load(['patient', 'physician']);
+
+        $this->actingAs($this->doctor)->withSession($this->session())->get(route('consents.index'))
+            ->assertOk()
+            ->assertSee('Imprimir en bloque')
+            ->assertSee('consent_ids[]', false);
+
+        $html = view('consents.pdf', [
+            'consent' => $consent,
+            'configuration' => null,
+            'logoData' => 'data:image/png;base64,LOGO_SUBIDO',
+        ])->render();
+
+        $this->assertStringContainsString('class="system-logo"', $html);
+        $this->assertStringContainsString('src="data:image/png;base64,LOGO_SUBIDO"', $html);
+        $this->assertStringContainsString('right:0', $html);
+    }
+
     public function test_sector_professional_cannot_modify_history_or_create_consents(): void
     {
         $nutritionist = User::query()->where('username', 'nutricionista')->firstOrFail();
