@@ -195,7 +195,7 @@ class FuaController extends Controller
         return Pdf::loadView($view, [
             'documents' => $documents,
             'configuration' => $configuration,
-            'logoData' => $this->logoData($configuration->logo_path),
+            'logoData' => $this->fuaLogoData(),
         ])->setPaper('a4')->stream('fuas-'.strtolower($type).'.pdf');
     }
 
@@ -306,7 +306,7 @@ class FuaController extends Controller
         $procedures = $this->procedures($fua);
         $configuration = FuaConfiguration::global();
         $view = $fua->effectiveType() === Fua::NEPHROLOGY ? 'fuas.pdf_nephrology' : 'fuas.pdf';
-        $logoData = $this->logoData($configuration->logo_path);
+        $logoData = $this->fuaLogoData();
         $document = Pdf::loadView($view, [
             'fua' => $fua,
             'configuration' => $configuration,
@@ -356,15 +356,9 @@ class FuaController extends Controller
             ->all();
     }
 
-    private function logoData(?string $path): ?string
+    private function fuaLogoData(): ?string
     {
-        $absolutePath = $path
-            ? storage_path('app/public/'.$path)
-            : public_path('logo/logo-fissal.png');
-
-        if (! is_file($absolutePath)) {
-            $absolutePath = public_path('logo/logo-fissal.png');
-        }
+        $absolutePath = public_path('logo/logo-fissal.png');
 
         if (! is_file($absolutePath)) {
             return null;
