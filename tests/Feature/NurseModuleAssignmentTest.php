@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\NurseController;
+use App\Models\Medical;
 use App\Models\Nurse;
 use App\Models\NurseModuleAssignment;
 use App\Models\Medical;
@@ -50,6 +51,43 @@ class NurseModuleAssignmentTest extends TestCase
             [$nursingProfessional->id],
             $availableStaff->pluck('id')->all()
         );
+    }
+
+    public function test_medical_detail_modal_is_inside_each_nursing_attention(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-PARTE-MEDICO');
+        $doctor = User::factory()->create(['name' => 'Médico de prueba', 'profession' => 'MEDICO']);
+        Medical::create([
+            'order_id' => $nurse->order_id,
+            'hora_hd' => 4,
+            'problemas_clinicos' => 'Hipertensión controlada',
+            'indicaciones' => 'Controlar presión cada hora',
+            'usuario_que_inicia_hd' => $doctor->id,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.edit', $nurse))
+            ->assertOk()
+            ->assertSee('VER PARTE MÉDICO')
+            ->assertSee('id="medicalDetailModal"', false)
+            ->assertSee('Hipertensión controlada')
+            ->assertSee('Controlar presión cada hora')
+            ->assertSee('Médico de prueba');
+
+        NurseModuleAssignment::create([
+            'user_id' => $user->id,
+            'sede_id' => $sede->id,
+            'work_date' => today(),
+            'module' => 1,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.index'))
+            ->assertOk()
+            ->assertDontSee('VER PARTE MÉDICO');
     }
 
     public function test_nursing_professional_can_select_the_module_for_today(): void
