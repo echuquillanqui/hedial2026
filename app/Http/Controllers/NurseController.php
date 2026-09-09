@@ -34,7 +34,7 @@ class NurseController extends Controller
                 ->first()
             : null;
         $moduleFilter = $requiresModuleAssignment
-            ? $moduleAssignment?->module
+            ? ($moduleAssignment?->includesAllModules() ? null : $moduleAssignment?->module)
             : $request->get('modulo');
 
         $nurses = $this->filteredNurses($request, $moduleFilter, $requiresModuleAssignment && ! $moduleAssignment)
@@ -100,8 +100,12 @@ class NurseController extends Controller
     {
         abort_unless($request->user()->isNursingProfessional(), 403);
 
+        $minimumModule = NurseModuleAssignment::allModulesEnabledToday()
+            ? NurseModuleAssignment::ALL_MODULES
+            : 1;
+
         $validated = $request->validate([
-            'module' => ['required', 'integer', 'between:1,4'],
+            'module' => ['required', 'integer', 'between:'.$minimumModule.',4'],
         ]);
 
         NurseModuleAssignment::updateOrCreate(
@@ -317,7 +321,7 @@ class NurseController extends Controller
                 ->first()
             : null;
         $moduleFilter = $requiresModuleAssignment
-            ? $moduleAssignment?->module
+            ? ($moduleAssignment?->includesAllModules() ? null : $moduleAssignment?->module)
             : $request->get('modulo');
 
         return $this->filteredNurses(

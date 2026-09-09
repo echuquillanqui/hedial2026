@@ -9,12 +9,20 @@ use App\Models\Order;
 use App\Models\Patient;
 use App\Models\Sede;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class NurseModuleAssignmentTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_nursing_staff_selectors_only_include_nursing_professionals(): void
     {
@@ -58,6 +66,53 @@ class NurseModuleAssignmentTest extends TestCase
             'work_date' => today()->toDateString(),
             'module' => 3,
         ]);
+    }
+
+    public function test_all_modules_option_is_available_on_september_ninth_and_shows_every_patient(): void
+    {
+        Carbon::setTestNow('2026-09-09 09:00:00');
+        [$user, $sede] = $this->nursingUserAndSede();
+        $moduleOneNurse = $this->nurseForModule($sede, 1, 'PACIENTE-MODULO-UNO');
+        $moduleFourNurse = $this->nurseForModule($sede, 4, 'PACIENTE-MODULO-CUATRO');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.index'))
+            ->assertOk()
+            ->assertSee('<option value="0"', false)
+            ->assertSee('TODOS');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->post(route('nurses.module-assignment.store'), ['module' => NurseModuleAssignment::ALL_MODULES])
+            ->assertRedirect(route('nurses.index'));
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.index'))
+            ->assertOk()
+            ->assertSee('Módulo asignado para hoy: TODOS')
+            ->assertSee($moduleOneNurse->order->patient->first_name)
+            ->assertSee($moduleFourNurse->order->patient->first_name);
+    }
+
+    public function test_all_modules_option_is_rejected_after_september_ninth(): void
+    {
+        Carbon::setTestNow('2026-09-10 09:00:00');
+        [$user, $sede] = $this->nursingUserAndSede();
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.index'))
+            ->assertOk()
+            ->assertDontSee('<option value="0"', false);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->post(route('nurses.module-assignment.store'), ['module' => NurseModuleAssignment::ALL_MODULES])
+            ->assertSessionHasErrors('module');
+
+        $this->assertDatabaseCount('nurse_module_assignments', 0);
     }
 
     public function test_nursing_view_automatically_uses_daily_module_and_ignores_query_override(): void
