@@ -35,6 +35,9 @@
                 </small>
             </div>
             <div class="d-flex gap-2">
+                <button type="button" class="btn btn-info btn-sm px-3 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#medicalDetailModal">
+                    <i class="bi bi-eye-fill me-1"></i> VER PARTE MÉDICO
+                </button>
                 <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm"><i class="bi bi-cloud-arrow-up-fill me-1"></i> ACTUALIZAR</button>
                 <a href="{{ route('nurses.index') }}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-arrow-left-circle me-1"></i> Volver</a>
             </div>
@@ -162,6 +165,28 @@
             </div>
         </div>
     </form>
+</div>
+
+<div class="modal fade" id="medicalDetailModal" tabindex="-1" aria-labelledby="medicalDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-info-subtle">
+                <div>
+                    <h5 class="modal-title fw-bold" id="medicalDetailModalLabel">
+                        <i class="bi bi-file-medical-fill text-info me-2"></i>Parte médico
+                    </h5>
+                    <small class="text-muted">{{ $order->patient->surname }} {{ $order->patient->first_name }} — Sesión #{{ $nurse->numero_hd }}</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                @include('atenciones.enfermeria.partials.medical-detail', ['medical' => $order->medical])
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>

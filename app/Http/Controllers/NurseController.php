@@ -126,7 +126,12 @@ class NurseController extends Controller
         if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
             abort(403, 'Atención fuera de la sede activa.');
         }
-        $nurse->load(['order.patient', 'order.medical', 'order.treatments']);
+        $nurse->load([
+            'order.patient',
+            'order.medical.usuarioInicia',
+            'order.medical.usuarioFinaliza',
+            'order.treatments',
+        ]);
         $order = $nurse->order;
 
         // Si el numero_hd es nulo o cero, calculamos el correlativo real
