@@ -47,6 +47,13 @@
                         <div class="text-muted" style="font-size: 0.7rem;">Sesión #{{ $nurse->numero_hd }}</div>
                     </td>
                     <td class="text-end pe-3">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-info js-show-medical"
+                                data-url="{{ route('nurses.show', $nurse) }}"
+                                data-patient="{{ $nurse->order->patient->surname }} {{ $nurse->order->patient->first_name }}">
+                            <i class="bi bi-eye-fill"></i> Ver parte médico
+                        </button>
+
                         <a href="{{ route('nurses.edit', $nurse->id) }}" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm">
                             <i class="bi bi-pencil-square me-1"></i> Atender
                         </a>
@@ -58,7 +65,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="text-center py-5 text-muted">
+                    <td colspan="7" class="text-center py-5 text-muted">
                         <i class="bi bi-search fs-1 d-block opacity-25"></i>
                         No se encontraron registros de enfermería para esta fecha o filtros.
                     </td>
