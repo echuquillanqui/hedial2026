@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\NurseController;
 use App\Models\Nurse;
 use App\Models\NurseModuleAssignment;
+use App\Models\Medical;
 use App\Models\Order;
 use App\Models\Patient;
 use App\Models\Sede;
@@ -217,6 +218,56 @@ class NurseModuleAssignmentTest extends TestCase
             ->getJson(route('enfermeria.print.bulk.check'))
             ->assertOk()
             ->assertExactJson(['has_records' => true]);
+    }
+
+    public function test_nursing_attention_can_show_every_value_entered_by_the_doctor(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-PARTE-MEDICO');
+        $doctor = User::factory()->create(['name' => 'Médico de prueba', 'profession' => 'MEDICO']);
+
+        Medical::create([
+            'order_id' => $nurse->order_id,
+            'hora_hd' => 4,
+            'pa_inicial' => '130/80',
+            'problemas_clinicos' => 'Hipertensión controlada',
+            'indicaciones' => 'Controlar presión cada hora',
+            'heparina' => '5000 UI',
+            'perfil_uf' => 'Perfil escalonado',
+            'evaluacion_final' => 'Sesión sin complicaciones',
+            'usuario_que_inicia_hd' => $doctor->id,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.show', $nurse))
+            ->assertOk()
+            ->assertSee('Hipertensión controlada')
+            ->assertSee('Controlar presión cada hora')
+            ->assertSee('5000 UI')
+            ->assertSee('Perfil escalonado')
+            ->assertSee('Sesión sin complicaciones')
+            ->assertSee('Médico de prueba');
+    }
+
+    public function test_nursing_index_includes_the_medical_detail_modal_and_action(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-CON-MODAL');
+        NurseModuleAssignment::create([
+            'user_id' => $user->id,
+            'sede_id' => $sede->id,
+            'work_date' => today(),
+            'module' => 1,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.index'))
+            ->assertOk()
+            ->assertSee('id="medicalDetailModal"', false)
+            ->assertSee('Ver parte médico')
+            ->assertSee(route('nurses.show', $nurse), false);
     }
 
     private function nursingUserAndSede(): array

@@ -152,6 +152,25 @@ class NurseController extends Controller
         return view('atenciones.enfermeria.edit', compact('nurse', 'order', 'enfermeros'));
     }
 
+    public function show(Nurse $nurse)
+    {
+        $nurse->load([
+            'order.patient',
+            'order.medical.usuarioInicia',
+            'order.medical.usuarioFinaliza',
+        ]);
+
+        if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Atención fuera de la sede activa.');
+        }
+
+        return view('atenciones.enfermeria.show', [
+            'nurse' => $nurse,
+            'order' => $nurse->order,
+            'medical' => $nurse->order?->medical,
+        ]);
+    }
+
     public function update(Request $request, Nurse $nurse)
     {
         if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {

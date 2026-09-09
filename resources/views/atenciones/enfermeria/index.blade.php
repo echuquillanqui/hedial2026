@@ -155,6 +155,31 @@
     </div>
 </div>
 
+<div class="modal fade" id="medicalDetailModal" tabindex="-1" aria-labelledby="medicalDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-info-subtle">
+                <div>
+                    <h5 class="modal-title fw-bold" id="medicalDetailModalLabel">
+                        <i class="bi bi-file-medical-fill text-info me-2"></i>Parte médico
+                    </h5>
+                    <small id="medicalDetailPatient" class="text-muted"></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div id="medicalDetailBody" class="modal-body">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-info" role="status"></div>
+                    <div class="text-muted mt-2">Cargando información médica...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('filterForm');
@@ -164,6 +189,31 @@
         const bulkPrintModalElement = document.getElementById('bulkPrintModal');
         const bulkPrintButton = document.getElementById('btnBulkPrint');
         const bulkPrintMessage = document.getElementById('bulkPrintMessage');
+        const medicalDetailModalElement = document.getElementById('medicalDetailModal');
+        const medicalDetailBody = document.getElementById('medicalDetailBody');
+        const medicalDetailPatient = document.getElementById('medicalDetailPatient');
+
+        container.addEventListener('click', function(event) {
+            const button = event.target.closest('.js-show-medical');
+
+            if (!button) return;
+
+            medicalDetailPatient.textContent = button.dataset.patient;
+            medicalDetailBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info" role="status"></div><div class="text-muted mt-2">Cargando información médica...</div></div>';
+            window.bootstrap.Modal.getOrCreateInstance(medicalDetailModalElement).show();
+
+            fetch(button.dataset.url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('No se pudo cargar el parte médico');
+                return response.text();
+            })
+            .then(html => medicalDetailBody.innerHTML = html)
+            .catch(() => {
+                medicalDetailBody.innerHTML = '<div class="alert alert-danger mb-0" role="alert">No se pudo cargar la información médica. Inténtelo nuevamente.</div>';
+            });
+        });
 
         function updateTable() {
             // Animación de carga
