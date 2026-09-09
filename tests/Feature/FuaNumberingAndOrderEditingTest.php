@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\FuaController;
 use App\Models\Fua;
 use App\Models\FuaConfiguration;
 use App\Models\NephrologyConsultation;
@@ -15,6 +16,23 @@ use Tests\TestCase;
 class FuaNumberingAndOrderEditingTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_fuas_always_use_the_fissal_logo(): void
+    {
+        FuaConfiguration::global()->update([
+            'logo_path' => 'logos/company-logo.png',
+        ]);
+
+        $method = new \ReflectionMethod(FuaController::class, 'fuaLogoData');
+        $logoData = $method->invoke(app(FuaController::class));
+        $fissalLogo = public_path('logo/logo-fissal.png');
+        $mime = mime_content_type($fissalLogo) ?: 'image/png';
+
+        $this->assertSame(
+            'data:'.$mime.';base64,'.base64_encode(file_get_contents($fissalLogo)),
+            $logoData,
+        );
+    }
 
     public function test_hemodialysis_and_nephrology_use_one_consecutive_sequence(): void
     {
