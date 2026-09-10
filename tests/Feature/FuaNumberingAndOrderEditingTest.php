@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\Patient;
 use App\Models\User;
 use App\Services\FuaNumberService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -179,6 +180,52 @@ class FuaNumberingAndOrderEditingTest extends TestCase
                 ->assertSee('value="2" selected', false)
                 ->assertSee('value="3" selected', false);
         }
+    }
+
+    public function test_hemodialysis_fua_print_defaults_to_the_patient_sequence_for_the_day(): void
+    {
+        Carbon::setTestNow('2026-09-09 08:00:00');
+        $user = User::factory()->create();
+        $scheduledPatient = Patient::factory()->create(['secuencia' => 'L-M-V']);
+        $otherPatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+
+        $scheduledOrder = $this->order($scheduledPatient, Fua::HEMODIALYSIS, 'FUA-SECUENCIA-DIA');
+        $scheduledOrder->update(['fecha_orden' => '2026-09-09']);
+        $scheduledFua = app(FuaNumberService::class)->createForOrder($scheduledOrder);
+
+        $otherOrder = $this->order($otherPatient, Fua::HEMODIALYSIS, 'FUA-OTRA-SECUENCIA');
+        $otherOrder->update(['fecha_orden' => '2026-09-09']);
+        $otherFua = app(FuaNumberService::class)->createForOrder($otherOrder);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.hemodialysis.index'))
+            ->assertOk()
+            ->assertSee($scheduledFua->number)
+            ->assertDontSee($otherFua->number)
+            ->assertSee('name="sequence"', false)
+            ->assertSee('value="L-M-V" selected', false);
+    }
+
+    public function test_hemodialysis_fua_print_sequence_can_be_changed_or_cleared(): void
+    {
+        $user = User::factory()->create();
+        $lmvPatient = Patient::factory()->create(['secuencia' => 'L-M-V']);
+        $mjsPatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+        $lmvFua = app(FuaNumberService::class)->createForOrder(
+            $this->order($lmvPatient, Fua::HEMODIALYSIS, 'FUA-LMV')
+        );
+        $mjsFua = app(FuaNumberService::class)->createForOrder(
+            $this->order($mjsPatient, Fua::HEMODIALYSIS, 'FUA-MJS')
+        );
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.hemodialysis.index', [
+            'all_dates' => 1,
+            'sequence' => 'M-J-S',
+        ]))->assertOk()->assertSee($mjsFua->number)->assertDontSee($lmvFua->number);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.hemodialysis.index', [
+            'all_dates' => 1,
+            'sequence' => '',
+        ]))->assertOk()->assertSee($mjsFua->number)->assertSee($lmvFua->number);
     }
 
     public function test_order_list_can_show_all_dates_without_an_additional_filter(): void

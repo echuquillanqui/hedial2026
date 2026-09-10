@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Services\FuaNumberService;
 use App\Support\ClinicalService;
 use App\Support\CurrentSede;
+use App\Support\DailyHemodialysisSequence;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -52,6 +53,10 @@ class FuaController extends Controller
             'patient' => ['nullable', 'string', 'max:100'],
             'modulo' => ['nullable', 'integer', 'between:1,4'],
             'turno' => ['nullable', 'integer', 'between:1,4'],
+            'sequence' => ['nullable', Rule::in([
+                DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
+                DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
+            ])],
             'all_dates' => ['nullable', 'boolean'],
             'professional_id' => ['nullable', 'integer', 'exists:users,id'],
             'status' => ['nullable', 'string', 'max:30'],
@@ -59,6 +64,11 @@ class FuaController extends Controller
         ]);
 
         $date = $request->boolean('all_dates') ? null : ($filters['date'] ?? now()->toDateString());
+        $sequence = $type === Fua::HEMODIALYSIS
+            ? ($request->has('sequence')
+                ? ($filters['sequence'] ?? null)
+                : ($date ? DailyHemodialysisSequence::forDate($date) : null))
+            : null;
         if (CurrentSede::id() && isset($filters['sede_id']) && (int) $filters['sede_id'] !== (int) CurrentSede::id()) {
             abort(403, 'La sede del filtro no coincide con la sede activa.');
         }
@@ -72,6 +82,7 @@ class FuaController extends Controller
             $filters['patient'] ?? null,
             $filters['modulo'] ?? null,
             $filters['turno'] ?? null,
+            $sequence,
             $filters['professional_id'] ?? null,
             $filters['status'] ?? null,
             $sedeId,
@@ -85,6 +96,7 @@ class FuaController extends Controller
         return view('fuas.print-index', [
             'fuas' => $fuas,
             'date' => $date,
+            'sequence' => $sequence,
             'type' => $type,
             'professionals' => User::query()->whereIn('id', Order::query()
                 ->where('attention_type', $type)->whereNotNull('assigned_professional_id')
@@ -205,6 +217,7 @@ class FuaController extends Controller
         ?string $patient,
         ?int $module,
         ?int $shift,
+        ?string $sequence,
         ?int $professional,
         ?string $status,
         ?int $sede,
@@ -219,6 +232,8 @@ class FuaController extends Controller
             ->when($status, fn (Builder $query) => $query->where('fuas.status', $status))
             ->when($date, fn (Builder $query) => $query->whereDate('orders.fecha_orden', $date))
             ->when($shift, fn (Builder $query) => $query->where('orders.turno', (string) $shift))
+            ->when($sequence, fn (Builder $query) => $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery
+                ->where('secuencia', $sequence)))
             ->when($module, function (Builder $query, int $module) use ($type) {
                 if ($type === Fua::NEPHROLOGY) {
                     $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery

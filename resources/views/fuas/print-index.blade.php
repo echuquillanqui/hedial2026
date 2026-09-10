@@ -32,6 +32,17 @@
                 <label class="form-label fw-semibold">Nombre o DNI del paciente</label>
                 <input name="patient" value="{{ request('patient') }}" class="form-control" placeholder="Escribe el nombre, apellido o DNI">
             </div>
+            @if($type === \App\Models\Fua::HEMODIALYSIS)
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label fw-semibold" for="sequence">Secuencia del paciente</label>
+                <select name="sequence" id="sequence" class="form-select">
+                    <option value="">Todas las secuencias</option>
+                    <option value="L-M-V" @selected($sequence === 'L-M-V')>L-M-V</option>
+                    <option value="M-J-S" @selected($sequence === 'M-J-S')>M-J-S</option>
+                </select>
+                <div class="form-text">Se selecciona automáticamente según la fecha.</div>
+            </div>
+            @endif
             @unless($isMultisectorial)<div class="col-md-3 col-lg-2">
                 <label class="form-label fw-semibold" for="modulo">Módulo</label>
                 <select name="modulo" id="modulo" class="form-select">
