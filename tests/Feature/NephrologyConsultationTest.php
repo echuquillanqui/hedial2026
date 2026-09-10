@@ -178,6 +178,57 @@ class NephrologyConsultationTest extends TestCase
         );
     }
 
+    public function test_validation_preserves_consultation_fields_and_accepts_database_time_format(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-08-14',
+        ]);
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->from(route('consultations.edit', $consultation))
+            ->put(route('consultations.update', $consultation), [
+                'patient_id' => $patient->id,
+                'consultation_date' => '2026-08-14',
+                'consultation_time' => '09:35:00',
+                'reason' => 'Control mensual que debe conservarse',
+                'medications' => [[
+                    'description' => '',
+                    'prescribed_quantity' => 1,
+                    'delivered_quantity' => 1,
+                ]],
+            ]);
+
+        $response->assertRedirect(route('consultations.edit', $consultation))
+            ->assertSessionHasErrors('medications.0.description')
+            ->assertSessionDoesntHaveErrors('consultation_time')
+            ->assertSessionHasInput('reason', 'Control mensual que debe conservarse')
+            ->assertSessionHasInput('consultation_time', '09:35');
+    }
+
+    public function test_form_marks_server_validation_errors_and_formats_saved_time(): void
+    {
+        $consultation = new NephrologyConsultation(['consultation_time' => '09:35:00']);
+        $consultation->id = 1;
+        $consultation->exists = true;
+        $patients = collect();
+        $doctors = collect();
+        $medications = collect(NephrologyConsultationController::DEFAULT_MEDICATIONS);
+        $examGroups = NephrologyConsultationController::AUXILIARY_EXAMS;
+        $errors = new \Illuminate\Support\ViewErrorBag();
+        $errors->put('default', new \Illuminate\Support\MessageBag([
+            'medications.0.description' => ['El campo medicamento es obligatorio.'],
+        ]));
+
+        $document = view('consultations.form', compact('consultation', 'patients', 'doctors', 'medications', 'examGroups', 'errors'))->render();
+
+        $this->assertStringContainsString('value="09:35"', $document);
+        $this->assertStringContainsString('const validationErrors = ["medications.0.description"]', $document);
+        $this->assertStringContainsString("element.classList.add('is-invalid')", $document);
+    }
+
     public function test_consultation_document_lists_only_selected_exam_names_in_three_columns_without_prescription(): void
     {
         $user = User::factory()->create();

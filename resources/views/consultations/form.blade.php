@@ -25,6 +25,10 @@
     .exam-check { display:flex; gap:.6rem; padding:.42rem; border-radius:8px; } .exam-check:hover { background:#e0f2fe; }
     .exam-period-selector { border:1px solid #bfdbfe; border-radius:14px; padding:1rem; background:#eff6ff; }
     .exam-period-button.active { color:#fff; background:var(--blue); border-color:var(--blue); box-shadow:0 5px 12px rgba(37,99,235,.22); }
+    .form-control.is-invalid, .form-select.is-invalid,
+    .was-validated .form-control:invalid, .was-validated .form-select:invalid { border-color:#dc3545!important; box-shadow:0 0 0 .2rem rgba(220,53,69,.12); }
+    .clinical-tab.has-errors { color:#dc3545; box-shadow:inset 0 0 0 2px #dc3545; }
+    .clinical-tab.active.has-errors { color:#fff; box-shadow:inset 0 0 0 2px #fecaca,0 6px 16px rgba(37,99,235,.25); }
 </style>
 <div class="container-fluid clinical-shell">
     <div class="clinical-hero d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
@@ -44,7 +48,7 @@
                 <div class="col-lg-5"><label class="form-label">Paciente *</label><select name="patient_id" class="form-select" required><option value="">Seleccione...</option>@foreach($patients as $patient)<option value="{{ $patient->id }}" @selected(old('patient_id', $consultation->patient_id) == $patient->id)>{{ $patient->full_name }} — {{ $patient->dni }}</option>@endforeach</select></div>
                 <div class="col-lg-4"><label class="form-label">Médico</label><select name="doctor_id" class="form-select"><option value="">Usuario actual</option>@foreach($doctors as $doctor)<option value="{{ $doctor->id }}" @selected(old('doctor_id', $consultation->doctor_id) == $doctor->id)>{{ $doctor->name }}</option>@endforeach</select></div>
                 <div class="col-lg-2"><label class="form-label">Fecha *</label><input type="date" name="consultation_date" class="form-control" required value="{{ old('consultation_date', optional($consultation->consultation_date)->format('Y-m-d')) }}"></div>
-                <div class="col-lg-1"><label class="form-label">Hora</label><input type="time" name="consultation_time" class="form-control" value="{{ old('consultation_time', $consultation->consultation_time) }}"></div>
+                <div class="col-lg-1"><label class="form-label">Hora</label><input type="time" name="consultation_time" class="form-control" value="{{ substr((string) old('consultation_time', $consultation->consultation_time), 0, 5) }}"></div>
                 @foreach(['blood_pressure'=>'Presión arterial','weight'=>'Peso (kg)','temperature'=>'Temperatura (°C)','heart_rate'=>'Frecuencia cardíaca','oxygen_saturation'=>'Sat. O₂ (%)'] as $field=>$label)<div class="col-md"><label class="form-label">{{ $label }}</label><input name="{{ $field }}" type="{{ $field === 'blood_pressure' ? 'text' : 'number' }}" step="{{ in_array($field, ['weight','temperature']) ? '0.1' : '1' }}" class="form-control" value="{{ old($field, $consultation->$field) }}"></div>@endforeach
                 @foreach(['height'=>'Talla (m)','respiratory_rate'=>'Frecuencia respiratoria','bmi'=>'IMC','diuresis'=>'Diuresis (ml)'] as $field=>$label)<div class="col-md-3"><label class="form-label">{{ $label }}</label><input name="{{ $field }}" type="number" step="{{ in_array($field, ['height','bmi']) ? '0.01' : '1' }}" class="form-control" value="{{ old($field, $consultation->$field) }}"></div>@endforeach
             </div></div></div>
@@ -82,6 +86,7 @@
 @endsection
 @push('scripts')<script>
 document.addEventListener('DOMContentLoaded', () => {
+    const validationErrors = @json($errors->keys());
     const examPeriods = ['M', 'B', 'T', 'S'];
     const examGroups = [...document.querySelectorAll('[data-exam-group]')];
     const periodButtons = [...document.querySelectorAll('[data-exam-period]')];
@@ -127,5 +132,36 @@ document.addEventListener('DOMContentLoaded', () => {
     diagnosisBox.addEventListener('click',e=>{const option=e.target.closest('.cie-option');if(option){const row=option.closest('.diagnosis-row');row.querySelector('[type=hidden]').value=option.dataset.id;row.querySelector('.cie-code').value=option.dataset.code;row.querySelector('.cie-description').value=option.dataset.description;row.querySelector('.cie-results').classList.add('d-none');}if(e.target.classList.contains('remove-diagnosis')&&diagnosisBox.children.length>1)e.target.closest('.diagnosis-row').remove();});
     function medicationRow(i){return `<tr><td><input class="form-control" name="medications[${i}][fua_code]"></td><td><input required class="form-control" name="medications[${i}][description]"></td><td><input class="form-control" name="medications[${i}][c]"></td><td><input type="number" min="0" step=".01" value="0" class="form-control" name="medications[${i}][prescribed_quantity]"></td><td><input type="number" min="0" step=".01" value="0" class="form-control" name="medications[${i}][delivered_quantity]"></td><td><button type="button" class="btn btn-outline-danger remove-row">×</button></td></tr>`;}
     function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));}
+
+    const form = document.querySelector('.clinical-shell form');
+    const fieldForError = key => {
+        const parts = key.split('.');
+        const bracketName = parts.shift() + parts.map(part => `[${part}]`).join('');
+        return form.elements.namedItem(key) || form.elements.namedItem(bracketName);
+    };
+    let firstInvalid = null;
+    validationErrors.forEach(key => {
+        const field = fieldForError(key);
+        if (!field) return;
+        const element = field instanceof RadioNodeList ? field[0] : field;
+        element.classList.add('is-invalid');
+        const panel = element.closest('.clinical-panel');
+        document.querySelector(`[data-tab="${panel.id}"]`)?.classList.add('has-errors');
+        firstInvalid ||= element;
+    });
+    if (firstInvalid) {
+        const panel = firstInvalid.closest('.clinical-panel');
+        document.querySelectorAll('.clinical-tab,.clinical-panel').forEach(item => item.classList.remove('active'));
+        document.querySelector(`[data-tab="${panel.id}"]`)?.classList.add('active');
+        panel.classList.add('active');
+        firstInvalid.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    form.addEventListener('submit', event => {
+        form.classList.add('was-validated');
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            form.querySelector(':invalid')?.scrollIntoView({behavior:'smooth', block:'center'});
+        }
+    });
 });
 </script>@endpush
