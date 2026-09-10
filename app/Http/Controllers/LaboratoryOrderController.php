@@ -7,10 +7,13 @@ use App\Models\LaboratoryOrderItem;
 use App\Models\Patient;
 use App\Models\Profile;
 use App\Models\Test;
+use App\Models\User;
 use App\Support\CurrentSede;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use ZipArchive;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -49,8 +52,9 @@ class LaboratoryOrderController extends Controller
         $profiles = Profile::with(['tests' => fn ($query) => $query->where('is_fissal', true)])
             ->orderBy('name')
             ->get();
+        $doctors = $this->doctors()->get(['id', 'name', 'license_number']);
 
-        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles', 'sequence', 'shift'));
+        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles', 'doctors', 'sequence', 'shift'));
     }
 
     public function store(Request $request)
@@ -58,7 +62,7 @@ class LaboratoryOrderController extends Controller
         $data = $request->validate([
             'patient_ids' => 'required|array|min:1',
             'patient_ids.*' => 'integer|exists:patients,id',
-            'requested_by' => 'nullable|string|max:120',
+            'requested_by' => ['nullable', 'string', 'max:120', Rule::in($this->doctors()->pluck('name'))],
             'schedules' => 'required|array|min:1',
             'schedules.*.sampled_at' => 'required|date',
             'schedules.*.period' => 'required|in:M,B,T,S',
@@ -102,6 +106,18 @@ class LaboratoryOrderController extends Controller
             'T' => ['M', 'B', 'T'],
             'S' => ['M', 'B', 'T', 'S'],
         };
+    }
+
+    private function doctors(): Builder
+    {
+        return User::query()
+            ->where(function ($query) {
+                $query->where('profession', 'like', '%MEDIC%')
+                    ->orWhere('profession', 'like', '%MÉDIC%')
+                    ->orWhere('profession', 'like', '%NEFRO%')
+                    ->orWhereHas('roles', fn ($roles) => $roles->where('name', 'medico'));
+            })
+            ->orderBy('name');
     }
 
     public function import(Request $request)

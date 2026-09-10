@@ -114,7 +114,15 @@
                                 <span class="badge text-bg-success fs-6" x-text="selectedPatients.length"></span>
                             </div>
                             <label class="data-title">Solicitado por</label>
-                            <input type="text" name="requested_by" class="form-control border-success mb-3" value="{{ old('requested_by', auth()->user()?->name) }}" maxlength="120">
+                            @php($selectedDoctor = old('requested_by', $doctors->firstWhere('id', auth()->id())?->name))
+                            <select name="requested_by" class="form-select border-success mb-3">
+                                <option value="">Seleccione un médico registrado</option>
+                                @foreach($doctors as $doctor)
+                                    <option value="{{ $doctor->name }}" @selected($selectedDoctor === $doctor->name)>
+                                        {{ $doctor->name }}{{ $doctor->license_number ? ' · CMP '.$doctor->license_number : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
 
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="data-title mb-0">Fechas y grupos de exámenes</label>
