@@ -23,6 +23,7 @@ use App\Models\User;
 use App\Models\HemodialysisConsent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
+use App\Support\DailyHemodialysisSequence;
 
 class OrderController extends Controller
 {
@@ -45,6 +46,7 @@ class OrderController extends Controller
         $dateFilter = $request->boolean('all_dates')
             ? null
             : $request->input('date', now()->toDateString());
+        $dailySequence = $dateFilter ? DailyHemodialysisSequence::forDate($dateFilter) : null;
 
         $currentSedeId = CurrentSede::id();
 
@@ -70,6 +72,9 @@ class OrderController extends Controller
             })
             ->when($dateFilter, function ($query, $date) {
                 $query->whereDate('fecha_orden', $date);
+            })
+            ->when($dailySequence, function ($query, $sequence) {
+                $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $sequence));
             })
             ->when($request->turno, function ($query, $turno) {
                 $query->where('turno', $turno);

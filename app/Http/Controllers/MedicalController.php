@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Support\CurrentSede;
 use App\Services\WarehouseConsumptionService;
+use App\Support\DailyHemodialysisSequence;
 
 class MedicalController extends Controller
 {
@@ -24,6 +25,7 @@ class MedicalController extends Controller
     public function index(Request $request)
     {
         $dateFilter = $request->get('date', date('Y-m-d'));
+        $dailySequence = DailyHemodialysisSequence::forDate($dateFilter);
 
         $medicals = Medical::with(['order.patient', 'usuarioInicia', 'usuarioFinaliza'])
             ->when(CurrentSede::id(), function ($query) {
@@ -42,6 +44,9 @@ class MedicalController extends Controller
                 $query->whereHas('order', function($q) use ($date) {
                     $q->whereDate('fecha_orden', $date);
                 });
+            })
+            ->when($dailySequence, function ($query, $sequence) {
+                $query->whereHas('order.patient', fn ($patient) => $patient->where('secuencia', $sequence));
             })
             ->when($request->turno, function ($query, $turno) {
                 $query->whereHas('order', function($q) use ($turno) {
