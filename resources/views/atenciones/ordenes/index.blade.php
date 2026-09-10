@@ -105,7 +105,19 @@
                     <tbody>
                         @forelse($orders as $order)
                         <tr>
-                            <td class="px-3 fw-bold text-success small text-left">{{ $order->codigo_unico }}</td>
+                            <td class="px-3 fw-bold text-success small text-left">
+                                {{ $order->codigo_unico }}
+                                @if($order->daily_duplicate_count > 1)
+                                    <div><span class="badge bg-warning text-dark mt-1">DUPLICADA (ID {{ $order->id }})</span></div>
+                                    <div class="mt-1">
+                                        @if($order->hasRecordedClinicalData())
+                                            <span class="badge bg-danger">CON DATOS: CONSERVAR</span>
+                                        @else
+                                            <span class="badge bg-secondary">VACÍA: PUEDE ELIMINARSE</span>
+                                        @endif
+                                    </div>
+                                @endif
+                            </td>
                             <td class="text-start">
                                 <div class="fw-bold text-uppercase small">{{ $order->patient->surname }} {{ $order->patient->last_name }}, {{ $order->patient->first_name }} {{ $order->patient->other_names }}</div>
                             </td>

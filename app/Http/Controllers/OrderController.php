@@ -48,7 +48,15 @@ class OrderController extends Controller
 
         $currentSedeId = CurrentSede::id();
 
-        $orders = Order::with(['patient', 'medical', 'sede', 'fua'])
+        $orders = Order::with(['patient', 'medical', 'nurse', 'treatments', 'sede', 'fua'])
+            ->select('orders.*')
+            ->selectSub(function ($duplicates) {
+                $duplicates->from('orders as daily_orders')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('daily_orders.patient_id', 'orders.patient_id')
+                    ->whereColumn('daily_orders.fecha_orden', 'orders.fecha_orden')
+                    ->whereColumn('daily_orders.attention_type', 'orders.attention_type');
+            }, 'daily_duplicate_count')
             ->when($currentSedeId, fn ($query) => $query->where('sede_id', $currentSedeId))
             ->when($request->search, function ($query, $search) {
                 $query->where(function($q) use ($search) {
@@ -525,8 +533,11 @@ class OrderController extends Controller
         if (CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id()) {
             abort(403, 'Orden fuera de la sede activa.');
         }
-        if ($order->medical && $order->medical->hora_final) {
-            return back()->with('toastr', ['type' => 'warning', 'message' => 'No se puede eliminar una atención finalizada.']);
+        if ($order->hasRecordedClinicalData()) {
+            return back()->with('toastr', [
+                'type' => 'warning',
+                'message' => 'Esta orden contiene datos clínicos y debe conservarse. Elimine solamente el duplicado identificado como vacío.',
+            ]);
         }
 
         $order->delete(); // Cascade delete debe estar activo en la DB

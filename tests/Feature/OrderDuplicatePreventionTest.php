@@ -59,6 +59,45 @@ class OrderDuplicatePreventionTest extends TestCase
         $this->assertSame(2, Order::query()->count());
     }
 
+    public function test_duplicate_list_identifies_which_order_contains_clinical_data(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $recordedOrder = $this->dailyOrder($patient, '2026-09-10', 'ORD-CON-DATOS');
+        $emptyOrder = $this->dailyOrder($patient, '2026-09-10', 'ORD-VACIA');
+        Medical::create([
+            'order_id' => $recordedOrder->id,
+            'evaluacion' => 'Evaluación que debe recuperarse',
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'date' => '2026-09-10',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('CON DATOS: CONSERVAR');
+        $response->assertSee('VACÍA: PUEDE ELIMINARSE');
+        $response->assertSee('ID '.$recordedOrder->id);
+        $response->assertSee('ID '.$emptyOrder->id);
+    }
+
+    public function test_an_order_with_clinical_data_cannot_be_deleted(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $order = $this->dailyOrder($patient, '2026-09-10', 'ORD-PROTEGIDA');
+        Medical::create([
+            'order_id' => $order->id,
+            'pa_inicial' => '120/80',
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->delete(route('orders.destroy', $order));
+
+        $response->assertSessionHas('toastr', fn (array $message) => $message['type'] === 'warning');
+        $this->assertDatabaseHas('orders', ['id' => $order->id]);
+        $this->assertDatabaseHas('medicals', ['order_id' => $order->id, 'pa_inicial' => '120/80']);
+    }
+
     private function dailyOrder(Patient $patient, string $date, string $code): Order
     {
         return Order::create([
