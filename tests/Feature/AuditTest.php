@@ -47,6 +47,8 @@ class AuditTest extends TestCase
             ->get(route('audit.fissal', ['date' => today()->toDateString()]));
 
         $response->assertOk()
+            ->assertSeeInOrder(['Apellidos y nombres del paciente', 'Secuencia', 'Inicio'])
+            ->assertSee($order->patient->secuencia)
             ->assertSee('07:15')
             ->assertSee('11:30')
             ->assertSee('LICENCIADA INICIO')
