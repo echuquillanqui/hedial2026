@@ -125,6 +125,44 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('Imprimir bloque')->assertSee('Consulta')->assertSee('Receta')->assertSee('FUA');
     }
 
+    public function test_consultation_filters_use_patient_data_and_search_all_identifiers(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'medical_history_number' => 'HC-FILTRO-99',
+            'secuencia' => 'ESPECIAL',
+            'turno' => 'NOCHE',
+            'modulo' => 'MOD-8',
+        ]);
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id], 'fecha_orden' => '2026-08-14',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', [
+            'search' => 'HC-FILTRO-99', 'sequence' => 'ESPECIAL', 'shift' => 'NOCHE', 'module' => 'MOD-8',
+        ]))->assertOk()->assertSee($patient->full_name)
+            ->assertSee('<option value="ESPECIAL" selected>', false)
+            ->assertSee('<option value="NOCHE" selected>', false)
+            ->assertSee('<option value="MOD-8" selected>', false);
+    }
+
+    public function test_editing_consultation_date_also_updates_the_date_printed_on_the_fua(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id], 'fecha_orden' => '2026-08-14',
+        ]);
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $this->actingAs($user)->withoutMiddleware()->patch(route('consultations.date.update', $consultation), [
+            'consultation_date' => '2026-09-10',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertSame('2026-09-10', $consultation->fresh()->consultation_date->toDateString());
+        $this->assertSame('2026-09-10', $consultation->order->fresh()->fecha_orden->toDateString());
+    }
+
     public function test_consultations_and_prescriptions_can_be_printed_in_bulk(): void
     {
         $user = User::factory()->create();

@@ -40,6 +40,11 @@ class Patient extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function nephrologyConsultations(): HasMany
+    {
+        return $this->hasMany(NephrologyConsultation::class);
+    }
+
     public function laboratoryOrders(): HasMany
     {
         return $this->hasMany(LaboratoryOrder::class);

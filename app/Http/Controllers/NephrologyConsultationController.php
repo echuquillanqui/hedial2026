@@ -18,7 +18,7 @@ class NephrologyConsultationController extends Controller
     public function __construct()
     {
         $this->middleware('permission:nephrology.view')->only(['index']);
-        $this->middleware('permission:nephrology.update')->only(['edit', 'update']);
+        $this->middleware('permission:nephrology.update')->only(['edit', 'update', 'updateDate']);
         $this->middleware('permission:nephrology.print')->only(['consultationPdf', 'prescriptionPdf', 'bulkPdf']);
     }
 
@@ -40,13 +40,31 @@ class NephrologyConsultationController extends Controller
 
     public function index(Request $request)
     {
+        $patientsWithConsultations = Patient::query()
+            ->whereHas('nephrologyConsultations', fn ($query) => $query
+                ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
+                ->when(CurrentSede::id(), fn ($consultations, $sede) => $consultations->where('sede_id', $sede)))
+            ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede));
+
+        $filterOptions = collect(['secuencia', 'turno', 'modulo'])->mapWithKeys(function (string $field) use ($patientsWithConsultations) {
+            return [$field => (clone $patientsWithConsultations)->whereNotNull($field)->where($field, '!=', '')
+                ->distinct()->pluck($field)->sortNatural()->values()];
+        });
+
         $consultations = NephrologyConsultation::with(['patient', 'doctor', 'order.fua'])
             ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->string('search')->trim();
-                $query->whereHas('patient', fn ($patient) => $patient->where('dni', 'like', "%{$search}%")
-                    ->orWhere('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"));
+                $query->whereHas('patient', fn ($patient) => $patient->where(function ($patient) use ($search) {
+                    $patient->where('dni', 'like', "%{$search}%")
+                        ->orWhere('medical_history_number', 'like', "%{$search}%")
+                        ->orWhere('affiliation_code', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('other_names', 'like', "%{$search}%")
+                        ->orWhere('surname', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                }));
             })
             ->when($request->filled('date'), fn ($query) => $query->whereDate('consultation_date', $request->date))
             ->when($request->filled('sequence'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $request->sequence)))
@@ -54,7 +72,7 @@ class NephrologyConsultationController extends Controller
             ->when($request->filled('module'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $request->module)))
             ->latest('consultation_date')->paginate(15)->withQueryString();
 
-        return view('consultations.index', compact('consultations'));
+        return view('consultations.index', compact('consultations', 'filterOptions'));
     }
 
     public function create()
@@ -111,8 +129,24 @@ class NephrologyConsultationController extends Controller
             $medications = $data['medications']; unset($data['medications']);
             $consultation->update($data); $consultation->medications()->delete();
             $consultation->medications()->createMany($medications);
+            $consultation->order?->update(['fecha_orden' => $consultation->consultation_date]);
         });
         return redirect()->route('consultations.index')->with('success', 'Consulta nefrológica actualizada.');
+    }
+
+    public function updateDate(Request $request, NephrologyConsultation $consultation)
+    {
+        $this->authorizeSede($consultation);
+        abort_unless($consultation->order?->attention_type === Fua::NEPHROLOGY, 404);
+        $data = $request->validate(['consultation_date' => ['required', 'date']]);
+
+        DB::transaction(function () use ($consultation, $data) {
+            $consultation->update($data);
+            // La fecha que imprime la FUA proviene de la orden asociada.
+            $consultation->order->update(['fecha_orden' => $data['consultation_date']]);
+        });
+
+        return back()->with('success', 'Fecha de consulta y FUA actualizada.');
     }
 
     public function prescriptionPdf(NephrologyConsultation $consultation)
