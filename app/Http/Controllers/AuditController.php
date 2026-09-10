@@ -167,6 +167,10 @@ class AuditController extends Controller
             ->where('attention_type', 'HEMODIALYSIS')
             ->when(CurrentSede::id(), fn ($query, $sedeId) => $query->where('sede_id', $sedeId))
             ->when($date, fn ($query) => $query->whereDate('fecha_orden', $date))
+            ->when($request->filled('secuencia'), fn ($query) => $query->whereHas(
+                'patient',
+                fn ($patient) => $patient->where('secuencia', $request->input('secuencia'))
+            ))
             ->when($request->filled('turno'), fn ($query) => $query->where('turno', $request->input('turno')))
             ->when($request->filled('modulo'), fn ($query) => $query->where('sala', 'MODULO '.$request->input('modulo')))
             ->when($request->filled('estado'), function ($query) use ($request) {
