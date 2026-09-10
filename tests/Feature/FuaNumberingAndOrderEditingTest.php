@@ -128,6 +128,29 @@ class FuaNumberingAndOrderEditingTest extends TestCase
         $this->assertStringNotContainsString('PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
     }
 
+    public function test_fua_attention_time_is_determined_by_the_order_shift(): void
+    {
+        $patient = Patient::factory()->create();
+        $order = $this->order($patient, Fua::HEMODIALYSIS, 'FUA-HORARIOS');
+        $fua = app(FuaNumberService::class)->createForOrder($order);
+
+        foreach (['1' => '5:40', '2' => '9:40', '3' => '13:40', '4' => '17:40'] as $shift => $time) {
+            $order->update(['turno' => $shift]);
+            $fua->setRelation('order', $order->fresh()->load('patient'));
+
+            $document = view('fuas.pdf', [
+                'fua' => $fua,
+                'responsible' => null,
+                'configuration' => FuaConfiguration::global(),
+                'medications' => [],
+                'procedures' => [],
+                'logoData' => null,
+            ])->render();
+
+            $this->assertStringContainsString('rowspan="2" class="value">'.$time.'</td>', $document);
+        }
+    }
+
     public function test_fua_print_views_can_filter_by_module_and_shift(): void
     {
         $user = User::factory()->create();
