@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Patient;
 use App\Support\ClinicalService;
 use App\Support\CurrentSede;
+use App\Support\DailyHemodialysisSequence;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -36,7 +37,19 @@ class AuditController extends Controller
 
     public function fissal(Request $request)
     {
-        $orders = $this->filteredOrders($request)
+        $request->validate([
+            'date' => ['nullable', 'date'],
+            'secuencia' => ['nullable', 'in:L-M-V,M-J-S'],
+            'estado' => ['nullable', 'in:en_curso,finalizado'],
+        ]);
+
+        $date = $request->input('date', today()->toDateString());
+        $sequence = $request->filled('secuencia')
+            ? $request->input('secuencia')
+            : DailyHemodialysisSequence::forDate($date);
+        $status = $request->input('estado', 'finalizado');
+
+        $orders = $this->filteredOrders($request, $sequence, $status)
             ->with([
                 'patient', 'fua', 'medical.usuarioInicia', 'medical.usuarioFinaliza',
                 'nurse.enfermeroInicia', 'nurse.enfermeroFinaliza',
@@ -51,7 +64,7 @@ class AuditController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('audit.fissal', compact('orders'));
+        return view('audit.fissal', compact('orders', 'sequence', 'status'));
     }
 
     public function pendingDocuments(Request $request)
@@ -159,7 +172,11 @@ class AuditController extends Controller
         return view('audit.ktv', compact('laboratories'));
     }
 
-    private function filteredOrders(Request $request): Builder
+    private function filteredOrders(
+        Request $request,
+        ?string $sequence = null,
+        ?string $status = null
+    ): Builder
     {
         $date = $request->input('date', today()->toDateString());
 
@@ -167,13 +184,13 @@ class AuditController extends Controller
             ->where('attention_type', 'HEMODIALYSIS')
             ->when(CurrentSede::id(), fn ($query, $sedeId) => $query->where('sede_id', $sedeId))
             ->when($date, fn ($query) => $query->whereDate('fecha_orden', $date))
-            ->when($request->filled('secuencia'), fn ($query) => $query->whereHas(
+            ->when($sequence ?? ($request->filled('secuencia') ? $request->input('secuencia') : null), fn ($query, $sequence) => $query->whereHas(
                 'patient',
-                fn ($patient) => $patient->where('secuencia', $request->input('secuencia'))
+                fn ($patient) => $patient->where('secuencia', $sequence)
             ))
             ->when($request->filled('turno'), fn ($query) => $query->where('turno', $request->input('turno')))
             ->when($request->filled('modulo'), fn ($query) => $query->where('sala', 'MODULO '.$request->input('modulo')))
-            ->when($request->filled('estado'), function ($query) use ($request) {
+            ->when(! $status && $request->filled('estado'), function ($query) use ($request) {
                 $request->input('estado') === 'completo'
                     ? $query->whereHas('medical')->whereHas('nurse')->whereHas('treatments')
                     : $query->where(function ($query) {
@@ -181,6 +198,13 @@ class AuditController extends Controller
                             ->orWhereDoesntHave('nurse')
                             ->orWhereDoesntHave('treatments');
                     });
+            })
+            ->when($status, function (Builder $query, string $status) {
+                $status === 'finalizado'
+                    ? $query->whereHas('nurse', fn (Builder $nurse) => $nurse->whereNotNull('enfermero_que_finaliza_id'))
+                    : $query->where(fn (Builder $order) => $order
+                        ->whereDoesntHave('nurse')
+                        ->orWhereHas('nurse', fn (Builder $nurse) => $nurse->whereNull('enfermero_que_finaliza_id')));
             })
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->input('search');
