@@ -65,6 +65,7 @@ class PatientModuleFilteringTest extends TestCase
             'sede_id' => $sede->id,
             'first_name' => $patientName,
             'modulo' => '2',
+            'secuencia' => 'M-J-S',
         ]);
         $order = Order::create([
             'sede_id' => $sede->id,

@@ -105,6 +105,7 @@
                             <th class="px-3 text-center"><span class="visually-hidden">Seleccionar</span></th>
                             <th class="px-3 data-title text-left">Código</th>
                             <th class="data-title text-left">Paciente</th>
+                            <th class="data-title text-center">Módulo</th>
                             <th class="data-title text-center">Sala</th>
                             <th class="data-title text-center">Turno</th>
                             <th class="data-title text-center">Horas</th>
@@ -139,6 +140,7 @@
                             <td class="text-start">
                                 <div class="fw-bold text-uppercase small">{{ $order->patient->surname }} {{ $order->patient->last_name }}, {{ $order->patient->first_name }} {{ $order->patient->other_names }}</div>
                             </td>
+                            <td class="text-center"><span class="badge bg-light text-success border border-success">MÓDULO {{ $order->patient->modulo ?: '—' }}</span></td>
                             <td class="text-center"><span class="badge bg-light text-success border border-success">{{ $order->sala }}</span></td>
                             <td class="fw-bold small text-center">TURNO - {{ $order->turno }}</td>
                             <td class="fw-bold text-primary text-center">{{ number_format($order->horas_dialisis, 1) }}</td>
@@ -168,7 +170,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="9" class="text-center py-5 text-muted">No se encontraron órdenes.</td></tr>
+                        <tr><td colspan="10" class="text-center py-5 text-muted">No se encontraron órdenes.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

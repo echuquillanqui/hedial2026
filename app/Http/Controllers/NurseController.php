@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\CurrentSede;
 use App\Services\WarehouseConsumptionService;
+use App\Support\DailyHemodialysisSequence;
 
 class NurseController extends Controller
 {
@@ -57,6 +58,7 @@ class NurseController extends Controller
     private function filteredNurses(Request $request, $moduleFilter, bool $hideResults = false)
     {
         $dateFilter = $request->get('date', date('Y-m-d'));
+        $dailySequence = DailyHemodialysisSequence::forDate($dateFilter);
 
         return Nurse::with(['order.patient', 'order.medical.usuarioInicia', 'order.medical.usuarioFinaliza', 'order.treatments', 'enfermeroInicia', 'enfermeroFinaliza'])
         ->when($hideResults, fn ($query) => $query->whereRaw('1 = 0'))
@@ -78,6 +80,9 @@ class NurseController extends Controller
             $query->whereHas('order', function($q) use ($date) {
                 $q->whereDate('fecha_orden', $date);
             });
+        })
+        ->when($dailySequence, function ($query, $sequence) {
+            $query->whereHas('order.patient', fn ($patient) => $patient->where('secuencia', $sequence));
         })
         ->when($request->turno, function ($query, $turno) {
             $query->whereHas('order', function($q) use ($turno) {
