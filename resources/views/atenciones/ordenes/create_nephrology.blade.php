@@ -55,6 +55,7 @@
 
     <form method="POST" action="{{ route('orders.nephrology.store') }}" x-data="{
         selected: @js(collect(old('patient_ids', []))->map(fn ($id) => (string) $id)->values()),
+        bulkDate: @js(old('fecha_orden', date('Y-m-d'))),
         patientQuery: '',
         normalize(value) { return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); },
         matches(value) { return this.normalize(value).includes(this.normalize(this.patientQuery)); },
@@ -67,6 +68,11 @@
             this.selected = checked
                 ? [...new Set([...this.selected, ...this.visibleIds])]
                 : this.selected.filter(id => !this.visibleIds.includes(id));
+        },
+        assignDateToSelected() {
+            document.querySelectorAll('[data-nephrology-date]').forEach(input => {
+                if (this.selected.includes(input.dataset.patientId)) input.value = this.bulkDate;
+            });
         }
     }">
         @csrf
@@ -74,8 +80,11 @@
             <div class="card-header bg-primary text-white d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <span class="fw-bold text-uppercase">Seleccionar pacientes ({{ $patients->count() }})</span>
                 <div class="d-flex align-items-center gap-2">
-                    <label for="fecha_orden" class="small fw-bold mb-0">FECHA:</label>
-                    <input id="fecha_orden" type="date" name="fecha_orden" value="{{ old('fecha_orden', date('Y-m-d')) }}" class="form-control form-control-sm" required>
+                    <label for="fecha_orden" class="small fw-bold mb-0">FECHA BASE:</label>
+                    <input id="fecha_orden" type="date" name="fecha_orden" x-model="bulkDate" class="form-control form-control-sm" required>
+                    <button type="button" class="btn btn-outline-light btn-sm fw-bold" @click="assignDateToSelected()" title="Copiar la fecha base a los pacientes seleccionados">
+                        <i class="bi bi-calendar-check me-1"></i> ASIGNAR FECHA
+                    </button>
                     <button type="submit" class="btn btn-light btn-sm text-primary fw-bold" onclick="return confirm('¿Generar las consultas nefrológicas seleccionadas?')">
                         <i class="bi bi-file-earmark-plus me-1"></i> GENERAR
                     </button>
@@ -97,11 +106,11 @@
                         </div>
                     </div>
                 </div>
-                <small class="text-muted">La selección masiva aplica solo a los pacientes visibles; las selecciones anteriores se conservan al cambiar la búsqueda.</small>
+                <small class="text-muted">La selección masiva aplica solo a los pacientes visibles. Puede asignar la fecha base en bloque y luego cambiar la fecha de cada paciente unos días antes o después.</small>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light"><tr><th class="text-center">SEL.</th><th>PACIENTE</th><th>DNI</th><th>H.C.</th><th>TURNO</th></tr></thead>
+                    <thead class="table-light"><tr><th class="text-center">SEL.</th><th>PACIENTE</th><th>DNI</th><th>H.C.</th><th>TURNO</th><th>FECHA DE CONSULTA</th></tr></thead>
                     <tbody>
                         @forelse($patients as $patient)
                             <tr x-show="matches(@js($patient->full_name.' '.$patient->dni.' '.$patient->medical_history_number))">
@@ -110,9 +119,12 @@
                                 <td>{{ $patient->dni ?? '-' }}</td>
                                 <td>{{ $patient->medical_history_number ?? '-' }}</td>
                                 <td>{{ $patient->turno ?? '-' }}</td>
+                                <td style="min-width: 175px">
+                                    <input type="date" name="patient_dates[{{ $patient->id }}]" value="{{ old('patient_dates.'.$patient->id, old('fecha_orden', date('Y-m-d'))) }}" data-nephrology-date data-patient-id="{{ $patient->id }}" class="form-control form-control-sm" aria-label="Fecha de consulta de {{ $patient->full_name }}">
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-center text-muted py-5">No se encontraron pacientes.</td></tr>
+                            <tr><td colspan="6" class="text-center text-muted py-5">No se encontraron pacientes.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
