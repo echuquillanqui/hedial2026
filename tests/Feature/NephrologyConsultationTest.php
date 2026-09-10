@@ -163,6 +163,26 @@ class NephrologyConsultationTest extends TestCase
         $this->assertSame('2026-09-10', $consultation->order->fresh()->fecha_orden->toDateString());
     }
 
+    public function test_dates_can_be_updated_in_bulk_for_consultations_and_their_orders(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(2)->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(), 'fecha_orden' => '2026-08-14',
+        ]);
+        $consultations = NephrologyConsultation::all();
+
+        $this->actingAs($user)->withoutMiddleware()->patch(route('consultations.dates.update'), [
+            'consultations' => $consultations->modelKeys(),
+            'consultation_date' => '2026-09-15',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        foreach ($consultations as $consultation) {
+            $this->assertSame('2026-09-15', $consultation->fresh()->consultation_date->toDateString());
+            $this->assertSame('2026-09-15', $consultation->order->fresh()->fecha_orden->toDateString());
+        }
+    }
+
     public function test_consultations_and_prescriptions_can_be_printed_in_bulk(): void
     {
         $user = User::factory()->create();

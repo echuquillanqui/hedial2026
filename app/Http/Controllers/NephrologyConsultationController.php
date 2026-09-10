@@ -18,7 +18,7 @@ class NephrologyConsultationController extends Controller
     public function __construct()
     {
         $this->middleware('permission:nephrology.view')->only(['index']);
-        $this->middleware('permission:nephrology.update')->only(['edit', 'update', 'updateDate']);
+        $this->middleware('permission:nephrology.update')->only(['edit', 'update', 'updateDate', 'updateDates']);
         $this->middleware('permission:nephrology.print')->only(['consultationPdf', 'prescriptionPdf', 'bulkPdf']);
     }
 
@@ -48,7 +48,7 @@ class NephrologyConsultationController extends Controller
 
         $filterOptions = collect(['secuencia', 'turno', 'modulo'])->mapWithKeys(function (string $field) use ($patientsWithConsultations) {
             return [$field => (clone $patientsWithConsultations)->whereNotNull($field)->where($field, '!=', '')
-                ->distinct()->pluck($field)->sortNatural()->values()];
+                ->distinct()->pluck($field)->sort(SORT_NATURAL | SORT_FLAG_CASE)->values()];
         });
 
         $consultations = NephrologyConsultation::with(['patient', 'doctor', 'order.fua'])
@@ -147,6 +147,33 @@ class NephrologyConsultationController extends Controller
         });
 
         return back()->with('success', 'Fecha de consulta y FUA actualizada.');
+    }
+
+    public function updateDates(Request $request)
+    {
+        $data = $request->validate([
+            'consultations' => ['required', 'array', 'min:1'],
+            'consultations.*' => ['integer', 'distinct', 'exists:nephrology_consultations,id'],
+            'consultation_date' => ['required', 'date'],
+        ]);
+
+        $consultations = NephrologyConsultation::query()
+            ->whereIn('id', $data['consultations'])
+            ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
+            ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+            ->with('order')
+            ->get();
+
+        abort_unless($consultations->count() === count($data['consultations']), 403);
+
+        DB::transaction(function () use ($consultations, $data) {
+            foreach ($consultations as $consultation) {
+                $consultation->update(['consultation_date' => $data['consultation_date']]);
+                $consultation->order->update(['fecha_orden' => $data['consultation_date']]);
+            }
+        });
+
+        return back()->with('success', $consultations->count().' consultas y sus FUA fueron actualizadas.');
     }
 
     public function prescriptionPdf(NephrologyConsultation $consultation)
