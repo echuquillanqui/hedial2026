@@ -12,6 +12,7 @@ use App\Models\Test;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -118,6 +119,30 @@ class InitialHistoryAndConsentTest extends TestCase
             HemodialysisConsent::query()->orderBy('consented_at')->get()
                 ->map(fn (HemodialysisConsent $consent) => $consent->consented_at->format('Y-m-d'))->all()
         );
+    }
+
+    public function test_advance_order_uses_the_hemodialysis_date_for_automatic_consent(): void
+    {
+        Carbon::setTestNow('2026-09-09 16:00:00');
+        $this->patient->update(['secuencia' => 'M-J-S']);
+
+        try {
+            $this->actingAs($this->doctor)->withSession($this->session())->post(route('orders.store'), [
+                'patient_id' => $this->patient->id,
+                'turno' => '1',
+                'horas_dialisis' => 3.5,
+                'fecha_orden' => '2026-09-10',
+            ])->assertRedirect(route('orders.index'));
+
+            $order = $this->patient->orders()->firstOrFail();
+            $consent = $this->patient->hemodialysisConsents()->firstOrFail();
+
+            $this->assertSame('2026-09-10', $order->fecha_orden->toDateString());
+            $this->assertSame('2026-09-10', $consent->consented_at->toDateString());
+            $this->assertSame('12:00:00', $consent->consented_at->format('H:i:s'));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_consent_index_defaults_to_today_and_reacts_to_an_explicit_date(): void
