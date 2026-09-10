@@ -178,6 +178,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('consultas/{consultation}/consulta.pdf', [NephrologyConsultationController::class, 'consultationPdf'])->name('consultations.pdf');
     Route::get('consultas/{consultation}/receta.pdf', [NephrologyConsultationController::class, 'prescriptionPdf'])->name('consultations.prescription.pdf');
     Route::post('consultas/imprimir/bloque', [NephrologyConsultationController::class, 'bulkPdf'])->name('consultations.bulk-pdf');
+    Route::patch('consultas/fecha/bloque', [NephrologyConsultationController::class, 'updateDates'])->name('consultations.dates.update');
     Route::patch('consultas/{consultation}/fecha', [NephrologyConsultationController::class, 'updateDate'])->name('consultations.date.update');
     Route::resource('consultas', NephrologyConsultationController::class)
         ->only(['index', 'edit', 'update'])
