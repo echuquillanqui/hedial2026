@@ -87,11 +87,22 @@
     </div>
 
     <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-end">
+            <form id="bulkDeleteForm" method="POST" action="{{ route('orders.destroy-bulk') }}"
+                  onsubmit="return confirm('¿Eliminar los duplicados vacíos seleccionados? Las órdenes con datos serán protegidas automáticamente.')">
+                @csrf
+                @method('DELETE')
+                <button id="bulkDeleteButton" type="submit" class="btn btn-sm btn-outline-danger fw-bold" disabled>
+                    <i class="bi bi-trash3 me-1"></i> ELIMINAR DUPLICADOS SELECCIONADOS
+                </button>
+            </form>
+        </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th class="px-3 text-center"><span class="visually-hidden">Seleccionar</span></th>
                             <th class="px-3 data-title text-left">Código</th>
                             <th class="data-title text-left">Paciente</th>
                             <th class="data-title text-center">Sala</th>
@@ -105,6 +116,13 @@
                     <tbody>
                         @forelse($orders as $order)
                         <tr>
+                            <td class="px-3 text-center">
+                                @if($order->daily_duplicate_count > 1 && ! $order->hasRecordedClinicalData())
+                                    <input class="form-check-input duplicate-order-checkbox" type="checkbox"
+                                           name="order_ids[]" value="{{ $order->id }}" form="bulkDeleteForm"
+                                           aria-label="Seleccionar duplicado vacío {{ $order->codigo_unico }}">
+                                @endif
+                            </td>
                             <td class="px-3 fw-bold text-success small text-left">
                                 {{ $order->codigo_unico }}
                                 @if($order->daily_duplicate_count > 1)
@@ -150,7 +168,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="8" class="text-center py-5 text-muted">No se encontraron órdenes.</td></tr>
+                        <tr><td colspan="9" class="text-center py-5 text-muted">No se encontraron órdenes.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -250,6 +268,13 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const bulkDeleteButton = document.getElementById('bulkDeleteButton');
+    document.querySelectorAll('.duplicate-order-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            bulkDeleteButton.disabled = !document.querySelector('.duplicate-order-checkbox:checked');
+        });
+    });
+
     // Lógica Filtros Reactivos
     const filterForm = document.getElementById('filterForm');
     const dateFilter = document.getElementById('dateFilter');

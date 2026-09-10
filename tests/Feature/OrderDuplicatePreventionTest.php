@@ -98,6 +98,49 @@ class OrderDuplicatePreventionTest extends TestCase
         $this->assertDatabaseHas('medicals', ['order_id' => $order->id, 'pa_inicial' => '120/80']);
     }
 
+    public function test_bulk_deletion_removes_only_empty_duplicates(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $recordedOrder = $this->dailyOrder($patient, '2026-09-10', 'ORD-CONSERVADA');
+        $emptyOrder = $this->dailyOrder($patient, '2026-09-10', 'ORD-ELIMINADA');
+        Medical::create([
+            'order_id' => $recordedOrder->id,
+            'evaluacion' => 'Información clínica importante',
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->delete(route('orders.destroy-bulk'), [
+            'order_ids' => [$recordedOrder->id, $emptyOrder->id],
+        ]);
+
+        $response->assertSessionHas('toastr', function (array $message) {
+            return $message['type'] === 'success'
+                && str_contains($message['message'], '1 duplicado(s) vacío(s) eliminado(s)')
+                && str_contains($message['message'], 'Se conservaron 1 orden(es)');
+        });
+        $this->assertDatabaseHas('orders', ['id' => $recordedOrder->id]);
+        $this->assertDatabaseMissing('orders', ['id' => $emptyOrder->id]);
+        $this->assertDatabaseHas('medicals', [
+            'order_id' => $recordedOrder->id,
+            'evaluacion' => 'Información clínica importante',
+        ]);
+    }
+
+    public function test_bulk_deletion_always_leaves_one_order_when_all_duplicates_are_empty(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $first = $this->dailyOrder($patient, '2026-09-10', 'ORD-PRIMERA');
+        $second = $this->dailyOrder($patient, '2026-09-10', 'ORD-SEGUNDA');
+
+        $this->actingAs($user)->withoutMiddleware()->delete(route('orders.destroy-bulk'), [
+            'order_ids' => [$first->id, $second->id],
+        ])->assertSessionHas('toastr', fn (array $message) => $message['type'] === 'success');
+
+        $this->assertSame(1, Order::query()->where('patient_id', $patient->id)->count());
+        $this->assertDatabaseHas('orders', ['id' => $first->id]);
+    }
+
     private function dailyOrder(Patient $patient, string $date, string $code): Order
     {
         return Order::create([

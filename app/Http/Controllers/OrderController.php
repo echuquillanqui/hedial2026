@@ -31,7 +31,7 @@ class OrderController extends Controller
         $this->middleware('permission:orders.view')->only(['index']);
         $this->middleware('permission:orders.create')->only(['create', 'store', 'storeBulk', 'createNephrology', 'storeNephrology']);
         $this->middleware('permission:orders.edit')->only(['edit', 'update']);
-        $this->middleware('permission:orders.delete')->only(['destroy']);
+        $this->middleware('permission:orders.delete')->only(['destroy', 'destroyBulk']);
     }
 
     /**
@@ -545,6 +545,57 @@ class OrderController extends Controller
         return redirect()->route('orders.index')->with('toastr', [
             'type' => 'error', 
             'message' => 'Orden y registros clínicos eliminados.'
+        ]);
+    }
+
+    public function destroyBulk(Request $request)
+    {
+        $validated = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['integer', 'distinct', 'exists:orders,id'],
+        ]);
+
+        [$deleted, $protected] = DB::transaction(function () use ($validated) {
+            $orders = Order::query()
+                ->whereIn('id', $validated['order_ids'])
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->get();
+            $deleted = 0;
+            $protected = 0;
+
+            foreach ($orders as $order) {
+                if (CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id()) {
+                    abort(403, 'Una de las órdenes está fuera de la sede activa.');
+                }
+
+                $duplicates = Order::query()
+                    ->where('patient_id', $order->patient_id)
+                    ->whereDate('fecha_orden', $order->fecha_orden)
+                    ->where('attention_type', $order->attention_type)
+                    ->count();
+
+                // Never remove clinical information or the last order in a group.
+                if ($duplicates < 2 || $order->hasRecordedClinicalData()) {
+                    $protected++;
+                    continue;
+                }
+
+                $order->delete();
+                $deleted++;
+            }
+
+            return [$deleted, $protected];
+        });
+
+        $message = $deleted.' duplicado(s) vacío(s) eliminado(s).';
+        if ($protected > 0) {
+            $message .= ' Se conservaron '.$protected.' orden(es) por contener datos clínicos o ser la única ficha restante.';
+        }
+
+        return back()->with('toastr', [
+            'type' => $deleted > 0 ? 'success' : 'warning',
+            'message' => $message,
         ]);
     }
 
