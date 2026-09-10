@@ -184,6 +184,15 @@ class NephrologyConsultationController extends Controller
 
     private function validated(Request $request): array
     {
+        // MySQL returns TIME values with seconds (HH:MM:SS), while the browser's
+        // time control normally submits HH:MM. Normalize both representations so
+        // editing an existing consultation cannot fail without user intervention.
+        if ($request->filled('consultation_time')) {
+            $request->merge([
+                'consultation_time' => substr((string) $request->input('consultation_time'), 0, 5),
+            ]);
+        }
+
         return $request->validate([
             'patient_id' => ['required', 'exists:patients,id'], 'doctor_id' => ['nullable', 'exists:users,id'],
             'consultation_date' => ['required', 'date'], 'blood_pressure' => ['nullable', 'string', 'max:20'],
@@ -211,6 +220,18 @@ class NephrologyConsultationController extends Controller
             'medications' => ['required', 'array', 'min:1'], 'medications.*.fua_code' => ['nullable', 'string', 'max:30'],
             'medications.*.description' => ['required', 'string', 'max:255'], 'medications.*.c' => ['nullable', 'string', 'max:50'],
             'medications.*.prescribed_quantity' => ['nullable', 'numeric', 'min:0'], 'medications.*.delivered_quantity' => ['nullable', 'numeric', 'min:0'],
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'required_with' => 'El campo :attribute es obligatorio.',
+            'date_format' => 'El campo :attribute no tiene un formato válido.',
+        ], [
+            'patient_id' => 'paciente',
+            'consultation_date' => 'fecha',
+            'consultation_time' => 'hora',
+            'medications' => 'medicamentos',
+            'medications.*.description' => 'medicamento',
+            'diagnoses.*.codigo' => 'código CIE-10',
+            'diagnoses.*.descripcion' => 'descripción del diagnóstico',
         ]);
     }
 
