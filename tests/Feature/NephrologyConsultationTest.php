@@ -67,6 +67,28 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('FUA');
     }
 
+    public function test_each_patient_can_receive_an_individual_date_during_bulk_generation(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(3)->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(),
+            'fecha_orden' => '2026-09-10',
+            'patient_dates' => [
+                $patients[0]->id => '2026-09-08',
+                $patients[1]->id => '2026-09-12',
+            ],
+        ])->assertRedirect(route('orders.index'));
+
+        foreach (['2026-09-08', '2026-09-12', '2026-09-10'] as $index => $date) {
+            $consultation = NephrologyConsultation::where('patient_id', $patients[$index]->id)->firstOrFail();
+
+            $this->assertSame($date, $consultation->consultation_date->toDateString());
+            $this->assertSame($date, $consultation->order->fecha_orden->toDateString());
+        }
+    }
+
     public function test_consultations_can_only_be_generated_from_nephrology_orders(): void
     {
         $user = User::factory()->create();

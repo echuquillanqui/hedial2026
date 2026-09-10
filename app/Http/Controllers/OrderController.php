@@ -432,6 +432,8 @@ class OrderController extends Controller
             'patient_ids' => ['required', 'array', 'min:1'],
             'patient_ids.*' => ['integer', 'distinct', 'exists:patients,id'],
             'fecha_orden' => ['required', 'date'],
+            'patient_dates' => ['nullable', 'array'],
+            'patient_dates.*' => ['nullable', 'date'],
         ]);
 
         DB::transaction(function () use ($data) {
@@ -439,6 +441,9 @@ class OrderController extends Controller
                 if (CurrentSede::id() && (int) $patient->sede_id !== (int) CurrentSede::id()) {
                     abort(403, 'Paciente fuera de la sede activa.');
                 }
+
+                $individualDate = $data['patient_dates'][$patient->id] ?? null;
+                $consultationDate = filled($individualDate) ? $individualDate : $data['fecha_orden'];
 
                 $order = Order::create([
                     'patient_id' => $patient->id,
@@ -448,7 +453,7 @@ class OrderController extends Controller
                     'attention_type' => Fua::NEPHROLOGY,
                     'laboratory_period' => null,
                     'horas_dialisis' => 0.5,
-                    'fecha_orden' => $data['fecha_orden'],
+                    'fecha_orden' => $consultationDate,
                     'sede_id' => $patient->sede_id,
                 ]);
 
@@ -460,7 +465,7 @@ class OrderController extends Controller
                     'order_id' => $order->id,
                     'sede_id' => $patient->sede_id,
                     'patient_id' => $patient->id,
-                    'consultation_date' => $data['fecha_orden'],
+                    'consultation_date' => $consultationDate,
                 ]);
             });
         });
