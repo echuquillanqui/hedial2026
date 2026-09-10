@@ -81,6 +81,29 @@ class OrderDuplicatePreventionTest extends TestCase
         $response->assertSee('ID '.$emptyOrder->id);
     }
 
+    public function test_duplicate_filter_shows_counts_and_excludes_unique_orders(): void
+    {
+        $user = User::factory()->create();
+        $duplicatePatient = Patient::factory()->create();
+        $uniquePatient = Patient::factory()->create();
+        $this->dailyOrder($duplicatePatient, '2026-09-10', 'ORD-DUPLICADA-1');
+        $this->dailyOrder($duplicatePatient, '2026-09-10', 'ORD-DUPLICADA-2');
+        $unique = $this->dailyOrder($uniquePatient, '2026-09-10', 'ORD-UNICA');
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'date' => '2026-09-10',
+            'duplicates_only' => 1,
+        ]));
+
+        $response->assertOk()
+            ->assertSee('2</strong> registros', false)
+            ->assertSee('1</strong> duplicados adicionales', false)
+            ->assertSee('ORD-DUPLICADA-1')
+            ->assertSee('ORD-DUPLICADA-2')
+            ->assertDontSee($unique->codigo_unico)
+            ->assertSee('id="selectPageDuplicates"', false);
+    }
+
     public function test_an_order_with_clinical_data_cannot_be_deleted(): void
     {
         $user = User::factory()->create();
