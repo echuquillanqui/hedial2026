@@ -630,7 +630,10 @@ class OrderController extends Controller
             'sede_id' => $patient->sede_id,
             'physician_id' => $isPhysician ? $creator->id : null,
             'created_by' => $creator->id,
-            'consented_at' => $attentionDate->startOfDay(),
+            // Automatic consents represent the order's clinical date, not the
+            // moment the batch was prepared. Noon also keeps that calendar date
+            // stable when timestamp values cross the application/DB timezone.
+            'consented_at' => $attentionDate->startOfDay()->addHours(12),
             'version' => '02',
             'accepted' => true,
             'notes' => 'Generado automáticamente con la primera atención de hemodiálisis del mes.',
