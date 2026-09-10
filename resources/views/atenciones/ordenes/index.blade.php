@@ -13,6 +13,17 @@
 </style>
 
 <div class="container-fluid px-0 py-0">
+    @if(session('warning'))
+        <div class="alert alert-warning border-0 shadow-sm" role="alert">
+            <i class="bi bi-shield-exclamation me-2"></i>{{ session('warning') }}
+        </div>
+    @endif
+    @if(session('success'))
+        <div class="alert alert-success border-0 shadow-sm" role="alert">
+            <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
+        </div>
+    @endif
+
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold text-uppercase m-0 text-success"><i class="bi bi-file-earmark-medical me-2"></i> Control de Órdenes</h4>
         <div class="d-flex gap-2">
@@ -94,7 +105,19 @@
                     <tbody>
                         @forelse($orders as $order)
                         <tr>
-                            <td class="px-3 fw-bold text-success small text-left">{{ $order->codigo_unico }}</td>
+                            <td class="px-3 fw-bold text-success small text-left">
+                                {{ $order->codigo_unico }}
+                                @if($order->daily_duplicate_count > 1)
+                                    <div><span class="badge bg-warning text-dark mt-1">DUPLICADA (ID {{ $order->id }})</span></div>
+                                    <div class="mt-1">
+                                        @if($order->hasRecordedClinicalData())
+                                            <span class="badge bg-danger">CON DATOS: CONSERVAR</span>
+                                        @else
+                                            <span class="badge bg-secondary">VACÍA: PUEDE ELIMINARSE</span>
+                                        @endif
+                                    </div>
+                                @endif
+                            </td>
                             <td class="text-start">
                                 <div class="fw-bold text-uppercase small">{{ $order->patient->surname }} {{ $order->patient->last_name }}, {{ $order->patient->first_name }} {{ $order->patient->other_names }}</div>
                             </td>
