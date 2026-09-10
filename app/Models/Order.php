@@ -138,4 +138,31 @@ class Order extends Model
     {
         return $this->hasMany(DisposableDiscard::class);
     }
+
+    public function hasRecordedClinicalData(): bool
+    {
+        $this->loadMissing(['medical', 'nurse', 'treatments']);
+
+        $medicalFields = [
+            'peso_inicial', 'pa_inicial', 'frecuencia_cardiaca', 'so2', 'fio2',
+            'temperatura', 'problemas_clinicos', 'evaluacion', 'indicaciones',
+            'signos_sintomas', 'heparina', 'uf', 'qb', 'qd', 'bicarbonato',
+            'na_inicial', 'cnd', 'na_final', 'perfil_na', 'area_filtro',
+            'membrana', 'perfil_uf', 'evaluacion_final', 'hora_final',
+            'usuario_que_finaliza_hd',
+        ];
+        $nurseFields = [
+            'numero_hd', 'puesto', 'numero_maquina', 'filtro', 'pa_inicial',
+            'pa_final', 'peso_inicial', 'peso_final', 'uf', 'otros_medicamentos',
+            'transfusions', 'dressings', 's', 'o', 'a', 'p',
+            'observacion_final', 'enfermero_que_inicia_id',
+            'enfermero_que_finaliza_id',
+        ];
+        $treatmentFields = ['hora', 'pa', 'fc', 'qb', 'cnd', 'ra', 'rv', 'ptm', 'observacion'];
+
+        return collect($medicalFields)->contains(fn ($field) => filled($this->medical?->$field))
+            || collect($nurseFields)->contains(fn ($field) => filled($this->nurse?->$field))
+            || $this->treatments->contains(fn (Treatment $treatment) => collect($treatmentFields)
+                ->contains(fn ($field) => filled($treatment->$field)));
+    }
 }
