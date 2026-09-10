@@ -2,7 +2,7 @@
 @section('content')
 <div class="container-fluid">
     <div class="mb-3"><h3 class="mb-1"><i class="bi bi-table me-2"></i>Auditoría FISSAL</h3><p class="text-muted mb-0">Vista consolidada de las sesiones de hemodiálisis.</p></div>
-    @include('audit._filters')
+    @include('audit._filters', ['showSequence' => true])
     <div class="card shadow-sm overflow-hidden"><div class="table-responsive"><table class="table table-sm table-striped align-middle mb-0" style="font-size:.82rem">
         <thead class="table-dark"><tr><th>Apellidos y nombres del paciente</th><th>Secuencia</th><th>Inicio</th><th>Final</th><th>N.° FUA</th><th>EPO 2000</th><th>EPO 4000</th><th>Vit. B12</th><th>Hierro</th><th>Calcitriol</th><th>Fecha</th><th>Lic. inicia</th><th>Lic. finaliza</th><th>Nefrólogo</th><th>Módulo</th></tr></thead>
         <tbody>@forelse($orders as $order)@php($nurse = $order->nurse)@php($medical = $order->medical)<tr>

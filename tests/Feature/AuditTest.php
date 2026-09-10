@@ -40,7 +40,7 @@ class AuditTest extends TestCase
 
     public function test_fissal_view_uses_treatment_times_and_unpadded_fua_correlative(): void
     {
-        [$user, $sede] = $this->auditScenario();
+        [$user, $sede, $order] = $this->auditScenario();
 
         $response = $this->actingAs($user)
             ->withSession(['current_sede_id' => $sede->id])
@@ -56,6 +56,38 @@ class AuditTest extends TestCase
             ->assertSee('NEFROLOGO RESPONSABLE')
             ->assertSee('>1</td>', false)
             ->assertDontSee('0000001');
+    }
+
+    public function test_fissal_can_filter_attentions_by_patient_sequence(): void
+    {
+        [$user, $sede, $order] = $this->auditScenario();
+        $order->patient->update(['secuencia' => 'L-M-V']);
+        $otherPatient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'PACIENTE OTRA SECUENCIA',
+            'secuencia' => 'M-J-S',
+        ]);
+        Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $otherPatient->id,
+            'codigo_unico' => 'ORD-AUD-MJS',
+            'sala' => 'MODULO 2',
+            'turno' => '1',
+            'fecha_orden' => today(),
+            'attention_type' => 'HEMODIALYSIS',
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.fissal', [
+                'date' => today()->toDateString(),
+                'secuencia' => 'M-J-S',
+            ]))
+            ->assertOk()
+            ->assertSee('name="secuencia"', false)
+            ->assertSee('<option value="M-J-S" selected>M-J-S</option>', false)
+            ->assertSee('PACIENTE OTRA SECUENCIA')
+            ->assertDontSee('PACIENTE AUDITADO');
     }
 
     public function test_audit_lists_are_grouped_by_module_and_filters_submit_automatically(): void
