@@ -78,12 +78,26 @@
                     </select>
                 </div>
                 <div class="col-md-2">
+                    <div class="form-check mb-2">
+                        <input id="duplicatesOnlyFilter" type="checkbox" name="duplicates_only" value="1"
+                               class="form-check-input filter-input" @checked(request()->boolean('duplicates_only'))>
+                        <label for="duplicatesOnlyFilter" class="form-check-label small fw-semibold text-danger">Solo duplicados</label>
+                    </div>
                     <a href="{{ route('orders.index') }}" class="btn btn-sm btn-outline-secondary w-100 fw-bold">
                         <i class="bi bi-arrow-clockwise me-1"></i> LIMPIAR
                     </a>
                 </div>
             </form>
         </div>
+    </div>
+
+    <div class="alert {{ $duplicateCount ? 'alert-warning' : 'alert-success' }} border-0 shadow-sm d-flex flex-wrap align-items-center gap-3" role="status">
+        <span><strong>{{ $patientCount }}</strong> pacientes</span>
+        <span><strong>{{ $recordCount }}</strong> registros</span>
+        <span><strong>{{ $duplicateCount }}</strong> duplicados adicionales</span>
+        @if($duplicateCount)
+            <span class="small">Se marcan las fichas repetidas; las que contienen datos clínicos se conservan.</span>
+        @endif
     </div>
 
     <div class="card shadow-sm border-0">
@@ -102,7 +116,9 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th class="px-3 text-center"><span class="visually-hidden">Seleccionar</span></th>
+                            <th class="px-3 text-center">
+                                <input id="selectPageDuplicates" class="form-check-input" type="checkbox" aria-label="Seleccionar todos los duplicados vacíos de esta página">
+                            </th>
                             <th class="px-3 data-title text-left">Código</th>
                             <th class="data-title text-left">Paciente</th>
                             <th class="data-title text-center">Módulo</th>
@@ -271,10 +287,20 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const bulkDeleteButton = document.getElementById('bulkDeleteButton');
-    document.querySelectorAll('.duplicate-order-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-            bulkDeleteButton.disabled = !document.querySelector('.duplicate-order-checkbox:checked');
-        });
+    const selectPageDuplicates = document.getElementById('selectPageDuplicates');
+    const duplicateCheckboxes = [...document.querySelectorAll('.duplicate-order-checkbox')];
+    const updateBulkSelection = () => {
+        const selected = duplicateCheckboxes.filter(checkbox => checkbox.checked).length;
+        bulkDeleteButton.disabled = selected === 0;
+        bulkDeleteButton.innerHTML = `<i class="bi bi-trash3 me-1"></i> ELIMINAR ${selected || ''} DUPLICADOS SELECCIONADOS`;
+        selectPageDuplicates.checked = duplicateCheckboxes.length > 0 && selected === duplicateCheckboxes.length;
+        selectPageDuplicates.indeterminate = selected > 0 && selected < duplicateCheckboxes.length;
+    };
+    duplicateCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateBulkSelection));
+    selectPageDuplicates.disabled = duplicateCheckboxes.length === 0;
+    selectPageDuplicates.addEventListener('change', () => {
+        duplicateCheckboxes.forEach(checkbox => checkbox.checked = selectPageDuplicates.checked);
+        updateBulkSelection();
     });
 
     // Lógica Filtros Reactivos

@@ -50,7 +50,7 @@ class OrderController extends Controller
 
         $currentSedeId = CurrentSede::id();
 
-        $orders = Order::with(['patient', 'medical', 'nurse', 'treatments', 'sede', 'fua'])
+        $ordersQuery = Order::with(['patient', 'medical', 'nurse', 'treatments', 'sede', 'fua'])
             ->select('orders.*')
             ->selectSub(function ($duplicates) {
                 $duplicates->from('orders as daily_orders')
@@ -82,11 +82,32 @@ class OrderController extends Controller
             ->when($request->sala, function ($query, $sala) {
                 $query->where('sala', $sala);
             })
+            ->when($request->boolean('duplicates_only'), fn ($query) => $query->whereExists(function ($duplicates) {
+                $duplicates->selectRaw('1')
+                    ->from('orders as duplicate_orders')
+                    ->whereColumn('duplicate_orders.patient_id', 'orders.patient_id')
+                    ->whereColumn('duplicate_orders.fecha_orden', 'orders.fecha_orden')
+                    ->whereColumn('duplicate_orders.attention_type', 'orders.attention_type')
+                    ->whereColumn('duplicate_orders.id', '!=', 'orders.id');
+            }));
+
+        $recordCount = (clone $ordersQuery)->count();
+        $patientCount = (clone $ordersQuery)->distinct()->count('orders.patient_id');
+        $duplicateCount = (clone $ordersQuery)
+            ->get(['orders.id', 'orders.patient_id', 'orders.fecha_orden', 'orders.attention_type'])
+            ->groupBy(fn (Order $order) => implode('|', [
+                $order->patient_id,
+                $order->fecha_orden->toDateString(),
+                $order->attention_type,
+            ]))
+            ->sum(fn ($group) => max(0, $group->count() - 1));
+
+        $orders = $ordersQuery
             ->latest()
             ->paginate(15)
             ->appends($request->all()); // Muy importante para mantener filtros en la paginación
 
-        return view('atenciones.ordenes.index', compact('orders'));
+        return view('atenciones.ordenes.index', compact('orders', 'recordCount', 'patientCount', 'duplicateCount'));
     }
 
     public function multisectorialIndex(Request $request)
