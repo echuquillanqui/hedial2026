@@ -442,4 +442,17 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame(0, Treatment::count());
         $this->assertSame(0, LaboratoryOrder::count());
     }
+
+    public function test_nephrology_form_has_a_general_date_for_all_patients(): void
+    {
+        $user = User::factory()->create();
+        Patient::factory()->count(2)->create();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.nephrology.create'));
+
+        $response->assertOk();
+        $response->assertSee('Fecha general para todos');
+        $response->assertSee('name="fecha_orden"', false);
+        $response->assertSee('@change="assignDateToAll()"', false);
+    }
 }

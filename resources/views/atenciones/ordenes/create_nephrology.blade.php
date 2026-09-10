@@ -69,9 +69,9 @@
                 ? [...new Set([...this.selected, ...this.visibleIds])]
                 : this.selected.filter(id => !this.visibleIds.includes(id));
         },
-        assignDateToSelected() {
+        assignDateToAll() {
             document.querySelectorAll('[data-nephrology-date]').forEach(input => {
-                if (this.selected.includes(input.dataset.patientId)) input.value = this.bulkDate;
+                input.value = this.bulkDate;
             });
         }
     }">
@@ -80,11 +80,6 @@
             <div class="card-header bg-primary text-white d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <span class="fw-bold text-uppercase">Seleccionar pacientes ({{ $patients->count() }})</span>
                 <div class="d-flex align-items-center gap-2">
-                    <label for="fecha_orden" class="small fw-bold mb-0">FECHA BASE:</label>
-                    <input id="fecha_orden" type="date" name="fecha_orden" x-model="bulkDate" class="form-control form-control-sm" required>
-                    <button type="button" class="btn btn-outline-light btn-sm fw-bold" @click="assignDateToSelected()" title="Copiar la fecha base a los pacientes seleccionados">
-                        <i class="bi bi-calendar-check me-1"></i> ASIGNAR FECHA
-                    </button>
                     <button type="submit" class="btn btn-light btn-sm text-primary fw-bold" onclick="return confirm('¿Generar las consultas nefrológicas seleccionadas?')">
                         <i class="bi bi-file-earmark-plus me-1"></i> GENERAR
                     </button>
@@ -94,6 +89,15 @@
                 <div class="alert alert-danger rounded-0 mb-0">{{ $errors->first() }}</div>
             @endif
             <div class="card-body border-bottom py-3">
+                <div class="alert alert-primary d-flex flex-wrap align-items-center gap-3 mb-3" role="group" aria-labelledby="generalDateLabel">
+                    <div class="flex-grow-1">
+                        <label id="generalDateLabel" for="fecha_orden" class="form-label fw-bold text-uppercase mb-1">
+                            <i class="bi bi-calendar-check me-1"></i> Fecha general para todos
+                        </label>
+                        <div class="small">Elija una sola fecha y se aplicará automáticamente a todos los pacientes. Si lo necesita, luego puede cambiar una fecha individual en la tabla.</div>
+                    </div>
+                    <input id="fecha_orden" type="date" name="fecha_orden" x-model="bulkDate" @change="assignDateToAll()" class="form-control border-primary fw-bold" style="max-width: 190px" required>
+                </div>
                 <div class="row g-2 align-items-end">
                     <div class="col-md-9">
                         <label for="nephrologyPatientQuery" class="form-label small fw-bold text-primary text-uppercase">Buscar dentro de los resultados</label>
@@ -106,7 +110,7 @@
                         </div>
                     </div>
                 </div>
-                <small class="text-muted">La selección masiva aplica solo a los pacientes visibles. Puede asignar la fecha base en bloque y luego cambiar la fecha de cada paciente unos días antes o después.</small>
+                <small class="text-muted">La selección masiva aplica solo a los pacientes visibles. La fecha general se aplica a todos, incluso si después filtra la lista.</small>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
