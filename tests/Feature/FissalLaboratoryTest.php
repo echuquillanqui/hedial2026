@@ -185,6 +185,29 @@ class FissalLaboratoryTest extends TestCase
         });
     }
 
+    public function test_laboratory_generation_lists_only_registered_doctors(): void
+    {
+        $user = User::factory()->create();
+        $doctor = User::factory()->create([
+            'name' => 'Dra. Elena Salazar',
+            'profession' => 'Médico Nefrólogo',
+            'license_number' => '12345',
+        ]);
+        $nonDoctor = User::factory()->create([
+            'name' => 'Personal Administrativo',
+            'profession' => 'Administrador',
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.orders.create'));
+
+        $response->assertOk();
+        $response->assertViewHas('doctors', fn ($doctors): bool => $doctors->contains($doctor)
+            && ! $doctors->contains($nonDoctor));
+        $response->assertSee('Seleccione un médico registrado');
+        $response->assertSee('Dra. Elena Salazar · CMP 12345');
+        $response->assertDontSee('Personal Administrativo');
+    }
+
     public function test_create_order_page_uses_four_period_buttons(): void
     {
         $this->seed(FissalLaboratorySeeder::class);
