@@ -266,10 +266,21 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
-            $patient = Patient::findOrFail($validated['patient_id']);
+            // Lock the patient while checking/creating the daily order. This makes
+            // two almost simultaneous submissions serialize instead of creating
+            // two clinical records for the same session.
+            $patient = Patient::query()->lockForUpdate()->findOrFail($validated['patient_id']);
             $currentSedeId = CurrentSede::id();
             if ($currentSedeId && (int) $patient->sede_id !== (int) $currentSedeId) {
                 abort(403, 'Paciente fuera de la sede activa.');
+            }
+
+            $existingOrder = $this->dailyHemodialysisOrder($patient->id, $validated['fecha_orden']);
+            if ($existingOrder) {
+                DB::rollBack();
+
+                return redirect()->route('orders.index', ['date' => $validated['fecha_orden']])
+                    ->with('warning', $this->duplicateOrderMessage($existingOrder));
             }
 
             $order = Order::create(array_merge($validated, [
@@ -301,6 +312,7 @@ class OrderController extends Controller
     {
         $request->validate([
             'patient_ids'      => 'required|array|min:1',
+            'patient_ids.*'    => 'integer|distinct|exists:patients,id',
             'fecha_orden'      => 'required|date',
             'horas_individual' => 'required|array', // Captura el array de la vista
             'laboratory_periods' => 'required|array',
@@ -310,11 +322,23 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
-            foreach ($request->patient_ids as $id) {
-                $patient = Patient::findOrFail($id);
+            // A stable lock order avoids deadlocks when two bulk requests contain
+            // the same patients in a different order.
+            $patientIds = collect($request->patient_ids)->map(fn ($id) => (int) $id)->sort()->values();
+            $patients = Patient::query()->whereIn('id', $patientIds)->lockForUpdate()->get()->keyBy('id');
+            $skippedOrders = collect();
+
+            foreach ($patientIds as $id) {
+                $patient = $patients->get($id);
                 $currentSedeId = CurrentSede::id();
                 if ($currentSedeId && (int) $patient->sede_id !== (int) $currentSedeId) {
                     abort(403, 'Paciente fuera de la sede activa.');
+                }
+
+                $existingOrder = $this->dailyHemodialysisOrder($patient->id, $request->fecha_orden);
+                if ($existingOrder) {
+                    $skippedOrders->push($existingOrder);
+                    continue;
                 }
                 
                 // 1. Capturar la hora individual (ej: 3.5)
@@ -344,7 +368,14 @@ class OrderController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('orders.index')->with('success', 'Órdenes guardadas con horas actualizadas.');
+            $createdCount = $patientIds->count() - $skippedOrders->count();
+            $message = $createdCount.' órdenes nuevas guardadas.';
+            if ($skippedOrders->isNotEmpty()) {
+                $message .= ' Se omitieron '.$skippedOrders->count().' pacientes que ya tenían orden de hemodiálisis ese día; sus datos clínicos se conservaron.';
+            }
+
+            return redirect()->route('orders.index', ['date' => $request->fecha_orden])
+                ->with($createdCount > 0 ? 'success' : 'warning', $message);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -579,6 +610,22 @@ class OrderController extends Controller
     private function generateCode()
     {
         return 'ORD-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
+    }
+
+    private function dailyHemodialysisOrder(int $patientId, string $date): ?Order
+    {
+        return Order::query()
+            ->where('patient_id', $patientId)
+            ->where('attention_type', Fua::HEMODIALYSIS)
+            ->whereDate('fecha_orden', $date)
+            ->oldest('id')
+            ->first();
+    }
+
+    private function duplicateOrderMessage(Order $order): string
+    {
+        return 'No se generó otra orden: el paciente ya tiene la orden '
+            .$order->codigo_unico.' para esa fecha. La orden existente y todos sus datos clínicos se conservaron.';
     }
 
     private function addLaboratoryItems(LaboratoryOrder $laboratoryOrder, string $period): void
