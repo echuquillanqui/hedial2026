@@ -89,8 +89,12 @@ class FuaNumberingAndOrderEditingTest extends TestCase
 
         foreach ([Fua::HEMODIALYSIS, Fua::NEPHROLOGY] as $index => $type) {
             $order = $this->order($patient, $type, 'FUA-HUELLA-'.$index);
+            $order->medical()->create([
+                'indicaciones' => 'Observación clínica que no corresponde a la FUA',
+                'hora_hd' => 0.5,
+            ]);
             $fua = app(FuaNumberService::class)->createForOrder($order);
-            $fua->load('order.patient');
+            $fua->load(['order.patient', 'order.medical']);
 
             $document = view('fuas.pdf', [
                 'fua' => $fua,
@@ -103,7 +107,8 @@ class FuaNumberingAndOrderEditingTest extends TestCase
 
             $this->assertStringContainsString('MOTIVO DE NO FIRMA DE FUA:', $document);
             $this->assertStringContainsString('Presenta dificultad motora para firmar', $document);
-            $this->assertStringContainsString('PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
+            $this->assertStringContainsString('PACIENTE COLOCA SOLO SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
+            $this->assertStringNotContainsString('Observación clínica que no corresponde a la FUA', $document);
         }
     }
 
