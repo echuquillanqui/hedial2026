@@ -173,8 +173,8 @@
                                     </a>
                                     @endif
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editOrderModal"
-                                            data-id="{{ $order->id }}" data-paciente="{{ $order->patient->surname }} {{ $order->patient->first_name }}"
-                                            data-type="{{ $order->attention_type }}" data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}">
+                                            data-id="{{ $order->id }}" data-paciente="{{ $order->patient->full_name }}"
+                                            data-type="{{ $order->attention_type }}" data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden?->toDateString() }}" data-laboratory-period="{{ $order->laboratory_period }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
                                     
