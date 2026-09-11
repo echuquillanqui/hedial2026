@@ -74,11 +74,11 @@
             <form id="filterForm" class="row g-2">
                 <div class="col-md-3">
                     <label class="form-label small fw-bold text-muted">BUSCAR PACIENTE</label>
-                    <input type="text" name="search" id="searchInput" class="form-control form-control-sm" placeholder="Nombre, DNI...">
+                    <input type="text" name="search" id="searchInput" class="form-control form-control-sm" placeholder="Nombre, DNI..." value="{{ request('search') }}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">FECHA</label>
-                    <input type="date" name="date" id="dateSelect" class="form-control form-control-sm" value="{{ date('Y-m-d') }}">
+                    <input type="date" name="date" id="dateSelect" class="form-control form-control-sm" value="{{ request('date', date('Y-m-d')) }}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">MÓDULO</label>
@@ -88,30 +88,30 @@
                                 {{ $moduleAssignment ? ($moduleAssignment->includesAllModules() ? 'TODOS' : 'MÓDULO '.$moduleAssignment->module) : 'SIN ASIGNAR' }}
                             </option>
                         @else
-                        <option value="">TODOS</option>
-                        <option value="1">MÓDULO 1</option>
-                        <option value="2">MÓDULO 2</option>
-                        <option value="3">MÓDULO 3</option>
-                        <option value="4">MÓDULO 4</option>
+                        <option value="" @selected(! request()->filled('modulo'))>TODOS</option>
+                        <option value="1" @selected(request('modulo') === '1')>MÓDULO 1</option>
+                        <option value="2" @selected(request('modulo') === '2')>MÓDULO 2</option>
+                        <option value="3" @selected(request('modulo') === '3')>MÓDULO 3</option>
+                        <option value="4" @selected(request('modulo') === '4')>MÓDULO 4</option>
                         @endif
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">TURNO</label>
                     <select name="turno" id="turnoSelect" class="form-select form-select-sm">
-                        <option value="">TODOS</option>
-                        <option value="1">1º TURNO</option>
-                        <option value="2">2º TURNO</option>
-                        <option value="3">3º TURNO</option>
-                        <option value="4">4º TURNO</option>
+                        <option value="" @selected(! request()->filled('turno'))>TODOS</option>
+                        <option value="1" @selected(request('turno') === '1')>1º TURNO</option>
+                        <option value="2" @selected(request('turno') === '2')>2º TURNO</option>
+                        <option value="3" @selected(request('turno') === '3')>3º TURNO</option>
+                        <option value="4" @selected(request('turno') === '4')>4º TURNO</option>
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">ESTADO</label>
                     <select name="estado" id="estadoSelect" class="form-select form-select-sm">
-                        <option value="">TODOS</option>
-                        <option value="en_curso">🟡 EN CURSO</option>
-                        <option value="finalizado">🟢 FINALIZADO</option>
+                        <option value="" @selected(! request()->filled('estado'))>TODOS</option>
+                        <option value="en_curso" @selected(request('estado') === 'en_curso')>🟡 EN CURSO</option>
+                        <option value="finalizado" @selected(request('estado') === 'finalizado')>🟢 FINALIZADO</option>
                     </select>
                 </div>
                 <div class="col-md-1 d-flex align-items-end">

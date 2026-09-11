@@ -6,7 +6,6 @@ use App\Http\Controllers\NurseController;
 use App\Models\Medical;
 use App\Models\Nurse;
 use App\Models\NurseModuleAssignment;
-use App\Models\Medical;
 use App\Models\Order;
 use App\Models\Patient;
 use App\Models\Sede;
@@ -219,6 +218,32 @@ class NurseModuleAssignmentTest extends TestCase
             ->assertSee(route('enfermeria.print.bulk.check'), false)
             ->assertSee('No hay nada para imprimir con los filtros seleccionados.')
             ->assertSee('new URLSearchParams(new FormData(form))', false);
+    }
+
+    public function test_nursing_index_keeps_filters_selected_after_navigation(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+
+        NurseModuleAssignment::create([
+            'user_id' => $user->id,
+            'sede_id' => $sede->id,
+            'work_date' => today(),
+            'module' => 1,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.index', [
+                'search' => 'Paciente filtrado',
+                'date' => '2026-09-01',
+                'turno' => '3',
+                'estado' => 'finalizado',
+            ]))
+            ->assertOk()
+            ->assertSee('value="Paciente filtrado"', false)
+            ->assertSee('value="2026-09-01"', false)
+            ->assertSee('<option value="3" selected>3º TURNO</option>', false)
+            ->assertSee('<option value="finalizado" selected>', false);
     }
 
     public function test_bulk_print_check_reports_when_there_is_nothing_to_print(): void
