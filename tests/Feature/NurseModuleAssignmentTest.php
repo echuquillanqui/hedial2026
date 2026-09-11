@@ -69,6 +69,51 @@ class NurseModuleAssignmentTest extends TestCase
             ->assertDontSee('<option value="'.$user->id.'" selected', false);
     }
 
+    public function test_opening_a_nursing_attention_does_not_assign_a_session_number(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-SIN-CIERRE');
+        Permission::findOrCreate('nurses.edit');
+        $user->givePermissionTo('nurses.edit');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.edit', $nurse))
+            ->assertOk();
+
+        $this->assertNull($nurse->fresh()->numero_hd);
+    }
+
+    public function test_session_number_only_increments_for_finalized_nursing_attentions(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        Permission::findOrCreate('nurses.edit');
+        $user->givePermissionTo('nurses.edit');
+
+        $firstNurse = $this->nurseForModule($sede, 1, 'PACIENTE-CORRELATIVO');
+        $patient = $firstNurse->order->patient;
+        $draftNurse = $this->nurseForPatient($sede, $patient, '2026-09-08');
+        $secondNurse = $this->nurseForPatient($sede, $patient, '2026-09-10');
+
+        $draftNurse->update(['numero_hd' => 99]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->putJson(route('nurses.update', $draftNurse), [])
+            ->assertOk();
+
+        $this->assertNull($draftNurse->fresh()->numero_hd);
+
+        $this->putJson(route('nurses.update', $firstNurse), $this->closurePayload($user))
+            ->assertOk();
+        $this->putJson(route('nurses.update', $secondNurse), $this->closurePayload($user))
+            ->assertOk();
+
+        $this->assertSame(1, $firstNurse->fresh()->numero_hd);
+        $this->assertSame(2, $secondNurse->fresh()->numero_hd);
+        $this->assertNull($draftNurse->fresh()->numero_hd);
+    }
+
     public function test_incomplete_monitoring_can_be_saved_as_a_draft(): void
     {
         [$user, $sede] = $this->nursingUserAndSede();
@@ -430,5 +475,35 @@ class NurseModuleAssignmentTest extends TestCase
         ]);
 
         return Nurse::create(['order_id' => $order->id]);
+    }
+
+    private function nurseForPatient(Sede $sede, Patient $patient, string $date): Nurse
+    {
+        $order = Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $patient->id,
+            'codigo_unico' => 'ORD-'.uniqid(),
+            'sala' => 'MODULO '.$patient->modulo,
+            'turno' => '1',
+            'horas_dialisis' => 3,
+            'fecha_orden' => $date,
+        ]);
+
+        return Nurse::create(['order_id' => $order->id]);
+    }
+
+    private function closurePayload(User $user): array
+    {
+        return [
+            'puesto' => '1',
+            'numero_maquina' => '1',
+            'acceso_arterial' => 'FAV',
+            'acceso_venoso' => 'FAV',
+            'enfermero_que_inicia_id' => $user->id,
+            'enfermero_que_finaliza_id' => $user->id,
+            'pa_final' => '120/80',
+            'peso_final' => 70,
+            'observacion_final' => 'Sesión finalizada sin complicaciones.',
+        ];
     }
 }
