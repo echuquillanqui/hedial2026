@@ -33,7 +33,11 @@ class NursingAnnexesTest extends TestCase
     public function test_daily_index_reuses_session_dialyzer_lines_and_nursing_data(): void
     {
         $this->actingAs($this->nurse)->withSession($this->session())->get(route('nursing-annexes.index',['date'=>'2026-08-25']))
-            ->assertOk()->assertSee('FX80')->assertSee('Coagulado')->assertSee('Líneas registradas')->assertSee('HD-001');
+            ->assertOk()
+            ->assertSee('id="annex-12-tab"', false)
+            ->assertSee('id="history-tab"', false)
+            ->assertSee('id="discards-tab"', false)
+            ->assertSee('FX80')->assertSee('Coagulado')->assertSee('Líneas registradas')->assertSee('HD-001');
     }
 
     public function test_discard_is_unique_per_session_and_category_and_keeps_audit_user(): void
@@ -63,7 +67,10 @@ class NursingAnnexesTest extends TestCase
         $annex = \App\Models\DailyNursingAnnex::firstOrFail();
         $this->assertStringStartsWith('ANX12-20260825-LMV-M', $annex->code);
         $this->assertSame(1, $annex->automatic_values['iron_ev']['quantity']);
-        $this->get(route('nursing-annexes.index', ['history_date' => '2026-08-25', 'history_frequency' => 'LMV']))->assertOk()->assertSee($annex->code);
+        $this->get(route('nursing-annexes.index', ['history_date' => '2026-08-25', 'history_frequency' => 'LMV']))
+            ->assertOk()
+            ->assertSee('nav-link active text-nowrap" id="history-tab', false)
+            ->assertSee($annex->code);
         $this->get(route('nursing-annexes.care.generated-pdf', $annex))->assertOk()->assertHeader('content-type', 'application/pdf');
     }
 

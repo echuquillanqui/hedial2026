@@ -5,7 +5,16 @@
  @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
  @if($errors->any())<div class="alert alert-danger"><strong>No se pudo guardar.</strong><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
- <div class="card border-0 shadow-sm mb-4"><div class="card-header bg-white py-3"><h5 class="mb-0">Plantilla de llenado · Anexo 12</h5></div><div class="card-body">
+ @php($activeTab = request()->filled('history_date') || request()->filled('history_frequency') || request()->has('page') ? 'history' : 'annex-12')
+ <ul class="nav nav-tabs flex-nowrap overflow-auto mb-4" id="nursingAnnexTabs" role="tablist">
+  <li class="nav-item" role="presentation"><button class="nav-link {{ $activeTab === 'annex-12' ? 'active' : '' }} text-nowrap" id="annex-12-tab" data-bs-toggle="tab" data-bs-target="#annex-12-panel" type="button" role="tab" aria-controls="annex-12-panel" aria-selected="{{ $activeTab === 'annex-12' ? 'true' : 'false' }}"><i class="bi bi-clipboard2-pulse me-1"></i> Anexo 12</button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link {{ $activeTab === 'history' ? 'active' : '' }} text-nowrap" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-panel" type="button" role="tab" aria-controls="history-panel" aria-selected="{{ $activeTab === 'history' ? 'true' : 'false' }}"><i class="bi bi-clock-history me-1"></i> Historial <span class="badge rounded-pill bg-secondary ms-1">{{ $history->total() }}</span></button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link text-nowrap" id="discards-tab" data-bs-toggle="tab" data-bs-target="#discards-panel" type="button" role="tab" aria-controls="discards-panel" aria-selected="false"><i class="bi bi-file-earmark-medical me-1"></i> Anexos 11-A y 11-B</button></li>
+ </ul>
+
+ <div class="tab-content" id="nursingAnnexTabContent">
+ <div class="tab-pane fade {{ $activeTab === 'annex-12' ? 'show active' : '' }}" id="annex-12-panel" role="tabpanel" aria-labelledby="annex-12-tab" tabindex="0">
+ <div class="card border-0 shadow-sm"><div class="card-header bg-white py-3"><h5 class="mb-0">Plantilla de llenado · Anexo 12</h5></div><div class="card-body">
   <form method="GET" class="row g-2 align-items-end mb-4">
    <div class="col-sm-4 col-lg-3"><label class="form-label">Día</label><input class="form-control" type="date" name="date" value="{{ $date }}"></div>
    <div class="col-sm-3 col-lg-2"><label class="form-label">Frecuencia</label><select class="form-select" name="frequency"><option value="LMV" @selected($frequency==='LMV')>LMV</option><option value="MJS" @selected($frequency==='MJS')>MJS</option></select></div>
@@ -21,14 +30,18 @@
    @endforeach</tbody></table></div>
    <div class="d-flex flex-wrap gap-2 justify-content-end"><button class="btn btn-success">{{ $annex ? 'Actualizar anexo' : 'Guardar y generar ID' }}</button>@if($annex)@can('annexes.nursing.print')<a target="_blank" class="btn btn-outline-danger" href="{{ route('nursing-annexes.care.generated-pdf',$annex) }}">Ver PDF</a>@endcan @endif</div>
   </form>
- </div></div>
+ </div></div></div>
 
- <div class="card border-0 shadow-sm mb-4"><div class="card-header bg-white py-3"><h5 class="mb-0">Historial de anexos generados</h5></div><div class="card-body">
+ <div class="tab-pane fade {{ $activeTab === 'history' ? 'show active' : '' }}" id="history-panel" role="tabpanel" aria-labelledby="history-tab" tabindex="0">
+ <div class="card border-0 shadow-sm"><div class="card-header bg-white py-3"><h5 class="mb-0">Historial de anexos generados</h5></div><div class="card-body">
   <form method="GET" class="row g-2 mb-3"><input type="hidden" name="date" value="{{ $date }}"><input type="hidden" name="frequency" value="{{ $frequency }}"><input type="hidden" name="module" value="{{ $module }}"><div class="col-md-3"><input type="date" name="history_date" value="{{ request('history_date') }}" class="form-control" aria-label="Filtrar historial por día"></div><div class="col-md-3"><select name="history_frequency" class="form-select"><option value="">Todas las frecuencias</option><option value="LMV" @selected(request('history_frequency')==='LMV')>LMV</option><option value="MJS" @selected(request('history_frequency')==='MJS')>MJS</option></select></div><div class="col-md-2"><button class="btn btn-outline-primary w-100">Filtrar historial</button></div>@if(request()->filled('history_date')||request()->filled('history_frequency'))<div class="col-md-2"><a class="btn btn-link" href="{{ route('nursing-annexes.index',['date'=>$date,'frequency'=>$frequency,'module'=>$module]) }}">Limpiar</a></div>@endif</form>
   <div class="table-responsive"><table class="table align-middle"><thead><tr><th>ID</th><th>Día</th><th>Frecuencia</th><th>Módulo</th><th>Actualizado por</th><th></th></tr></thead><tbody>@forelse($history as $item)<tr><td><code>{{ $item->code }}</code></td><td>{{ $item->work_date->format('d/m/Y') }}</td><td>{{ $item->frequency }}</td><td>{{ $item->module }}</td><td>{{ $item->generator?->name ?? 'Usuario no disponible' }}<br><small class="text-muted">{{ $item->updated_at->format('d/m/Y H:i') }}</small></td><td class="text-end"><a href="{{ route('nursing-annexes.index',['date'=>$item->work_date->format('Y-m-d'),'frequency'=>$item->frequency,'module'=>$item->module]) }}" class="btn btn-sm btn-outline-primary">Editar</a> @can('annexes.nursing.print')<a target="_blank" href="{{ route('nursing-annexes.care.generated-pdf',$item) }}" class="btn btn-sm btn-outline-danger">PDF</a>@endcan</td></tr>@empty<tr><td colspan="6" class="text-center text-muted py-4">Todavía no hay anexos generados con estos filtros.</td></tr>@endforelse</tbody></table></div>{{ $history->links() }}
- </div></div>
+ </div></div></div>
 
+ <div class="tab-pane fade" id="discards-panel" role="tabpanel" aria-labelledby="discards-tab" tabindex="0">
  <div class="card border-0 shadow-sm"><div class="card-header bg-white"><strong>Anexos 11-A y 11-B · sesiones del día</strong></div><div class="card-body"><div class="d-flex gap-2 mb-3">@can('annexes.nursing.print')<a target="_blank" class="btn btn-outline-danger" href="{{ route('nursing-annexes.discards.pdf',['category'=>\App\Models\DisposableDiscard::DIALYZER,'date'=>$date]) }}">PDF 11-A</a><a target="_blank" class="btn btn-outline-warning" href="{{ route('nursing-annexes.discards.pdf',['category'=>\App\Models\DisposableDiscard::BLOOD_LINES,'date'=>$date]) }}">PDF 11-B</a>@endcan</div><p class="text-muted">Sesiones: {{ $orders->count() }} · Descartes de dializador: {{ $orders->sum(fn($o)=>$o->disposableDiscards->where('category',\App\Models\DisposableDiscard::DIALYZER)->count()) }} · Descartes de líneas: {{ $orders->sum(fn($o)=>$o->disposableDiscards->where('category',\App\Models\DisposableDiscard::BLOOD_LINES)->count()) }}</p>
  <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Sesión</th><th>Paciente</th><th>Dializador</th><th>Líneas registradas</th><th>Enfermería</th></tr></thead><tbody>@forelse($orders as $order)@php($lines=$order->hemodialysisMaterialConsumptions->first(fn($c)=>str_contains(mb_strtolower($c->material?->name??''),'línea')))<tr><td>{{ $order->codigo_unico }}<br><small>{{ $order->turno }}º turno</small></td><td>{{ $order->patient->full_name }}</td><td>{{ $order->nurse?->filtro ?: 'SIN REGISTRO' }}<br><small>{{ $order->nurse?->aspecto_dializador }}</small></td><td>{{ $lines?->quantity ?? 'SIN CONSUMO' }} {{ $lines?->material?->unit }}</td><td>{{ $order->nurse ? 'Registrada' : 'Pendiente' }}</td></tr>@empty<tr><td colspan="5" class="text-center text-muted">No existen sesiones este día.</td></tr>@endforelse</tbody></table></div></div></div>
+ </div>
+ </div>
 </div>
 @endsection
