@@ -7,6 +7,7 @@ use App\Models\Medical;
 use App\Models\Order;
 use App\Models\Patient;
 use App\Models\User;
+use App\Support\ClinicalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -102,6 +103,30 @@ class OrderDuplicatePreventionTest extends TestCase
             ->assertSee('ORD-DUPLICADA-2')
             ->assertDontSee($unique->codigo_unico)
             ->assertSee('id="selectPageDuplicates"', false);
+    }
+
+    public function test_order_control_only_shows_hemodialysis_orders(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $hemodialysisOrder = $this->dailyOrder($patient, '2026-09-10', 'ORD-HEMODIALISIS');
+        $nephrologyOrder = Order::create([
+            'patient_id' => $patient->id,
+            'sede_id' => $patient->sede_id,
+            'codigo_unico' => 'ORD-NEFROLOGIA',
+            'attention_type' => ClinicalService::NEPHROLOGY,
+            'fecha_orden' => '2026-09-10',
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'date' => '2026-09-10',
+        ]));
+
+        $response->assertOk()
+            ->assertSee($hemodialysisOrder->codigo_unico)
+            ->assertDontSee($nephrologyOrder->codigo_unico)
+            ->assertSee('1</strong> registros', false)
+            ->assertSee('1</strong> pacientes', false);
     }
 
     public function test_an_order_with_clinical_data_cannot_be_deleted(): void

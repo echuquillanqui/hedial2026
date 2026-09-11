@@ -52,6 +52,7 @@ class OrderController extends Controller
 
         $ordersQuery = Order::with(['patient', 'medical', 'nurse', 'treatments', 'sede', 'fua'])
             ->select('orders.*')
+            ->where('orders.attention_type', ClinicalService::HEMODIALYSIS)
             ->selectSub(function ($duplicates) {
                 $duplicates->from('orders as daily_orders')
                     ->selectRaw('count(*)')
