@@ -9,6 +9,7 @@ use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\CurrentSede;
@@ -186,14 +187,28 @@ class NurseController extends Controller
         if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
             abort(403, 'Atención fuera de la sede activa.');
         }
+        $isClosing = $request->filled('enfermero_que_finaliza_id');
+        $requiredOnClosure = Rule::requiredIf($isClosing);
+
         $validator = Validator::make($request->all(), [
             't_hora.*' => ['nullable', 'date_format:H:i'],
             'peso_seco' => ['nullable', 'numeric', 'between:0,999.99'],
-            'acceso_arterial' => ['required', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
-            'acceso_venoso' => ['required', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
+            'puesto' => [$requiredOnClosure],
+            'numero_maquina' => [$requiredOnClosure],
+            'acceso_arterial' => [$requiredOnClosure, 'nullable', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
+            'acceso_venoso' => [$requiredOnClosure, 'nullable', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
+            'enfermero_que_inicia_id' => [$requiredOnClosure, 'nullable', 'exists:users,id'],
+            'pa_final' => [$requiredOnClosure],
+            'peso_final' => [$requiredOnClosure, 'nullable', 'numeric'],
+            'observacion_final' => [$requiredOnClosure],
+            'enfermero_que_finaliza_id' => ['nullable', 'exists:users,id'],
         ]);
 
-        $validator->after(function ($validator) use ($request) {
+        $validator->after(function ($validator) use ($request, $isClosing) {
+            if (! $isClosing) {
+                return;
+            }
+
             $monitoringFields = ['t_hora', 't_pa', 't_fc', 't_qb', 't_cnd', 't_ra', 't_rv', 't_ptm', 't_obs'];
             $clinicalFields = ['t_pa', 't_fc', 't_qb', 't_cnd', 't_ra', 't_rv', 't_ptm', 't_obs'];
             $rowsCount = collect($monitoringFields)
@@ -274,9 +289,21 @@ class NurseController extends Controller
                 if ($request->has('t_hora')) {
                     $nurse->order->treatments()->delete();
                     foreach ($request->t_hora as $key => $hora) {
-                        if (!empty($hora)) {
+                        $rowValues = [
+                            $hora,
+                            $request->t_pa[$key] ?? null,
+                            $request->t_fc[$key] ?? null,
+                            $request->t_qb[$key] ?? null,
+                            $request->t_cnd[$key] ?? null,
+                            $request->t_ra[$key] ?? null,
+                            $request->t_rv[$key] ?? null,
+                            $request->t_ptm[$key] ?? null,
+                            $request->t_obs[$key] ?? null,
+                        ];
+
+                        if (collect($rowValues)->contains(fn ($value) => filled($value))) {
                             $nurse->order->treatments()->create([
-                                'hora'        => $hora,
+                                'hora'        => $hora ?: null,
                                 'pa'          => $request->t_pa[$key] ?? null,
                                 'fc'          => $request->t_fc[$key] ?? null,
                                 'qb'          => $request->t_qb[$key] ?? null,

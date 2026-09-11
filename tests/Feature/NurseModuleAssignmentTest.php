@@ -12,6 +12,7 @@ use App\Models\Sede;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class NurseModuleAssignmentTest extends TestCase
@@ -50,6 +51,72 @@ class NurseModuleAssignmentTest extends TestCase
             [$nursingProfessional->id],
             $availableStaff->pluck('id')->all()
         );
+    }
+
+    public function test_closing_nurse_starts_with_select_option_instead_of_authenticated_user(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-CIERRE-VACIO');
+        Permission::findOrCreate('nurses.edit');
+        $user->givePermissionTo('nurses.edit');
+
+        $response = $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('nurses.edit', $nurse));
+
+        $response->assertOk()
+            ->assertSee('<option value="">-- Seleccione --</option>', false)
+            ->assertDontSee('<option value="'.$user->id.'" selected', false);
+    }
+
+    public function test_incomplete_monitoring_can_be_saved_as_a_draft(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-BORRADOR');
+        Permission::findOrCreate('nurses.edit');
+        $user->givePermissionTo('nurses.edit');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->putJson(route('nurses.update', $nurse), [
+                't_hora' => [null],
+                't_fc' => [72],
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertDatabaseHas('treatments', [
+            'order_id' => $nurse->order_id,
+            'hora' => null,
+            'fc' => 72,
+        ]);
+    }
+
+    public function test_selecting_closing_nurse_requires_completion_fields(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-CIERRE-INCOMPLETO');
+        Permission::findOrCreate('nurses.edit');
+        $user->givePermissionTo('nurses.edit');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->putJson(route('nurses.update', $nurse), [
+                'enfermero_que_finaliza_id' => $user->id,
+                't_hora' => ['08:00'],
+                't_fc' => [72],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'puesto',
+                'numero_maquina',
+                'acceso_arterial',
+                'acceso_venoso',
+                'enfermero_que_inicia_id',
+                'pa_final',
+                'peso_final',
+                'observacion_final',
+            ]);
     }
 
     public function test_medical_detail_modal_is_inside_each_nursing_attention(): void
