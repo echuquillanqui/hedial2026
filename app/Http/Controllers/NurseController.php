@@ -140,23 +140,6 @@ class NurseController extends Controller
         ]);
         $order = $nurse->order;
 
-        // Si el numero_hd es nulo o cero, calculamos el correlativo real
-        if (!$nurse->numero_hd) {
-            $inicioMes = now()->startOfMonth();
-            $finMes = now()->endOfMonth();
-
-            // CONTAMOS registros ANTERIORES (excluyendo el actual si ya tiene ID)
-            $conteoPrevio = Nurse::whereHas('order', function($q) use ($order) {
-                    $q->where('patient_id', $order->patient_id);
-                })
-                ->whereBetween('created_at', [$inicioMes, $finMes])
-                ->where('id', '!=', $nurse->id) // EXCLUIR EL ACTUAL
-                ->count();
-
-            $nurse->numero_hd = $conteoPrevio + 1;
-            $nurse->save();
-        }
-
         $enfermeros = User::nursingProfessionals()
             ->orderBy('name')
             ->get();
@@ -270,9 +253,35 @@ class NurseController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($request, $nurse) {
+            DB::transaction(function () use ($request, $nurse, $isClosing) {
+                // Serializar los cierres del mismo paciente evita que dos
+                // atenciones reciban el mismo correlativo simultáneamente.
+                $nurse->order->patient()->lockForUpdate()->firstOrFail();
+
+                $wasFinalized = filled($nurse->enfermero_que_finaliza_id);
+
                 // Actualizamos la tabla nurses
                 $nurse->update($request->all());
+
+                if (! $isClosing) {
+                    // Una atención en borrador todavía no constituye una sesión.
+                    $nurse->update(['numero_hd' => null]);
+                } elseif (! $wasFinalized) {
+                    $sessionDate = $nurse->order->fecha_orden;
+                    $completedSessions = Nurse::query()
+                        ->whereKeyNot($nurse->id)
+                        ->whereNotNull('enfermero_que_finaliza_id')
+                        ->whereHas('order', function ($query) use ($nurse, $sessionDate) {
+                            $query->where('patient_id', $nurse->order->patient_id)
+                                ->whereBetween('fecha_orden', [
+                                    $sessionDate->copy()->startOfMonth()->toDateString(),
+                                    $sessionDate->copy()->endOfMonth()->toDateString(),
+                                ]);
+                        })
+                        ->count();
+
+                    $nurse->update(['numero_hd' => $completedSessions + 1]);
+                }
 
                 // Se fijan una sola vez en la ficha del paciente, durante su
                 // primera atención, para precargar las sesiones posteriores.
