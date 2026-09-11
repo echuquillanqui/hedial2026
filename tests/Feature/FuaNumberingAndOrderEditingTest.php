@@ -252,6 +252,27 @@ class FuaNumberingAndOrderEditingTest extends TestCase
             ->assertSee('checked', false);
     }
 
+    public function test_order_edit_modal_receives_the_full_patient_name_and_an_html_date(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'surname' => 'ARAUCO',
+            'last_name' => 'QUISPE',
+            'first_name' => 'KARINA',
+            'other_names' => 'ELENA',
+        ]);
+        $order = $this->order($patient, Fua::HEMODIALYSIS, 'EDITAR-DATOS');
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'all_dates' => 1,
+        ]));
+
+        $response->assertOk()
+            ->assertSee('data-paciente="ARAUCO QUISPE KARINA ELENA"', false)
+            ->assertSee('data-fecha="2026-08-16"', false)
+            ->assertDontSee('data-fecha="2026-08-16 00:00:00"', false);
+    }
+
     public function test_all_dates_can_be_combined_with_additional_order_filters(): void
     {
         $user = User::factory()->create();
