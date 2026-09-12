@@ -49,6 +49,7 @@ class AuditTest extends TestCase
 
         $response->assertOk()
             ->assertSeeInOrder(['Apellidos y nombres del paciente', 'Secuencia', 'Inicio'])
+            ->assertSeeInOrder([$order->patient->full_name, 'DNI:', $order->patient->dni])
             ->assertSee($order->patient->secuencia)
             ->assertSee('07:15')
             ->assertSee('11:30')
