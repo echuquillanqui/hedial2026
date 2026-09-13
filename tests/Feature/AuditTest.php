@@ -56,6 +56,12 @@ class AuditTest extends TestCase
             ->assertSee('LICENCIADA INICIO')
             ->assertSee('LICENCIADA FINAL')
             ->assertSee('NEFROLOGO RESPONSABLE')
+            ->assertSee('<strong>1</strong> registro encontrado', false)
+            ->assertSee('class="fissal-module-2"', false)
+            ->assertSee('.fissal-audit-table tbody tr { height: 58px; }', false)
+            ->assertSee('.fissal-audit-table tbody tr.fissal-module-1 > td { background-color: #fce8e8 !important; }', false)
+            ->assertSee('.fissal-audit-table tbody tr.fissal-module-2 > td { background-color: #fff4cc !important; }', false)
+            ->assertSee('.fissal-audit-table tbody tr.fissal-module-3 > td { background-color: #e3f5e8 !important; }', false)
             ->assertSee('>1</td>', false)
             ->assertDontSee('0000001');
     }
