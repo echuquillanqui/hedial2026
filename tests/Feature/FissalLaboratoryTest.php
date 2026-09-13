@@ -313,6 +313,32 @@ class FissalLaboratoryTest extends TestCase
         $response->assertSee('@change="applyFilters()"', false);
     }
 
+    public function test_laboratory_results_are_ordered_ascending_by_patient_surnames(): void
+    {
+        $user = User::factory()->create();
+        $zapata = Patient::factory()->create(['surname' => 'ZAPATA', 'last_name' => 'ARIAS', 'first_name' => 'ANA']);
+        $alvarezZuluaga = Patient::factory()->create(['surname' => 'ALVAREZ', 'last_name' => 'ZULUAGA', 'first_name' => 'BEA']);
+        $alvarezBenites = Patient::factory()->create(['surname' => 'ALVAREZ', 'last_name' => 'BENITES', 'first_name' => 'CARLA']);
+
+        foreach ([$zapata, $alvarezZuluaga, $alvarezBenites] as $patient) {
+            LaboratoryOrder::create([
+                'patient_id' => $patient->id,
+                'patient_name' => $patient->full_name,
+                'period' => 'M',
+                'sampled_at' => today(),
+            ]);
+        }
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.results.index'));
+
+        $response->assertOk();
+        $response->assertViewHas('orders', fn ($orders): bool => $orders->pluck('patient_id')->all() === [
+            $alvarezBenites->id,
+            $alvarezZuluaga->id,
+            $zapata->id,
+        ]);
+    }
+
     public function test_individual_dialysis_order_keeps_laboratory_period_for_fua_without_generating_laboratory_records(): void
     {
         $this->seed(FissalLaboratorySeeder::class);
