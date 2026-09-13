@@ -202,7 +202,10 @@ class LaboratoryOrderController extends Controller
                 in_array($request->query('sequence'), ['L-M-V', 'M-J-S'], true),
                 fn ($query) => $query->whereHas('patient', fn ($query) => $query->where('secuencia', $request->sequence))
             )
-            ->latest()
+            ->orderBy(Patient::select('surname')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
+            ->orderBy(Patient::select('last_name')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
+            ->orderBy(Patient::select('first_name')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
+            ->orderBy('laboratory_orders.id')
             ->paginate(15)->withQueryString();
 
         return view('laboratory.results.index', compact('orders'));

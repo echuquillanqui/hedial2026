@@ -102,6 +102,62 @@ class AuditTest extends TestCase
             ->assertDontSee('PACIENTE AUDITADO');
     }
 
+    public function test_fissal_orders_by_fua_number_and_keeps_module_and_shift_filters(): void
+    {
+        [$user, $sede, $firstOrder] = $this->auditScenario();
+        $firstOrder->fua->update(['correlative' => 30, 'number' => '0000247-0000030']);
+
+        $matchingPatient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'FUA NUMERO MENOR',
+            'secuencia' => DailyHemodialysisSequence::forDate(today()),
+        ]);
+        $matchingOrder = Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $matchingPatient->id,
+            'codigo_unico' => 'ORD-AUD-FUA-10',
+            'sala' => 'MODULO 2',
+            'turno' => '1',
+            'fecha_orden' => today(),
+            'attention_type' => Fua::HEMODIALYSIS,
+        ]);
+        Nurse::create(['order_id' => $matchingOrder->id, 'enfermero_que_finaliza_id' => $user->id]);
+        Fua::create(['order_id' => $matchingOrder->id, 'type' => Fua::HEMODIALYSIS, 'series' => '0000247', 'correlative' => 10, 'number' => '0000247-0000010']);
+
+        $otherModulePatient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'OTRO MODULO',
+            'secuencia' => DailyHemodialysisSequence::forDate(today()),
+        ]);
+        $otherModuleOrder = Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $otherModulePatient->id,
+            'codigo_unico' => 'ORD-AUD-FUA-1',
+            'sala' => 'MODULO 1',
+            'turno' => '1',
+            'fecha_orden' => today(),
+            'attention_type' => Fua::HEMODIALYSIS,
+        ]);
+        Nurse::create(['order_id' => $otherModuleOrder->id, 'enfermero_que_finaliza_id' => $user->id]);
+        Fua::create(['order_id' => $otherModuleOrder->id, 'type' => Fua::HEMODIALYSIS, 'series' => '0000247', 'correlative' => 1, 'number' => '0000247-0000001']);
+
+        $response = $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.fissal', [
+                'date' => today()->toDateString(),
+                'modulo' => 2,
+                'turno' => 1,
+            ]));
+
+        $response->assertOk()
+            ->assertSeeInOrder(['FUA NUMERO MENOR', 'PACIENTE AUDITADO'])
+            ->assertDontSee('OTRO MODULO');
+        $response->assertViewHas('orders', fn ($orders): bool => $orders->pluck('id')->all() === [
+            $matchingOrder->id,
+            $firstOrder->id,
+        ]);
+    }
+
     public function test_fissal_automatically_filters_sequence_by_date_and_defaults_to_finalized(): void
     {
         [$user, $sede, $finalizedOrder] = $this->auditScenario();

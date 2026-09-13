@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Fua;
 use App\Models\LaboratoryOrder;
 use App\Models\Order;
 use App\Models\Patient;
@@ -55,12 +56,10 @@ class AuditController extends Controller
                 'nurse.enfermeroInicia', 'nurse.enfermeroFinaliza',
                 'treatments' => fn ($query) => $query->orderBy('hora'),
             ])
-            ->orderBy('fecha_orden', 'desc')
-            ->orderBy('sala')
-            ->orderBy('turno')
-            ->orderBy(
-                Patient::select('surname')->whereColumn('patients.id', 'orders.patient_id')
-            )
+            ->orderBy(Fua::select('correlative')
+                ->whereColumn('fuas.order_id', 'orders.id')
+                ->where('type', '!=', Fua::CORRECTION))
+            ->orderBy('orders.id')
             ->paginate(25)
             ->withQueryString();
 
