@@ -244,7 +244,7 @@
 
     @if($canSeeNephrology)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.nephrology.*', 'consultations.*', 'initial-histories.*', 'consents.*', 'referrals.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.nephrology.*', 'consultations.*', 'medication-catalog.*', 'initial-histories.*', 'consents.*', 'referrals.*') ? 'active fw-bold' : '' }}"
                 type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-journal-medical me-1"></i> Nefrología
         </button>
@@ -255,6 +255,9 @@
             @if($canViewNephrology)
             <li><a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}"><i class="bi bi-person-vcard me-2"></i> Atenciones nefrológicas</a></li>
             @endif
+            @can('nephrology.update')
+            <li><a class="dropdown-item {{ request()->routeIs('medication-catalog.*') ? 'active' : '' }}" href="{{ route('medication-catalog.index') }}"><i class="bi bi-capsule me-2"></i> Catálogo de medicamentos</a></li>
+            @endcan
             @if($canViewReferrals)
             <li><a class="dropdown-item {{ request()->routeIs('referrals.*') ? 'active' : '' }}" href="{{ route('referrals.index') }}"><i class="bi bi-file-earmark-plus me-2"></i> Referencias</a></li>
             @endif
