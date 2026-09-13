@@ -145,6 +145,84 @@ class NephrologyConsultationTest extends TestCase
             ->assertDontSee('Hierro sacarato');
     }
 
+    public function test_second_nephrology_consultation_copies_the_previous_clinical_data_and_medications(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-08-14',
+        ]);
+
+        $previous = NephrologyConsultation::firstOrFail();
+        $previous->update([
+            'doctor_id' => $user->id,
+            'consultation_time' => '09:35',
+            'blood_pressure' => '120/80',
+            'weight' => 68.5,
+            'reason' => 'Control mensual',
+            'current_illness' => 'Paciente estable',
+            'diagnoses' => [['codigo' => 'N18.6', 'descripcion' => 'Enfermedad renal terminal']],
+            'auxiliary_exams' => ['Mensual|Hemoglobina'],
+            'treatment_plan' => 'Continuar hemodiálisis',
+            'next_appointment_date' => '2026-09-14',
+        ]);
+        $previous->medications()->create([
+            'fua_code' => 'MED-100',
+            'description' => 'Medicamento personalizado',
+            'c' => '1 tableta diaria',
+            'prescribed_quantity' => 30,
+            'delivered_quantity' => 25,
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-09-14',
+        ])->assertRedirect(route('orders.index'));
+
+        $current = NephrologyConsultation::latest('id')->firstOrFail();
+
+        $this->assertNotSame($previous->id, $current->id);
+        $this->assertNotSame($previous->order_id, $current->order_id);
+        $this->assertSame('2026-09-14', $current->consultation_date->toDateString());
+        $this->assertSame($previous->doctor_id, $current->doctor_id);
+        $this->assertSame('09:35', substr($current->consultation_time, 0, 5));
+        $this->assertSame($previous->blood_pressure, $current->blood_pressure);
+        $this->assertSame($previous->weight, $current->weight);
+        $this->assertSame($previous->reason, $current->reason);
+        $this->assertSame($previous->current_illness, $current->current_illness);
+        $this->assertSame($previous->diagnoses, $current->diagnoses);
+        $this->assertSame($previous->auxiliary_exams, $current->auxiliary_exams);
+        $this->assertSame($previous->treatment_plan, $current->treatment_plan);
+        $this->assertSame('2026-09-14', $current->next_appointment_date->toDateString());
+        $this->assertDatabaseHas('medications', [
+            'nephrology_consultation_id' => $current->id,
+            'fua_code' => 'MED-100',
+            'description' => 'Medicamento personalizado',
+            'c' => '1 tableta diaria',
+            'prescribed_quantity' => 30,
+            'delivered_quantity' => 25,
+        ]);
+    }
+
+    public function test_first_nephrology_consultation_remains_empty(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-08-14',
+        ])->assertRedirect(route('orders.index'));
+
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $this->assertNull($consultation->reason);
+        $this->assertNull($consultation->doctor_id);
+        $this->assertTrue($consultation->medications()->doesntExist());
+    }
+
     public function test_each_patient_can_receive_an_individual_date_during_bulk_generation(): void
     {
         $user = User::factory()->create();
