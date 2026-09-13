@@ -1,5 +1,5 @@
-<form method="GET" class="card card-body shadow-sm mb-4" data-audit-filters>
-    <div class="row g-3 align-items-end">
+<form method="GET" class="card card-body shadow-sm mb-4 audit-filters" data-audit-filters>
+    <div class="row g-2 align-items-end audit-filters__row">
         <div class="col-lg-3"><label class="form-label">Paciente, DNI u orden</label><input class="form-control" name="search" value="{{ request('search') }}" placeholder="Buscar..."></div>
         <div class="col-sm-6 col-lg-2"><label class="form-label">Fecha</label><input type="date" class="form-control" name="date" value="{{ request('date', today()->toDateString()) }}"></div>
         @if($showSequence ?? false)<div class="col-sm-6 col-lg-2"><label class="form-label">Secuencia</label><select class="form-select" name="secuencia"><option value="" @selected(!request()->filled('secuencia'))>Automática ({{ $sequence ?? 'sin secuencia' }})</option>@foreach(['L-M-V', 'M-J-S'] as $sequenceOption)<option value="{{ $sequenceOption }}" @selected(request('secuencia') === $sequenceOption)>{{ $sequenceOption }}</option>@endforeach</select></div>@endif
@@ -10,5 +10,23 @@
         <div class="col-lg-auto"><a class="btn btn-outline-secondary" href="{{ url()->current() }}">Limpiar</a></div>
     </div>
 </form>
+
+<style>
+    .audit-filters { padding: .75rem; }
+    .audit-filters .form-label { margin-bottom: .25rem; font-size: .75rem; }
+    .audit-filters .form-control,
+    .audit-filters .form-select,
+    .audit-filters .btn { min-height: 32px; padding-top: .25rem; padding-bottom: .25rem; font-size: .8rem; }
+
+    @media (min-width: 1200px) {
+        .audit-filters__row {
+            display: grid;
+            grid-template-columns: minmax(220px, 1.5fr) repeat(5, minmax(125px, 1fr)) auto;
+        }
+
+        .audit-filters__row > * { width: auto; max-width: none; }
+        .audit-filters__row .btn { white-space: nowrap; }
+    }
+</style>
 
 @include('audit._filters-script')
