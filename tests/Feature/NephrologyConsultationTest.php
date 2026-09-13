@@ -24,6 +24,7 @@ class NephrologyConsultationTest extends TestCase
             'name' => $item->name,
             'reference_quantity' => $item->reference_quantity,
             'frequency' => $item->frequency,
+            'indication' => $item->indication,
         ]])->all();
 
         $this->actingAs($user)->withoutMiddleware()->put(route('medication-catalog.update'), [
@@ -32,6 +33,39 @@ class NephrologyConsultationTest extends TestCase
 
         $this->assertDatabaseHas('medication_catalog', [
             'id' => $medication->id, 'code' => 'MED-001', 'reference_quantity' => 4, 'frequency' => 'Mensual',
+        ]);
+    }
+
+    public function test_medication_catalog_displays_and_updates_registered_indications(): void
+    {
+        $user = User::factory()->create();
+        $losartan = MedicationCatalog::where('name', 'like', 'Losartan%')->firstOrFail();
+
+        $this->assertSame(
+            '1 tableta cada 12 horas. En algunos pacientes: cada 24 horas.',
+            $losartan->indication
+        );
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('medication-catalog.index'))
+            ->assertOk()
+            ->assertSee('Indicación')
+            ->assertSee($losartan->indication);
+
+        $payload = MedicationCatalog::all()->mapWithKeys(fn ($item) => [$item->id => [
+            'code' => $item->code,
+            'name' => $item->name,
+            'reference_quantity' => $item->reference_quantity,
+            'frequency' => $item->frequency,
+            'indication' => $item->is($losartan) ? 'Indicación actualizada.' : $item->indication,
+        ]])->all();
+
+        $this->actingAs($user)->withoutMiddleware()->put(route('medication-catalog.update'), [
+            'medications' => $payload,
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertDatabaseHas('medication_catalog', [
+            'id' => $losartan->id,
+            'indication' => 'Indicación actualizada.',
         ]);
     }
 

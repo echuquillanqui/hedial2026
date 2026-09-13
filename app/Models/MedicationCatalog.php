@@ -8,7 +8,7 @@ class MedicationCatalog extends Model
 {
     protected $table = 'medication_catalog';
 
-    protected $fillable = ['code', 'name', 'reference_quantity', 'frequency'];
+    protected $fillable = ['code', 'name', 'reference_quantity', 'frequency', 'indication'];
 
     protected $casts = ['reference_quantity' => 'integer'];
 }
