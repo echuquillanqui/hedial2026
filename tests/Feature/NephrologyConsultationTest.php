@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\NephrologyConsultationController;
 use App\Models\NephrologyConsultation;
+use App\Models\MedicationCatalog;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,6 +13,46 @@ use Tests\TestCase;
 class NephrologyConsultationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_medication_catalog_is_seeded_and_codes_can_be_completed_manually(): void
+    {
+        $user = User::factory()->create();
+        $medication = MedicationCatalog::where('name', 'like', 'Hierro%')->firstOrFail();
+
+        $payload = MedicationCatalog::all()->mapWithKeys(fn ($item) => [$item->id => [
+            'code' => $item->is($medication) ? 'MED-001' : $item->code,
+            'name' => $item->name,
+            'reference_quantity' => $item->reference_quantity,
+            'frequency' => $item->frequency,
+        ]])->all();
+
+        $this->actingAs($user)->withoutMiddleware()->put(route('medication-catalog.update'), [
+            'medications' => $payload,
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertDatabaseHas('medication_catalog', [
+            'id' => $medication->id, 'code' => 'MED-001', 'reference_quantity' => 4, 'frequency' => 'Mensual',
+        ]);
+    }
+
+    public function test_medication_search_matches_name_or_code_and_form_exposes_autocomplete(): void
+    {
+        $user = User::factory()->create();
+        $medication = MedicationCatalog::where('name', 'like', 'Epoetina alfa%2000%')->firstOrFail();
+        $medication->update(['code' => 'EPO-2000']);
+
+        $this->actingAs($user)->withoutMiddleware()->getJson(route('medication-catalog.search', ['q' => 'EPO-2000']))
+            ->assertOk()->assertJsonFragment(['name' => $medication->name, 'reference_quantity' => 12]);
+        $this->actingAs($user)->withoutMiddleware()->getJson(route('medication-catalog.search', ['q' => 'Eritropoyetina']))
+            ->assertOk()->assertJsonFragment(['code' => 'EPO-2000']);
+
+        $patient = Patient::factory()->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id], 'fecha_orden' => '2026-09-13',
+        ]);
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.edit', NephrologyConsultation::firstOrFail()))
+            ->assertOk()->assertSee('medication-search')->assertSee(route('medication-catalog.search'), false);
+    }
 
     public function test_nephrology_order_form_filters_patients_by_schedule_and_search(): void
     {

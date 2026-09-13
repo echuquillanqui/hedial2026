@@ -16,6 +16,7 @@ use App\Http\Controllers\LaboratoryOrderController;
 use App\Http\Controllers\FuaConfigurationController;
 use App\Http\Controllers\FuaController;
 use App\Http\Controllers\NephrologyConsultationController;
+use App\Http\Controllers\MedicationCatalogController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\InitialClinicalHistoryController;
 use App\Http\Controllers\HemodialysisConsentController;
@@ -90,6 +91,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::put('catalogo/perfiles/{profile}', [CatalogController::class, 'updateProfile'])->name('catalog.profiles.update');
     Route::delete('catalogo/perfiles/{profile}', [CatalogController::class, 'destroyProfile'])->name('catalog.profiles.destroy');
     Route::post('catalogo', [CatalogController::class, 'store'])->name('catalog.store');
+    Route::get('catalogo-medicamentos', [MedicationCatalogController::class, 'index'])->name('medication-catalog.index');
+    Route::put('catalogo-medicamentos', [MedicationCatalogController::class, 'update'])->name('medication-catalog.update');
+    Route::get('catalogo-medicamentos/buscar', [MedicationCatalogController::class, 'search'])->name('medication-catalog.search');
 
     Route::get('laboratory/orders/create', [LaboratoryOrderController::class, 'create'])->name('laboratory.orders.create');
     Route::post('laboratory/orders', [LaboratoryOrderController::class, 'store'])->name('laboratory.orders.store');
