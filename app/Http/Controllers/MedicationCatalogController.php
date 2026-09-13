@@ -31,6 +31,7 @@ class MedicationCatalogController extends Controller
             'medications.*.name' => ['required', 'string', 'max:255'],
             'medications.*.reference_quantity' => ['required', 'integer', 'min:1'],
             'medications.*.frequency' => ['required', 'string', 'max:30'],
+            'medications.*.indication' => ['nullable', 'string'],
         ]);
 
         abort_unless(collect(array_keys($data['medications']))->map(fn ($id) => (int) $id)->sort()->values()->all()
@@ -53,6 +54,6 @@ class MedicationCatalogController extends Controller
                 ->where('name', 'like', "%{$term}%")
                 ->orWhere('code', 'like', "%{$term}%")))
             ->orderBy('name')->limit(12)
-            ->get(['id', 'code', 'name', 'reference_quantity', 'frequency']));
+            ->get(['id', 'code', 'name', 'reference_quantity', 'frequency', 'indication']));
     }
 }
