@@ -67,6 +67,43 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('FUA');
     }
 
+    public function test_empty_nephrology_consultation_uses_the_requested_default_medications(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-08-14',
+        ])->assertRedirect(route('orders.index'));
+
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.edit', $consultation))
+            ->assertOk()
+            ->assertViewHas('medications', function ($medications): bool {
+                return $medications->values()->all() === NephrologyConsultationController::DEFAULT_MEDICATIONS
+                    && $medications->pluck('fua_code')->all() === ['06127', '05491', '04523', '00671', '00200']
+                    && $medications->pluck('c')->all() === [
+                        '1 tableta cada 24 horas en el desayuno',
+                        '1 tableta cada 24 horas en el desayuno',
+                        '1 tableta cada 12 horas, 8 AM y 8 PM',
+                        '1 tableta cada 24 horas, 9 AM',
+                        '1 tableta cada 24 horas en el desayuno',
+                    ]
+                    && $medications->pluck('prescribed_quantity')->all() === [30, 30, 60, 30, 30]
+                    && $medications->pluck('delivered_quantity')->all() === [30, 30, 60, 30, 30];
+            })
+            ->assertSee('Tiamina clorhidrato 100 mg tableta')
+            ->assertSee('Piridoxina clorhidrato 50 mg tableta')
+            ->assertSee('Losartan 50 mg tableta')
+            ->assertSee('Amlodipino (como Besilato) 10 mg tableta')
+            ->assertSee('Ácido fólico 500 mcg (0.5 mg) tableta')
+            ->assertDontSee('Epoetina alfa')
+            ->assertDontSee('Vitamina B12')
+            ->assertDontSee('Hierro sacarato');
+    }
+
     public function test_each_patient_can_receive_an_individual_date_during_bulk_generation(): void
     {
         $user = User::factory()->create();

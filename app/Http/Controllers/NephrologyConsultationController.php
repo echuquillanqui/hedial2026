@@ -23,12 +23,11 @@ class NephrologyConsultationController extends Controller
     }
 
     public const DEFAULT_MEDICATIONS = [
-        ['fua_code' => '06127', 'description' => 'Tiamina 100 mg tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-        ['fua_code' => '05491', 'description' => 'Piridoxina 50 mg tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-        ['fua_code' => '00200', 'description' => 'Ácido fólico 500 mcg (0,5 mg) tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-        ['fua_code' => '3107', 'description' => 'Epoetina alfa 2 000 UI/ml, inyectable', 'c' => 'Según esquema de hemodiálisis', 'prescribed_quantity' => 13, 'delivered_quantity' => 13],
-        ['fua_code' => '3979', 'description' => 'Vitamina B12, inyectable', 'c' => 'Según indicación médica', 'prescribed_quantity' => 13, 'delivered_quantity' => 13],
-        ['fua_code' => '19238', 'description' => 'Hierro sacarato, inyectable', 'c' => 'Según indicación médica', 'prescribed_quantity' => 4, 'delivered_quantity' => 4],
+        ['fua_code' => '06127', 'description' => 'Tiamina clorhidrato 100 mg tableta', 'c' => '1 tableta cada 24 horas en el desayuno', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
+        ['fua_code' => '05491', 'description' => 'Piridoxina clorhidrato 50 mg tableta', 'c' => '1 tableta cada 24 horas en el desayuno', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
+        ['fua_code' => '04523', 'description' => 'Losartan 50 mg tableta', 'c' => '1 tableta cada 12 horas, 8 AM y 8 PM', 'prescribed_quantity' => 60, 'delivered_quantity' => 60],
+        ['fua_code' => '00671', 'description' => 'Amlodipino (como Besilato) 10 mg tableta', 'c' => '1 tableta cada 24 horas, 9 AM', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
+        ['fua_code' => '00200', 'description' => 'Ácido fólico 500 mcg (0.5 mg) tableta', 'c' => '1 tableta cada 24 horas en el desayuno', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
     ];
 
     public const AUXILIARY_EXAMS = [
