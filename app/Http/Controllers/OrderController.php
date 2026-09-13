@@ -481,14 +481,43 @@ class OrderController extends Controller
 
                 app(FuaNumberService::class)->createForOrder($order);
 
-                // La orden agenda la atención; debe quedar disponible de inmediato
-                // en el módulo donde el nefrólogo completa la historia clínica.
-                NephrologyConsultation::create([
+                // A partir de la segunda atención, se usa la consulta cronológicamente
+                // anterior como base para evitar volver a digitar la información clínica.
+                // La fecha y la orden siempre pertenecen a la nueva atención.
+                $previousConsultation = NephrologyConsultation::query()
+                    ->where('patient_id', $patient->id)
+                    ->whereDate('consultation_date', '<=', $consultationDate)
+                    ->latest('consultation_date')
+                    ->latest('id')
+                    ->first();
+
+                $consultation = $previousConsultation
+                    ? $previousConsultation->replicate([
+                        'order_id',
+                        'consultation_date',
+                        'created_at',
+                        'updated_at',
+                    ])
+                    : new NephrologyConsultation();
+
+                $consultation->fill([
                     'order_id' => $order->id,
                     'sede_id' => $patient->sede_id,
                     'patient_id' => $patient->id,
                     'consultation_date' => $consultationDate,
-                ]);
+                ])->save();
+
+                if ($previousConsultation) {
+                    $previousConsultation->medications()->get()->each(function ($medication) use ($consultation) {
+                        $consultation->medications()->create($medication->only([
+                            'fua_code',
+                            'description',
+                            'c',
+                            'prescribed_quantity',
+                            'delivered_quantity',
+                        ]));
+                    });
+                }
             });
         });
 
