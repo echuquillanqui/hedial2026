@@ -56,6 +56,7 @@ class AuditController extends Controller
                 'nurse.enfermeroInicia', 'nurse.enfermeroFinaliza',
                 'treatments' => fn ($query) => $query->orderBy('hora'),
             ])
+            ->orderBy('orders.sala')
             ->orderBy(Fua::select('correlative')
                 ->whereColumn('fuas.order_id', 'orders.id')
                 ->where('type', '!=', Fua::CORRECTION))
