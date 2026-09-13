@@ -84,8 +84,15 @@ class NephrologyConsultationTest extends TestCase
             ->assertViewHas('medications', function ($medications): bool {
                 return $medications->values()->all() === NephrologyConsultationController::DEFAULT_MEDICATIONS
                     && $medications->pluck('fua_code')->all() === ['06127', '05491', '04523', '00671', '00200']
-                    && $medications->pluck('prescribed_quantity')->all() === [25, 25, 50, 25, 30]
-                    && $medications->pluck('delivered_quantity')->all() === [25, 25, 50, 25, 30];
+                    && $medications->pluck('c')->all() === [
+                        '1 tableta cada 24 horas en el desayuno',
+                        '1 tableta cada 24 horas en el desayuno',
+                        '1 tableta cada 12 horas, 8 AM y 8 PM',
+                        '1 tableta cada 24 horas, 9 AM',
+                        '1 tableta cada 24 horas en el desayuno',
+                    ]
+                    && $medications->pluck('prescribed_quantity')->all() === [30, 30, 60, 30, 30]
+                    && $medications->pluck('delivered_quantity')->all() === [30, 30, 60, 30, 30];
             })
             ->assertSee('Tiamina clorhidrato 100 mg tableta')
             ->assertSee('Piridoxina clorhidrato 50 mg tableta')
