@@ -67,6 +67,36 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('FUA');
     }
 
+    public function test_empty_nephrology_consultation_uses_the_requested_default_medications(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-08-14',
+        ])->assertRedirect(route('orders.index'));
+
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.edit', $consultation))
+            ->assertOk()
+            ->assertViewHas('medications', function ($medications): bool {
+                return $medications->values()->all() === NephrologyConsultationController::DEFAULT_MEDICATIONS
+                    && $medications->pluck('fua_code')->all() === ['06127', '05491', '04523', '00671', '00200']
+                    && $medications->pluck('prescribed_quantity')->all() === [25, 25, 50, 25, 30]
+                    && $medications->pluck('delivered_quantity')->all() === [25, 25, 50, 25, 30];
+            })
+            ->assertSee('Tiamina clorhidrato 100 mg tableta')
+            ->assertSee('Piridoxina clorhidrato 50 mg tableta')
+            ->assertSee('Losartan 50 mg tableta')
+            ->assertSee('Amlodipino (como Besilato) 10 mg tableta')
+            ->assertSee('Ácido fólico 500 mcg (0.5 mg) tableta')
+            ->assertDontSee('Epoetina alfa')
+            ->assertDontSee('Vitamina B12')
+            ->assertDontSee('Hierro sacarato');
+    }
+
     public function test_each_patient_can_receive_an_individual_date_during_bulk_generation(): void
     {
         $user = User::factory()->create();
