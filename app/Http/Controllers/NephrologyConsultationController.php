@@ -69,7 +69,12 @@ class NephrologyConsultationController extends Controller
             ->when($request->filled('sequence'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $request->sequence)))
             ->when($request->filled('shift'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('turno', $request->shift)))
             ->when($request->filled('module'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $request->module)))
-            ->latest('consultation_date')->paginate(15)->withQueryString();
+            ->orderBy(Patient::select('surname')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
+            ->orderBy(Patient::select('last_name')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
+            ->orderBy(Patient::select('first_name')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
+            ->orderBy(Patient::select('other_names')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
+            ->orderBy('nephrology_consultations.id')
+            ->paginate(15)->withQueryString();
 
         return view('consultations.index', compact('consultations', 'filterOptions'));
     }
