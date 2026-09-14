@@ -62,7 +62,9 @@ class NephrologyConsultationController extends Controller
             ->when($request->filled('date'), fn ($query) => $query->whereDate('consultation_date', $request->date))
             ->when($request->filled('sequence'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $request->sequence)))
             ->when($request->filled('shift'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('turno', $request->shift)))
-            ->when($request->filled('module'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $request->module)));
+            ->when($request->filled('module'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $request->module)))
+            ->when($request->doctor_status === 'assigned', fn ($query) => $query->whereNotNull('doctor_id'))
+            ->when($request->doctor_status === 'unassigned', fn ($query) => $query->whereNull('doctor_id'));
 
         $duplicateIds = (clone $consultationsQuery)
             ->get(['nephrology_consultations.id', 'nephrology_consultations.patient_id', 'nephrology_consultations.consultation_date'])
