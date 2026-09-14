@@ -75,21 +75,11 @@ class NephrologyConsultationController extends Controller
                     ->whereColumn('dialysis_orders.patient_id', 'nephrology_consultations.patient_id')
                     ->whereColumn('dialysis_orders.fecha_orden', 'nephrology_consultations.consultation_date')
                     ->where('dialysis_orders.attention_type', Fua::HEMODIALYSIS)
-                    ->whereExists(fn ($medical) => $medical
-                        ->selectRaw('1')
-                        ->from('medicals')
-                        ->whereColumn('medicals.order_id', 'dialysis_orders.id')
-                        ->whereNotNull('medicals.hora_final'))
                     ->whereExists(fn ($nurse) => $nurse
                         ->selectRaw('1')
                         ->from('nurses')
                         ->whereColumn('nurses.order_id', 'dialysis_orders.id')
-                        ->whereNotNull('nurses.enfermero_que_finaliza_id'))
-                    ->whereExists(fn ($treatment) => $treatment
-                        ->selectRaw('1')
-                        ->from('treatments')
-                        ->whereColumn('treatments.order_id', 'dialysis_orders.id')
-                        ->whereNotNull('treatments.hora')));
+                        ->whereNotNull('nurses.enfermero_que_finaliza_id')));
             });
 
         $duplicateIds = (clone $consultationsQuery)

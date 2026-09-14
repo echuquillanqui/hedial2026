@@ -430,6 +430,36 @@ class NephrologyConsultationTest extends TestCase
             ->assertDontSee($absentPatient->full_name);
     }
 
+    public function test_dialysis_attendance_uses_the_same_nursing_completion_as_fissal_audit(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-09-11',
+        ]);
+
+        $dialysis = Order::create([
+            'patient_id' => $patient->id,
+            'codigo_unico' => 'HD-CERRADA-ENFERMERIA',
+            'sala' => 'MODULO 1',
+            'turno' => '1',
+            'attention_type' => Fua::HEMODIALYSIS,
+            'horas_dialisis' => 3.5,
+            'fecha_orden' => '2026-09-11',
+            'sede_id' => $patient->sede_id,
+        ]);
+        Nurse::create([
+            'order_id' => $dialysis->id,
+            'enfermero_que_finaliza_id' => $user->id,
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', [
+            'date' => '2026-09-11',
+            'dialysis_attendance' => 'attended',
+        ]))->assertOk()->assertSee($patient->full_name)->assertSee('Sí vino');
+    }
+
     public function test_duplicate_consultations_can_be_selected_and_deleted_in_bulk_while_one_is_preserved(): void
     {
         $user = User::factory()->create();
