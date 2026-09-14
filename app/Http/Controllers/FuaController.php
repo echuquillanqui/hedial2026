@@ -60,6 +60,7 @@ class FuaController extends Controller
             'all_dates' => ['nullable', 'boolean'],
             'professional_id' => ['nullable', 'integer', 'exists:users,id'],
             'status' => ['nullable', 'string', 'max:30'],
+            'prescription_status' => ['nullable', Rule::in(['with_prescription', 'without_prescription'])],
             'sede_id' => ['nullable', 'integer', 'exists:sedes,id'],
         ]);
 
@@ -85,6 +86,7 @@ class FuaController extends Controller
             $sequence,
             $filters['professional_id'] ?? null,
             $filters['status'] ?? null,
+            $filters['prescription_status'] ?? null,
             $sedeId,
         )
             ->orderByDesc('orders.fecha_orden')
@@ -220,16 +222,28 @@ class FuaController extends Controller
         ?string $sequence,
         ?int $professional,
         ?string $status,
+        ?string $prescriptionStatus,
         ?int $sede,
     ): Builder
     {
         return Fua::query()
-            ->with(['order.patient', 'order.sede'])
+            ->with([
+                'order.patient',
+                'order.sede',
+                'order.nephrologyConsultation' => fn ($query) => $query->withExists('medications'),
+            ])
             ->join('orders', 'orders.id', '=', 'fuas.order_id')
             ->where('fuas.type', $type)
             ->when($sede, fn (Builder $query) => $query->where('orders.sede_id', $sede))
             ->when($professional, fn (Builder $query) => $query->where('orders.assigned_professional_id', $professional))
             ->when($status, fn (Builder $query) => $query->where('fuas.status', $status))
+            ->when($type === Fua::NEPHROLOGY && $prescriptionStatus, function (Builder $query) use ($prescriptionStatus) {
+                $relation = 'order.nephrologyConsultation.medications';
+
+                $prescriptionStatus === 'with_prescription'
+                    ? $query->whereHas($relation)
+                    : $query->whereDoesntHave($relation);
+            })
             ->when($date, fn (Builder $query) => $query->whereDate('orders.fecha_orden', $date))
             ->when($shift, fn (Builder $query) => $query->where('orders.turno', (string) $shift))
             ->when($sequence, fn (Builder $query) => $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery

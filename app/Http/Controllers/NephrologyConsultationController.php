@@ -77,7 +77,7 @@ class NephrologyConsultationController extends Controller
             ->orderBy(Patient::select('first_name')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
             ->orderBy(Patient::select('other_names')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
             ->orderBy('nephrology_consultations.id')
-            ->paginate(15)->withQueryString();
+            ->paginate(30)->withQueryString();
 
         return view('consultations.index', compact('consultations', 'filterOptions', 'duplicateIds'));
     }
