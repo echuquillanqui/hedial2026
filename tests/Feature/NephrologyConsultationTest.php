@@ -567,6 +567,10 @@ class NephrologyConsultationTest extends TestCase
             ->get(route('consultations.edit', $consultation));
 
         $response->assertOk()
+            ->assertSee('aria-label="Paciente de la consulta"', false)
+            ->assertSee($patient->full_name)
+            ->assertSee('DNI:')
+            ->assertSee($patient->dni)
             ->assertSee('name="patient_id" value="'.$patient->id.'"', false)
             ->assertSee('id="patient_name"', false)
             ->assertSee('readonly', false)

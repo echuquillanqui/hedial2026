@@ -11,6 +11,8 @@
 <style>
     .clinical-shell { --navy:#172554; --blue:#2563eb; --cyan:#06b6d4; --soft:#eff6ff; }
     .clinical-hero { background:linear-gradient(125deg,var(--navy),var(--blue) 62%,var(--cyan)); color:#fff; border-radius:20px; padding:1.4rem 1.6rem; box-shadow:0 14px 34px rgba(37,99,235,.22); }
+    .clinical-patient { min-width:min(100%, 22rem); padding:.7rem 1rem; border:1px solid rgba(255,255,255,.3); border-radius:14px; background:rgba(255,255,255,.14); backdrop-filter:blur(4px); }
+    .clinical-patient-name { font-size:1rem; font-weight:800; }
     .clinical-tabs { background:#fff; padding:.45rem; border-radius:16px; box-shadow:0 7px 24px rgba(15,23,42,.08); }
     .clinical-tab { border:0; background:transparent; color:#64748b; border-radius:12px; padding:.85rem 1rem; font-weight:700; flex:1; }
     .clinical-tab.active { color:#fff; background:linear-gradient(100deg,var(--blue),#4f46e5); box-shadow:0 6px 16px rgba(37,99,235,.25); }
@@ -36,6 +38,13 @@
 <div class="container-fluid clinical-shell">
     <div class="clinical-hero d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
         <div><div class="text-uppercase opacity-75 small fw-bold">Atención integral</div><h2 class="mb-1 fw-bold"><i class="bi bi-heart-pulse me-2"></i>Consulta nefrológica</h2><div>Historia clínica, receta y seguimiento en un solo formulario</div></div>
+        @if($selectedPatient)
+            <div class="clinical-patient" aria-label="Paciente de la consulta">
+                <div class="text-uppercase opacity-75 small fw-bold">Paciente</div>
+                <div class="clinical-patient-name">{{ $selectedPatient->full_name }}</div>
+                <div class="small"><span class="opacity-75">DNI:</span> <strong>{{ $selectedPatient->dni ?: '—' }}</strong></div>
+            </div>
+        @endif
         <a href="{{ route('consultations.index') }}" class="btn btn-light fw-bold"><i class="bi bi-arrow-left me-1"></i> Volver</a>
     </div>
     @if($errors->any())<div class="alert alert-danger"><strong>Revise los datos:</strong><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
