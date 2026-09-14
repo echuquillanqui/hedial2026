@@ -67,19 +67,7 @@ class NephrologyConsultationController extends Controller
             ->when($request->doctor_status === 'assigned', fn ($query) => $query->whereNotNull('doctor_id'))
             ->when($request->doctor_status === 'unassigned', fn ($query) => $query->whereNull('doctor_id'))
             ->when(in_array($request->dialysis_attendance, ['attended', 'absent'], true), function ($query) use ($request) {
-                $method = $request->dialysis_attendance === 'attended' ? 'whereExists' : 'whereNotExists';
-
-                $query->{$method}(fn ($dialysis) => $dialysis
-                    ->selectRaw('1')
-                    ->from('orders as dialysis_orders')
-                    ->whereColumn('dialysis_orders.patient_id', 'nephrology_consultations.patient_id')
-                    ->whereColumn('dialysis_orders.fecha_orden', 'nephrology_consultations.consultation_date')
-                    ->where('dialysis_orders.attention_type', Fua::HEMODIALYSIS)
-                    ->whereExists(fn ($nurse) => $nurse
-                        ->selectRaw('1')
-                        ->from('nurses')
-                        ->whereColumn('nurses.order_id', 'dialysis_orders.id')
-                        ->whereNotNull('nurses.enfermero_que_finaliza_id')));
+                $query->whereDialysisAttendance($request->dialysis_attendance);
             });
 
         $duplicateIds = (clone $consultationsQuery)

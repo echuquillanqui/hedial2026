@@ -80,6 +80,7 @@ class AuditController extends Controller
 
         $consultations = NephrologyConsultation::query()
             ->whereNotNull('doctor_id')
+            ->whereDialysisAttendance('attended')
             ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
             ->when($date, fn (Builder $query) => $query->whereDate('consultation_date', $date))
             ->when($request->filled('doctor'), fn (Builder $query) => $query->where('doctor_id', $request->integer('doctor')))

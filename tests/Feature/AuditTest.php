@@ -495,6 +495,32 @@ class AuditTest extends TestCase
         ]);
         Fua::create(['order_id' => $order->id, 'type' => Fua::NEPHROLOGY, 'series' => '0000247', 'correlative' => 88, 'number' => '0000247-0000088']);
 
+        $dialysisOrder = Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $patient->id,
+            'codigo_unico' => 'ORD-HD-CONSULT-AUDIT',
+            'fecha_orden' => today(),
+            'attention_type' => Fua::HEMODIALYSIS,
+        ]);
+        Nurse::create([
+            'order_id' => $dialysisOrder->id,
+            'enfermero_que_finaliza_id' => $user->id,
+        ]);
+
+        $absentPatient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'CONSULTA GENERADA AUSENTE',
+            'secuencia' => 'L-M-V',
+            'modulo' => '3',
+            'turno' => '2',
+        ]);
+        NephrologyConsultation::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $absentPatient->id,
+            'doctor_id' => $doctor->id,
+            'consultation_date' => today(),
+        ]);
+
         $unassignedPatient = Patient::factory()->create(['sede_id' => $sede->id, 'first_name' => 'SIN MEDICO OCULTO']);
         NephrologyConsultation::create([
             'sede_id' => $sede->id,
@@ -520,6 +546,7 @@ class AuditTest extends TestCase
             ->assertSee('DRA. CONSULTA AUDITADA')
             ->assertSee('MED-001')
             ->assertSee("['Digit1', 'Numpad1']", false)
+            ->assertDontSee('CONSULTA GENERADA AUSENTE')
             ->assertDontSee('SIN MEDICO OCULTO');
     }
 
