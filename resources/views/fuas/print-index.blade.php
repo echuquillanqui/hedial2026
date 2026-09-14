@@ -66,6 +66,16 @@
                 <label class="form-label fw-semibold">Nombre o DNI del paciente</label>
                 <input name="patient" value="{{ request('patient') }}" class="form-control" placeholder="Escribe el nombre, apellido o DNI">
             </div>
+            @if($isConsultation)
+            <div class="fua-filter-select">
+                <label class="form-label fw-semibold" for="prescription_status">Estado de receta</label>
+                <select name="prescription_status" id="prescription_status" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="with_prescription" @selected(request('prescription_status') === 'with_prescription')>Con receta</option>
+                    <option value="without_prescription" @selected(request('prescription_status') === 'without_prescription')>Sin receta</option>
+                </select>
+            </div>
+            @endif
             @if($type === \App\Models\Fua::HEMODIALYSIS)
             <div class="fua-filter-select">
                 <label class="form-label fw-semibold" for="sequence">Secuencia del paciente</label>
@@ -116,7 +126,7 @@
             <div class="table-responsive"><table class="table table-hover align-middle mb-0">
                 <thead class="table-light"><tr>
                     <th class="text-center"><input type="checkbox" class="form-check-input" aria-label="Seleccionar esta página" @change="selected = $event.target.checked ? {{ $fuas->pluck('id')->values()->toJson() }} : []"></th>
-                    <th>FUA</th><th>Paciente</th><th>DNI</th><th>Fecha</th><th>Módulo</th><th>Turno</th><th>Sede</th><th class="text-end">Documento</th>
+                    <th>FUA</th><th>Paciente</th><th>DNI</th><th>Fecha</th><th>Módulo</th><th>Turno</th>@if($isConsultation)<th>Estado</th>@endif<th>Sede</th><th class="text-end">Documento</th>
                 </tr></thead>
                 <tbody>@forelse($fuas as $fua)
                     <tr>
@@ -127,10 +137,19 @@
                         <td>{{ $fua->order?->fecha_orden ? \Carbon\Carbon::parse($fua->order->fecha_orden)->format('d/m/Y') : $fua->created_at->format('d/m/Y') }}</td>
                         <td>{{ $fua->order?->patient?->modulo ? 'Módulo '.$fua->order->patient->modulo : ($fua->order?->sala ?: '—') }}</td>
                         <td>{{ $fua->order?->turno ? 'Turno '.$fua->order->turno : '—' }}</td>
+                        @if($isConsultation)
+                        <td>
+                            @if($fua->order?->nephrologyConsultation?->medications_exists)
+                                <span class="badge bg-success">Con receta</span>
+                            @else
+                                <span class="badge bg-secondary">Sin receta</span>
+                            @endif
+                        </td>
+                        @endif
                         <td>{{ $fua->order?->sede?->name ?: '—' }}</td>
                         <td class="text-end"><button type="button" @click="openPdf('{{ route('fuas.pdf', $fua) }}', 'FUA {{ $fua->number }}')" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>Ver</button></td>
                     </tr>
-                @empty<tr><td colspan="9" class="text-center text-muted py-5">No hay FUA de {{ $attentionLabel }} para los filtros seleccionados.</td></tr>@endforelse</tbody>
+                @empty<tr><td colspan="{{ $isConsultation ? 10 : 9 }}" class="text-center text-muted py-5">No hay FUA de {{ $attentionLabel }} para los filtros seleccionados.</td></tr>@endforelse</tbody>
             </table></div>
             @if($fuas->hasPages())<div class="card-footer bg-white">{{ $fuas->links() }}</div>@endif
         </div>

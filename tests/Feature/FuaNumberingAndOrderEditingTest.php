@@ -189,6 +189,59 @@ class FuaNumberingAndOrderEditingTest extends TestCase
         }
     }
 
+    public function test_nephrology_fua_print_view_shows_and_filters_prescription_status(): void
+    {
+        $user = User::factory()->create();
+        $patientWithPrescription = Patient::factory()->create();
+        $patientWithoutPrescription = Patient::factory()->create();
+
+        $orderWithPrescription = $this->order($patientWithPrescription, Fua::NEPHROLOGY, 'CON-RECETA');
+        $fuaWithPrescription = app(FuaNumberService::class)->createForOrder($orderWithPrescription);
+        $consultationWithPrescription = NephrologyConsultation::create([
+            'order_id' => $orderWithPrescription->id,
+            'patient_id' => $patientWithPrescription->id,
+            'consultation_date' => '2026-08-16',
+        ]);
+        $consultationWithPrescription->medications()->create([
+            'description' => 'Medicamento de prueba',
+            'prescribed_quantity' => 1,
+            'delivered_quantity' => 1,
+        ]);
+
+        $orderWithoutPrescription = $this->order($patientWithoutPrescription, Fua::NEPHROLOGY, 'SIN-RECETA');
+        $fuaWithoutPrescription = app(FuaNumberService::class)->createForOrder($orderWithoutPrescription);
+        NephrologyConsultation::create([
+            'order_id' => $orderWithoutPrescription->id,
+            'patient_id' => $patientWithoutPrescription->id,
+            'consultation_date' => '2026-08-16',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+        ]))->assertOk()
+            ->assertSee('Estado de receta')
+            ->assertSee('Con receta')
+            ->assertSee('Sin receta')
+            ->assertSee($fuaWithPrescription->number)
+            ->assertSee($fuaWithoutPrescription->number);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+            'prescription_status' => 'with_prescription',
+        ]))->assertOk()
+            ->assertSee($fuaWithPrescription->number)
+            ->assertDontSee($fuaWithoutPrescription->number)
+            ->assertSee('value="with_prescription" selected', false);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+            'prescription_status' => 'without_prescription',
+        ]))->assertOk()
+            ->assertDontSee($fuaWithPrescription->number)
+            ->assertSee($fuaWithoutPrescription->number)
+            ->assertSee('value="without_prescription" selected', false);
+    }
+
     public function test_hemodialysis_fua_print_defaults_to_the_patient_sequence_for_the_day(): void
     {
         Carbon::setTestNow('2026-09-09 08:00:00');

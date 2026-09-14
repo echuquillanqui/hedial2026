@@ -154,6 +154,23 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('FUA');
     }
 
+    public function test_nephrology_consultation_index_displays_thirty_records_per_page(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(31)->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(),
+            'fecha_orden' => '2026-08-14',
+        ])->assertRedirect(route('orders.index'));
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
+            ->assertOk()
+            ->assertViewHas('consultations', fn ($consultations): bool => $consultations->perPage() === 30
+                && $consultations->count() === 30
+                && $consultations->total() === 31);
+    }
+
     public function test_empty_nephrology_consultation_uses_the_current_medication_catalog_as_defaults(): void
     {
         $user = User::factory()->create();
