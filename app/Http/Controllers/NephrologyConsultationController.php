@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\FuaConfiguration;
 use App\Models\Fua;
+use App\Models\MedicationCatalog;
 use App\Models\NephrologyConsultation;
 use App\Models\Patient;
 use App\Models\User;
@@ -12,6 +13,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 
 class NephrologyConsultationController extends Controller
 {
@@ -21,14 +23,6 @@ class NephrologyConsultationController extends Controller
         $this->middleware('permission:nephrology.update')->only(['edit', 'update', 'updateDate', 'updateDates', 'destroyDuplicates']);
         $this->middleware('permission:nephrology.print')->only(['consultationPdf', 'prescriptionPdf', 'bulkPdf']);
     }
-
-    public const DEFAULT_MEDICATIONS = [
-        ['fua_code' => '06127', 'description' => 'Tiamina clorhidrato 100 mg tableta', 'c' => '1 tableta cada 24 horas en el desayuno', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-        ['fua_code' => '05491', 'description' => 'Piridoxina clorhidrato 50 mg tableta', 'c' => '1 tableta cada 24 horas en el desayuno', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-        ['fua_code' => '04523', 'description' => 'Losartan 50 mg tableta', 'c' => '1 tableta cada 12 horas, 8 AM y 8 PM', 'prescribed_quantity' => 60, 'delivered_quantity' => 60],
-        ['fua_code' => '00671', 'description' => 'Amlodipino (como Besilato) 10 mg tableta', 'c' => '1 tableta cada 24 horas, 9 AM', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-        ['fua_code' => '00200', 'description' => 'Ácido fólico 500 mcg (0.5 mg) tableta', 'c' => '1 tableta cada 24 horas en el desayuno', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-    ];
 
     public const AUXILIARY_EXAMS = [
         'Mensual' => ['Hematocrito', 'Hemoglobina', 'Nitrógeno ureico (urea pre y post diálisis)', 'Perfil de electrolitos (cloro, sodio y potasio)', 'Calcio total', 'Fósforo inorgánico (fosfato)'],
@@ -96,7 +90,7 @@ class NephrologyConsultationController extends Controller
             'consultation' => new NephrologyConsultation(['consultation_date' => now()]),
             'patients' => Patient::when(CurrentSede::id(), fn ($q, $sede) => $q->where('sede_id', $sede))->orderBy('surname')->get(),
             'doctors' => User::medicalProfessionals()->orderBy('name')->get(),
-            'medications' => collect(self::DEFAULT_MEDICATIONS),
+            'medications' => $this->defaultMedications(),
             'examGroups' => self::AUXILIARY_EXAMS,
             'currentDoctorId' => $currentDoctorId,
         ]);
@@ -124,7 +118,7 @@ class NephrologyConsultationController extends Controller
         $medications = $consultation->medications;
 
         if ($medications->isEmpty()) {
-            $medications = collect(self::DEFAULT_MEDICATIONS);
+            $medications = $this->defaultMedications();
         }
 
         $currentDoctorId = Auth::user()?->isMedicalProfessional() ? Auth::id() : null;
@@ -366,6 +360,18 @@ class NephrologyConsultationController extends Controller
             'medications.*.description' => 'medicamento',
             'diagnoses.*.codigo' => 'código CIE-10',
             'diagnoses.*.descripcion' => 'descripción del diagnóstico',
+        ]);
+    }
+
+    /** Build the editable default prescription from the current medication catalog. */
+    private function defaultMedications(): Collection
+    {
+        return MedicationCatalog::query()->orderBy('name')->get()->map(fn (MedicationCatalog $medication) => [
+            'fua_code' => $medication->code,
+            'description' => $medication->name,
+            'c' => $medication->indication,
+            'prescribed_quantity' => $medication->reference_quantity,
+            'delivered_quantity' => $medication->reference_quantity,
         ]);
     }
 
