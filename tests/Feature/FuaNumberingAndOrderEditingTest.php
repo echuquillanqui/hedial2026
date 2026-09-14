@@ -183,7 +183,9 @@ class FuaNumberingAndOrderEditingTest extends TestCase
                 ->assertSee($matchingFua->number)
                 ->assertDontSee($otherFua->number)
                 ->assertSee('value="2" selected', false)
-                ->assertSee('value="3" selected', false);
+                ->assertSee('value="3" selected', false)
+                ->assertSee('Módulo 2')
+                ->assertSee('Turno 3');
         }
     }
 
