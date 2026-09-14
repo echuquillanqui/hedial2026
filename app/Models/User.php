@@ -76,6 +76,24 @@ class User extends Authenticatable
             || str_contains(mb_strtoupper((string) $this->profession), 'ENFERMER');
     }
 
+    public function isMedicalProfessional(): bool
+    {
+        $profession = mb_strtolower((string) $this->profession);
+
+        return $this->hasRole('medico')
+            || str_contains($profession, 'medic')
+            || str_contains($profession, 'nefro');
+    }
+
+    public function scopeMedicalProfessionals(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query) {
+            $query->where('profession', 'like', '%MEDIC%')
+                ->orWhere('profession', 'like', '%NEFRO%')
+                ->orWhereHas('roles', fn (Builder $roles) => $roles->where('name', 'medico'));
+        });
+    }
+
     public function scopeNursingProfessionals(Builder $query): Builder
     {
         return $query->where(function (Builder $query) {

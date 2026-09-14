@@ -545,11 +545,53 @@ class NephrologyConsultationTest extends TestCase
             'medications.0.description' => ['El campo medicamento es obligatorio.'],
         ]));
 
-        $document = view('consultations.form', compact('consultation', 'patients', 'doctors', 'medications', 'examGroups', 'errors'))->render();
+        $currentDoctorId = null;
+        $document = view('consultations.form', compact('consultation', 'patients', 'doctors', 'medications', 'examGroups', 'errors', 'currentDoctorId'))->render();
 
         $this->assertStringContainsString('value="09:35"', $document);
         $this->assertStringContainsString('const validationErrors = ["medications.0.description"]', $document);
         $this->assertStringContainsString("element.classList.add('is-invalid')", $document);
+    }
+
+    public function test_fill_in_form_keeps_patient_read_only_and_selects_logged_in_doctor(): void
+    {
+        $doctor = User::factory()->create(['profession' => 'Médico Nefrólogo']);
+        $patient = Patient::factory()->create();
+        $this->actingAs($doctor)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-09-14',
+        ]);
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $response = $this->actingAs($doctor)->withoutMiddleware()
+            ->get(route('consultations.edit', $consultation));
+
+        $response->assertOk()
+            ->assertSee('name="patient_id" value="'.$patient->id.'"', false)
+            ->assertSee('id="patient_name"', false)
+            ->assertSee('readonly', false)
+            ->assertSee('value="'.$doctor->id.'" selected', false);
+    }
+
+    public function test_update_cannot_reassign_the_consultation_patient(): void
+    {
+        $doctor = User::factory()->create(['profession' => 'MEDICO']);
+        $patient = Patient::factory()->create();
+        $otherPatient = Patient::factory()->create();
+        $this->actingAs($doctor)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-09-14',
+        ]);
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $this->actingAs($doctor)->withoutMiddleware()->put(route('consultations.update', $consultation), [
+            'patient_id' => $otherPatient->id,
+            'doctor_id' => $doctor->id,
+            'consultation_date' => '2026-09-14',
+            'medications' => [NephrologyConsultationController::DEFAULT_MEDICATIONS[0]],
+        ])->assertRedirect(route('consultations.index'));
+
+        $this->assertSame($patient->id, $consultation->fresh()->patient_id);
     }
 
     public function test_consultation_document_lists_only_selected_exam_names_in_three_columns_without_prescription(): void
