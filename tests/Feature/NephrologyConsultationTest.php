@@ -73,10 +73,17 @@ class NephrologyConsultationTest extends TestCase
     {
         $user = User::factory()->create();
         $medication = MedicationCatalog::where('name', 'like', 'Epoetina alfa%2000%')->firstOrFail();
-        $medication->update(['code' => 'EPO-2000']);
+        $medication->update([
+            'code' => 'EPO-2000',
+            'indication' => 'Aplicar después de cada sesión de hemodiálisis.',
+        ]);
 
         $this->actingAs($user)->withoutMiddleware()->getJson(route('medication-catalog.search', ['q' => 'EPO-2000']))
-            ->assertOk()->assertJsonFragment(['name' => $medication->name, 'reference_quantity' => 12]);
+            ->assertOk()->assertJsonFragment([
+                'name' => $medication->name,
+                'reference_quantity' => 12,
+                'indication' => $medication->indication,
+            ]);
         $this->actingAs($user)->withoutMiddleware()->getJson(route('medication-catalog.search', ['q' => 'Eritropoyetina']))
             ->assertOk()->assertJsonFragment(['code' => 'EPO-2000']);
 
@@ -85,7 +92,12 @@ class NephrologyConsultationTest extends TestCase
             'patient_ids' => [$patient->id], 'fecha_orden' => '2026-09-13',
         ]);
         $this->actingAs($user)->withoutMiddleware()->get(route('consultations.edit', NephrologyConsultation::firstOrFail()))
-            ->assertOk()->assertSee('medication-search')->assertSee(route('medication-catalog.search'), false);
+            ->assertOk()
+            ->assertSee('medication-search')
+            ->assertSee('medication-indication')
+            ->assertSee('data-indication=', false)
+            ->assertSee("row.querySelector('.medication-indication').value=option.dataset.indication", false)
+            ->assertSee(route('medication-catalog.search'), false);
     }
 
     public function test_nephrology_order_form_filters_patients_by_schedule_and_search(): void
