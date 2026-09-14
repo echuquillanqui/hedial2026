@@ -315,6 +315,30 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('Imprimir bloque')->assertSee('Consulta')->assertSee('Receta')->assertSee('FUA');
     }
 
+    public function test_consultation_index_is_alphabetical_with_and_without_filters(): void
+    {
+        $user = User::factory()->create();
+        $patients = collect([
+            Patient::factory()->create(['surname' => 'ZAPATA', 'last_name' => 'ARIAS', 'first_name' => 'ANA', 'secuencia' => 'L-M-V']),
+            Patient::factory()->create(['surname' => 'ALVAREZ', 'last_name' => 'ZURITA', 'first_name' => 'CARLA', 'secuencia' => 'L-M-V']),
+            Patient::factory()->create(['surname' => 'ALVAREZ', 'last_name' => 'BENITES', 'first_name' => 'BEATRIZ', 'secuencia' => 'L-M-V']),
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(),
+            'fecha_orden' => '2026-08-14',
+        ]);
+
+        $expectedPatientIds = [$patients[2]->id, $patients[1]->id, $patients[0]->id];
+
+        foreach ([[], ['sequence' => 'L-M-V']] as $filters) {
+            $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', $filters))
+                ->assertOk()
+                ->assertViewHas('consultations', fn ($consultations): bool => $consultations
+                    ->pluck('patient_id')->all() === $expectedPatientIds);
+        }
+    }
+
     public function test_consultation_filters_use_patient_data_and_search_all_identifiers(): void
     {
         $user = User::factory()->create();
