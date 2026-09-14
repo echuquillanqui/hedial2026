@@ -242,6 +242,39 @@ class FuaNumberingAndOrderEditingTest extends TestCase
             ->assertSee('value="without_prescription" selected', false);
     }
 
+    public function test_nephrology_fua_uses_and_filters_the_doctor_saved_in_the_consultation(): void
+    {
+        $user = User::factory()->create();
+        $doctor = User::factory()->create(['name' => 'Dra. Nefróloga Registrada']);
+        $otherDoctor = User::factory()->create(['name' => 'Dr. No Asignado']);
+        $patient = Patient::factory()->create();
+        $order = $this->order($patient, Fua::NEPHROLOGY, 'NEFRO-MEDICO');
+        $fua = app(FuaNumberService::class)->createForOrder($order);
+        NephrologyConsultation::create([
+            'order_id' => $order->id,
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'consultation_date' => $order->fecha_orden,
+        ]);
+
+        $fua->load([
+            'responsibleUser', 'order.assignedProfessional', 'order.medical.usuarioInicia',
+            'order.nephrologyConsultation.doctor',
+        ]);
+        $method = new \ReflectionMethod(FuaController::class, 'responsible');
+        $this->assertTrue($doctor->is($method->invoke(app(FuaController::class), $fua)));
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+            'professional_id' => $doctor->id,
+        ]))->assertOk()->assertSee($fua->number)->assertSee($doctor->name);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+            'professional_id' => $otherDoctor->id,
+        ]))->assertOk()->assertDontSee($fua->number);
+    }
+
     public function test_hemodialysis_fua_print_defaults_to_the_patient_sequence_for_the_day(): void
     {
         Carbon::setTestNow('2026-09-09 08:00:00');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Fua;
 use App\Models\FuaConfiguration;
+use App\Models\NephrologyConsultation;
 use App\Models\Test;
 use App\Models\User;
 use App\Models\Order;
@@ -95,14 +96,25 @@ class FuaController extends Controller
             ->paginate(30)
             ->withQueryString();
 
+        $professionalIds = $type === Fua::NEPHROLOGY
+            ? NephrologyConsultation::query()
+                ->whereNotNull('doctor_id')
+                ->whereHas('order', fn (Builder $order) => $order
+                    ->where('attention_type', $type)
+                    ->when($sedeId, fn (Builder $order) => $order->where('sede_id', $sedeId)))
+                ->select('doctor_id')
+            : Order::query()
+                ->where('attention_type', $type)
+                ->whereNotNull('assigned_professional_id')
+                ->when($sedeId, fn (Builder $order) => $order->where('sede_id', $sedeId))
+                ->select('assigned_professional_id');
+
         return view('fuas.print-index', [
             'fuas' => $fuas,
             'date' => $date,
             'sequence' => $sequence,
             'type' => $type,
-            'professionals' => User::query()->whereIn('id', Order::query()
-                ->where('attention_type', $type)->whereNotNull('assigned_professional_id')
-                ->select('assigned_professional_id'))->orderBy('name')->get(),
+            'professionals' => User::query()->whereIn('id', $professionalIds)->orderBy('name')->get(),
             'sedes' => $request->user()->sedes()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -235,7 +247,12 @@ class FuaController extends Controller
             ->join('orders', 'orders.id', '=', 'fuas.order_id')
             ->where('fuas.type', $type)
             ->when($sede, fn (Builder $query) => $query->where('orders.sede_id', $sede))
-            ->when($professional, fn (Builder $query) => $query->where('orders.assigned_professional_id', $professional))
+            ->when($professional, function (Builder $query, int $professional) use ($type) {
+                $type === Fua::NEPHROLOGY
+                    ? $query->whereHas('order.nephrologyConsultation', fn (Builder $consultation) => $consultation
+                        ->where('doctor_id', $professional))
+                    : $query->where('orders.assigned_professional_id', $professional);
+            })
             ->when($status, fn (Builder $query) => $query->where('fuas.status', $status))
             ->when($type === Fua::NEPHROLOGY && $prescriptionStatus, function (Builder $query) use ($prescriptionStatus) {
                 $relation = 'order.nephrologyConsultation.medications';
@@ -355,7 +372,8 @@ class FuaController extends Controller
     {
         return [
             'order.patient', 'order.sede', 'order.medical.usuarioInicia',
-            'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.medications',
+            'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.doctor',
+            'order.nephrologyConsultation.medications',
             'responsibleUser', 'generatedBy', 'correctedFua.order.assignedProfessional',
         ];
     }
@@ -492,6 +510,7 @@ class FuaController extends Controller
     private function responsible(Fua $fua): ?User
     {
         return $fua->responsibleUser
+            ?: $fua->order?->nephrologyConsultation?->doctor
             ?: $fua->order?->assignedProfessional
             ?: $fua->order?->medical?->usuarioInicia;
     }

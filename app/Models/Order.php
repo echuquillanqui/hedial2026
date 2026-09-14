@@ -126,14 +126,14 @@ class Order extends Model
     }
 
     /**
-     * Limit the query to sessions whose complete hemodialysis workflow was closed.
+     * Limit the query to sessions finalized by nursing, the same criterion used
+     * by the FISSAL audit. Medical and treatment records may be incomplete even
+     * though the patient attended and nursing closed the session.
      */
     public function scopeFinalizedHemodialysis(Builder $query): Builder
     {
-        return $query
-            ->whereHas('medical', fn (Builder $medical) => $medical->whereNotNull('hora_final'))
-            ->whereHas('nurse', fn (Builder $nurse) => $nurse->whereNotNull('enfermero_que_finaliza_id'))
-            ->whereHas('treatments', fn (Builder $treatment) => $treatment->whereNotNull('hora'));
+        return $query->whereHas('nurse', fn (Builder $nurse) => $nurse
+            ->whereNotNull('enfermero_que_finaliza_id'));
     }
 
     public function extraMaterials()
