@@ -5,6 +5,8 @@
     $editing = $consultation->exists;
     $savedDiagnoses = old('diagnoses', $consultation->diagnoses ?: []);
     $savedExams = old('auxiliary_exams', $consultation->auxiliary_exams ?: []);
+    $selectedPatient = $patients->firstWhere('id', old('patient_id', $consultation->patient_id)) ?? $consultation->patient;
+    $selectedDoctorId = old('doctor_id', $currentDoctorId ?? $consultation->doctor_id);
 @endphp
 <style>
     .clinical-shell { --navy:#172554; --blue:#2563eb; --cyan:#06b6d4; --soft:#eff6ff; }
@@ -46,8 +48,8 @@
 
         <section id="anamnesis" class="clinical-panel active">
             <div class="card section-card shadow-sm mb-3"><div class="card-body"><h5 class="section-title mb-3">Datos de atención</h5><div class="row g-3">
-                <div class="col-lg-5"><label class="form-label">Paciente *</label><select name="patient_id" class="form-select" required><option value="">Seleccione...</option>@foreach($patients as $patient)<option value="{{ $patient->id }}" @selected(old('patient_id', $consultation->patient_id) == $patient->id)>{{ $patient->full_name }} — {{ $patient->dni }}</option>@endforeach</select></div>
-                <div class="col-lg-4"><label class="form-label">Médico</label><select name="doctor_id" class="form-select"><option value="">Usuario actual</option>@foreach($doctors as $doctor)<option value="{{ $doctor->id }}" @selected(old('doctor_id', $consultation->doctor_id) == $doctor->id)>{{ $doctor->name }}</option>@endforeach</select></div>
+                <div class="col-lg-5"><label class="form-label" for="patient_name">Paciente *</label><input type="hidden" name="patient_id" value="{{ $selectedPatient?->id }}"><input id="patient_name" class="form-control" value="{{ $selectedPatient ? $selectedPatient->full_name.' — '.$selectedPatient->dni : '' }}" readonly required aria-readonly="true"></div>
+                <div class="col-lg-4"><label class="form-label">Médico</label><select name="doctor_id" class="form-select"><option value="">Seleccione...</option>@foreach($doctors as $doctor)<option value="{{ $doctor->id }}" @selected((string) $selectedDoctorId === (string) $doctor->id)>{{ $doctor->name }}</option>@endforeach</select></div>
                 <div class="col-lg-2"><label class="form-label">Fecha *</label><input type="date" name="consultation_date" class="form-control" required value="{{ old('consultation_date', optional($consultation->consultation_date)->format('Y-m-d')) }}"></div>
                 <div class="col-lg-1"><label class="form-label">Hora</label><input type="time" name="consultation_time" class="form-control" value="{{ substr((string) old('consultation_time', $consultation->consultation_time), 0, 5) }}"></div>
                 @foreach(['blood_pressure'=>'Presión arterial','weight'=>'Peso (kg)','temperature'=>'Temperatura (°C)','heart_rate'=>'Frecuencia cardíaca','oxygen_saturation'=>'Sat. O₂ (%)'] as $field=>$label)<div class="col-md"><label class="form-label">{{ $label }}</label><input name="{{ $field }}" type="{{ $field === 'blood_pressure' ? 'text' : 'number' }}" step="{{ in_array($field, ['weight','temperature']) ? '0.1' : '1' }}" class="form-control" value="{{ old($field, $consultation->$field) }}"></div>@endforeach

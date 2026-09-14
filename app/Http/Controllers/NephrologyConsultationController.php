@@ -90,12 +90,15 @@ class NephrologyConsultationController extends Controller
 
     public function create()
     {
+        $currentDoctorId = Auth::user()?->isMedicalProfessional() ? Auth::id() : null;
+
         return view('consultations.form', [
             'consultation' => new NephrologyConsultation(['consultation_date' => now()]),
             'patients' => Patient::when(CurrentSede::id(), fn ($q, $sede) => $q->where('sede_id', $sede))->orderBy('surname')->get(),
-            'doctors' => User::where('profession', 'like', '%MEDIC%')->orderBy('name')->get(),
+            'doctors' => User::medicalProfessionals()->orderBy('name')->get(),
             'medications' => collect(self::DEFAULT_MEDICATIONS),
             'examGroups' => self::AUXILIARY_EXAMS,
+            'currentDoctorId' => $currentDoctorId,
         ]);
     }
 
@@ -106,7 +109,8 @@ class NephrologyConsultationController extends Controller
         DB::transaction(function () use ($data) {
             $medications = $data['medications']; unset($data['medications']);
             $data['sede_id'] = CurrentSede::id();
-            $data['doctor_id'] = $data['doctor_id'] ?? Auth::id();
+            $data['doctor_id'] = $data['doctor_id']
+                ?? (Auth::user()?->isMedicalProfessional() ? Auth::id() : null);
             $consultation = NephrologyConsultation::create($data);
             $consultation->medications()->createMany($medications);
         });
@@ -123,12 +127,15 @@ class NephrologyConsultationController extends Controller
             $medications = collect(self::DEFAULT_MEDICATIONS);
         }
 
+        $currentDoctorId = Auth::user()?->isMedicalProfessional() ? Auth::id() : null;
+
         return view('consultations.form', [
             'consultation' => $consultation,
             'patients' => Patient::when(CurrentSede::id(), fn ($q, $sede) => $q->where('sede_id', $sede))->orderBy('surname')->get(),
-            'doctors' => User::where('profession', 'like', '%MEDIC%')->orderBy('name')->get(),
+            'doctors' => User::medicalProfessionals()->orderBy('name')->get(),
             'medications' => $medications,
             'examGroups' => self::AUXILIARY_EXAMS,
+            'currentDoctorId' => $currentDoctorId,
         ]);
     }
 
@@ -137,6 +144,9 @@ class NephrologyConsultationController extends Controller
         $this->authorizeSede($consultation);
         abort_unless($consultation->order?->attention_type === Fua::NEPHROLOGY, 404);
         $data = $this->validated($request);
+        // The patient belongs to the generated consultation and cannot be
+        // reassigned from the fill-in form, even if the request is tampered with.
+        $data['patient_id'] = $consultation->patient_id;
         $data['diagnosis'] = $this->diagnosisSummary($data);
         DB::transaction(function () use ($data, $consultation) {
             $medications = $data['medications']; unset($data['medications']);
