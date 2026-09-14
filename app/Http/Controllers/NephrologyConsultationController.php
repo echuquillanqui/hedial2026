@@ -18,7 +18,7 @@ class NephrologyConsultationController extends Controller
     public function __construct()
     {
         $this->middleware('permission:nephrology.view')->only(['index']);
-        $this->middleware('permission:nephrology.update')->only(['edit', 'update', 'updateDate', 'updateDates']);
+        $this->middleware('permission:nephrology.update')->only(['edit', 'update', 'updateDate', 'updateDates', 'destroyDuplicates']);
         $this->middleware('permission:nephrology.print')->only(['consultationPdf', 'prescriptionPdf', 'bulkPdf']);
     }
 
@@ -50,7 +50,7 @@ class NephrologyConsultationController extends Controller
                 ->distinct()->pluck($field)->sort(SORT_NATURAL | SORT_FLAG_CASE)->values()];
         });
 
-        $consultations = NephrologyConsultation::with(['patient', 'doctor', 'order.fua'])
+        $consultationsQuery = NephrologyConsultation::with(['patient', 'doctor', 'order.fua'])
             ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->when($request->filled('search'), function ($query) use ($request) {
@@ -68,7 +68,16 @@ class NephrologyConsultationController extends Controller
             ->when($request->filled('date'), fn ($query) => $query->whereDate('consultation_date', $request->date))
             ->when($request->filled('sequence'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $request->sequence)))
             ->when($request->filled('shift'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('turno', $request->shift)))
-            ->when($request->filled('module'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $request->module)))
+            ->when($request->filled('module'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $request->module)));
+
+        $duplicateIds = (clone $consultationsQuery)
+            ->get(['nephrology_consultations.id', 'nephrology_consultations.patient_id', 'nephrology_consultations.consultation_date'])
+            ->groupBy(fn (NephrologyConsultation $item) => $item->patient_id.'|'.$item->consultation_date?->format('Y-m-d'))
+            ->flatMap(fn ($group) => $group->sortBy('id')->skip(1)->pluck('id'))
+            ->map(fn ($id) => (string) $id)
+            ->values();
+
+        $consultations = $consultationsQuery
             ->orderBy(Patient::select('surname')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
             ->orderBy(Patient::select('last_name')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
             ->orderBy(Patient::select('first_name')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
@@ -76,7 +85,7 @@ class NephrologyConsultationController extends Controller
             ->orderBy('nephrology_consultations.id')
             ->paginate(15)->withQueryString();
 
-        return view('consultations.index', compact('consultations', 'filterOptions'));
+        return view('consultations.index', compact('consultations', 'filterOptions', 'duplicateIds'));
     }
 
     public function create()
@@ -178,6 +187,56 @@ class NephrologyConsultationController extends Controller
         });
 
         return back()->with('success', $consultations->count().' consultas y sus FUA fueron actualizadas.');
+    }
+
+    public function destroyDuplicates(Request $request)
+    {
+        $data = $request->validate([
+            'consultations' => ['required', 'array', 'min:1'],
+            'consultations.*' => ['integer', 'distinct', 'exists:nephrology_consultations,id'],
+        ]);
+
+        [$deleted, $protected] = DB::transaction(function () use ($data) {
+            $consultations = NephrologyConsultation::query()
+                ->whereIn('id', $data['consultations'])
+                ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
+                ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+                ->with('order')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->get();
+
+            abort_unless($consultations->count() === count($data['consultations']), 403);
+            $deleted = 0;
+            $protected = 0;
+
+            foreach ($consultations as $consultation) {
+                $duplicates = NephrologyConsultation::query()
+                    ->where('patient_id', $consultation->patient_id)
+                    ->whereDate('consultation_date', $consultation->consultation_date)
+                    ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
+                    ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+                    ->count();
+
+                if ($duplicates < 2) {
+                    $protected++;
+                    continue;
+                }
+
+                // Deleting the order also removes its consultation, medications and FUA.
+                $consultation->order->delete();
+                $deleted++;
+            }
+
+            return [$deleted, $protected];
+        });
+
+        $message = $deleted.' consulta(s) duplicada(s) eliminada(s).';
+        if ($protected > 0) {
+            $message .= ' Se conservaron '.$protected.' registro(s) porque eran la única consulta restante.';
+        }
+
+        return back()->with($deleted > 0 ? 'success' : 'warning', $message);
     }
 
     public function prescriptionPdf(NephrologyConsultation $consultation)

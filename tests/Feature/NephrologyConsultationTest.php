@@ -315,6 +315,35 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('Imprimir bloque')->assertSee('Consulta')->assertSee('Receta')->assertSee('FUA');
     }
 
+    public function test_duplicate_consultations_can_be_selected_and_deleted_in_bulk_while_one_is_preserved(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        foreach (range(1, 3) as $unused) {
+            $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+                'patient_ids' => [$patient->id], 'fecha_orden' => '2026-08-14',
+            ])->assertRedirect();
+        }
+
+        $consultations = NephrologyConsultation::orderBy('id')->get();
+        $duplicateIds = $consultations->skip(1)->pluck('id')->map(fn ($id) => (string) $id)->values()->all();
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
+            ->assertOk()
+            ->assertSee('Seleccionar duplicados')
+            ->assertViewHas('duplicateIds', fn ($ids) => $ids->all() === $duplicateIds);
+
+        $this->actingAs($user)->withoutMiddleware()->delete(route('consultations.duplicates.destroy'), [
+            'consultations' => $consultations->pluck('id')->all(),
+        ])->assertRedirect()->assertSessionHas('success', fn ($message) => str_contains($message, '2 consulta(s) duplicada(s)'));
+
+        $this->assertDatabaseCount('nephrology_consultations', 1);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('fuas', 1);
+        $this->assertDatabaseHas('nephrology_consultations', ['id' => $consultations->first()->id]);
+    }
+
     public function test_consultation_index_is_alphabetical_with_and_without_filters(): void
     {
         $user = User::factory()->create();
