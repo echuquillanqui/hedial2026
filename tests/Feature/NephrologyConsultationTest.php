@@ -346,6 +346,28 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('Imprimir bloque')->assertSee('Consulta')->assertSee('Receta')->assertSee('FUA');
     }
 
+    public function test_consultation_index_filters_by_doctor_assignment_status(): void
+    {
+        $user = User::factory()->create();
+        $doctor = User::factory()->create();
+        $assignedPatient = Patient::factory()->create();
+        $unassignedPatient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$assignedPatient->id, $unassignedPatient->id],
+            'fecha_orden' => '2026-08-14',
+        ]);
+        NephrologyConsultation::where('patient_id', $assignedPatient->id)->update(['doctor_id' => $doctor->id]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', ['doctor_status' => 'assigned']))
+            ->assertOk()->assertSee($assignedPatient->full_name)->assertDontSee($unassignedPatient->full_name)
+            ->assertSee('<option value="assigned" selected>', false);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', ['doctor_status' => 'unassigned']))
+            ->assertOk()->assertSee($unassignedPatient->full_name)->assertDontSee($assignedPatient->full_name)
+            ->assertSee('<option value="unassigned" selected>', false);
+    }
+
     public function test_duplicate_consultations_can_be_selected_and_deleted_in_bulk_while_one_is_preserved(): void
     {
         $user = User::factory()->create();

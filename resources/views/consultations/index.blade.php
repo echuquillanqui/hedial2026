@@ -14,12 +14,13 @@
     @if(session('warning'))<div class="alert alert-warning">{{ session('warning') }}</div>@endif
 
     <div class="card filter-card mb-4"><div class="card-body p-3 p-lg-4"><form class="row g-3 align-items-end" x-ref="filters">
-        <div class="col-xl-4 col-md-6"><label class="filter-label">Paciente</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="search" value="{{ request('search') }}" class="form-control" placeholder="Nombre, apellido o DNI" @input.debounce.450ms="applyFilters()"></div></div>
+        <div class="col-xl-3 col-md-6"><label class="filter-label">Paciente</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="search" value="{{ request('search') }}" class="form-control" placeholder="Nombre, apellido o DNI" @input.debounce.450ms="applyFilters()"></div></div>
         <div class="col-xl-2 col-md-3"><label class="filter-label">Fecha</label><input type="date" name="date" value="{{ request('date') }}" class="form-control" @change="applyFilters()"></div>
         <div class="col-xl-2 col-md-3"><label class="filter-label">Secuencia</label><select name="sequence" class="form-select" @change="applyFilters()"><option value="">Todas</option>@foreach($filterOptions['secuencia'] as $value)<option value="{{ $value }}" @selected((string) request('sequence') === (string) $value)>{{ $value }}</option>@endforeach</select></div>
         <div class="col-xl-1 col-md-3"><label class="filter-label">Turno</label><select name="shift" class="form-select" @change="applyFilters()"><option value="">Todos</option>@foreach($filterOptions['turno'] as $value)<option value="{{ $value }}" @selected((string) request('shift') === (string) $value)>{{ $value }}</option>@endforeach</select></div>
         <div class="col-xl-1 col-md-3"><label class="filter-label">Módulo</label><select name="module" class="form-select" @change="applyFilters()"><option value="">Todos</option>@foreach($filterOptions['modulo'] as $value)<option value="{{ $value }}" @selected((string) request('module') === (string) $value)>{{ $value }}</option>@endforeach</select></div>
-        <div class="col-xl-2 col-md-4"><a href="{{ route('consultations.index') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-arrow-counterclockwise me-1"></i>Limpiar</a></div>
+        <div class="col-xl-2 col-md-4"><label class="filter-label">Médico</label><select name="doctor_status" class="form-select" @change="applyFilters()"><option value="">Todos</option><option value="assigned" @selected(request('doctor_status') === 'assigned')>Asignado</option><option value="unassigned" @selected(request('doctor_status') === 'unassigned')>Sin asignar</option></select></div>
+        <div class="col-xl-1 col-md-4"><a href="{{ route('consultations.index') }}" class="btn btn-outline-secondary w-100" title="Limpiar filtros" aria-label="Limpiar filtros"><i class="bi bi-arrow-counterclockwise"></i></a></div>
     </form></div></div>
 
     <div class="document-tabs mb-3" role="tablist" aria-label="Formato para imprimir">
