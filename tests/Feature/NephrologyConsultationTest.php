@@ -154,10 +154,17 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('FUA');
     }
 
-    public function test_empty_nephrology_consultation_uses_the_requested_default_medications(): void
+    public function test_empty_nephrology_consultation_uses_the_current_medication_catalog_as_defaults(): void
     {
         $user = User::factory()->create();
         $patient = Patient::factory()->create();
+        $catalogMedication = MedicationCatalog::firstOrFail();
+        $catalogMedication->update([
+            'code' => 'CAT-001',
+            'name' => 'Medicamento actualizado en catálogo',
+            'reference_quantity' => 17,
+            'indication' => 'Aplicar según catálogo.',
+        ]);
 
         $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
             'patient_ids' => [$patient->id],
@@ -168,27 +175,22 @@ class NephrologyConsultationTest extends TestCase
 
         $this->actingAs($user)->withoutMiddleware()->get(route('consultations.edit', $consultation))
             ->assertOk()
-            ->assertViewHas('medications', function ($medications): bool {
-                return $medications->values()->all() === NephrologyConsultationController::DEFAULT_MEDICATIONS
-                    && $medications->pluck('fua_code')->all() === ['06127', '05491', '04523', '00671', '00200']
-                    && $medications->pluck('c')->all() === [
-                        '1 tableta cada 24 horas en el desayuno',
-                        '1 tableta cada 24 horas en el desayuno',
-                        '1 tableta cada 12 horas, 8 AM y 8 PM',
-                        '1 tableta cada 24 horas, 9 AM',
-                        '1 tableta cada 24 horas en el desayuno',
-                    ]
-                    && $medications->pluck('prescribed_quantity')->all() === [30, 30, 60, 30, 30]
-                    && $medications->pluck('delivered_quantity')->all() === [30, 30, 60, 30, 30];
+            ->assertViewHas('medications', function ($medications) use ($catalogMedication): bool {
+                $default = $medications->firstWhere('description', $catalogMedication->name);
+
+                return $medications->count() === MedicationCatalog::count()
+                    && $default === [
+                        'fua_code' => 'CAT-001',
+                        'description' => 'Medicamento actualizado en catálogo',
+                        'c' => 'Aplicar según catálogo.',
+                        'prescribed_quantity' => 17,
+                        'delivered_quantity' => 17,
+                    ];
             })
-            ->assertSee('Tiamina clorhidrato 100 mg tableta')
-            ->assertSee('Piridoxina clorhidrato 50 mg tableta')
-            ->assertSee('Losartan 50 mg tableta')
-            ->assertSee('Amlodipino (como Besilato) 10 mg tableta')
-            ->assertSee('Ácido fólico 500 mcg (0.5 mg) tableta')
-            ->assertDontSee('Epoetina alfa')
-            ->assertDontSee('Vitamina B12')
-            ->assertDontSee('Hierro sacarato');
+            ->assertSee('Medicamento actualizado en catálogo')
+            ->assertSee('Epoetina alfa')
+            ->assertSee('Vitamina B12')
+            ->assertSee('Losartan potásico 50 mg TAB');
     }
 
     public function test_second_nephrology_consultation_copies_the_previous_clinical_data_and_medications(): void
@@ -464,7 +466,7 @@ class NephrologyConsultationTest extends TestCase
             'doctor_id' => $user->id,
             'consultation_date' => '2026-08-14',
         ]);
-        $consultation->medications()->create(NephrologyConsultationController::DEFAULT_MEDICATIONS[0] + [
+        $consultation->medications()->create($this->sampleMedication() + [
             'prescribed_quantity' => 2, 'delivered_quantity' => 1,
         ]);
 
@@ -550,7 +552,7 @@ class NephrologyConsultationTest extends TestCase
         $consultation->exists = true;
         $patients = collect();
         $doctors = collect();
-        $medications = collect(NephrologyConsultationController::DEFAULT_MEDICATIONS);
+        $medications = collect([$this->sampleMedication()]);
         $examGroups = NephrologyConsultationController::AUXILIARY_EXAMS;
         $errors = new \Illuminate\Support\ViewErrorBag();
         $errors->put('default', new \Illuminate\Support\MessageBag([
@@ -604,7 +606,7 @@ class NephrologyConsultationTest extends TestCase
             'patient_id' => $otherPatient->id,
             'doctor_id' => $doctor->id,
             'consultation_date' => '2026-09-14',
-            'medications' => [NephrologyConsultationController::DEFAULT_MEDICATIONS[0]],
+            'medications' => [$this->sampleMedication()],
         ])->assertRedirect(route('consultations.index'));
 
         $this->assertSame($patient->id, $consultation->fresh()->patient_id);
@@ -624,7 +626,7 @@ class NephrologyConsultationTest extends TestCase
                 'Trimestral|Albúmina',
             ],
         ]);
-        $consultation->medications()->create(NephrologyConsultationController::DEFAULT_MEDICATIONS[0]);
+        $consultation->medications()->create($this->sampleMedication());
         $consultation->load(['patient', 'doctor', 'sede']);
 
         $document = view('consultations.consultation_pdf', compact('consultation'))->render();
@@ -641,5 +643,16 @@ class NephrologyConsultationTest extends TestCase
         $this->assertStringNotContainsString('Mensual|', $document);
         $this->assertStringNotContainsString('Tratamiento prescrito', $document);
         $this->assertStringNotContainsString('Tiamina 100 mg tableta', $document);
+    }
+
+    private function sampleMedication(): array
+    {
+        return [
+            'fua_code' => '06127',
+            'description' => 'Tiamina clorhidrato 100 mg tableta',
+            'c' => '1 tableta cada 24 horas en el desayuno',
+            'prescribed_quantity' => 30,
+            'delivered_quantity' => 30,
+        ];
     }
 }
