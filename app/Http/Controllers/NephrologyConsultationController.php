@@ -6,6 +6,7 @@ use App\Models\FuaConfiguration;
 use App\Models\Fua;
 use App\Models\MedicationCatalog;
 use App\Models\NephrologyConsultation;
+use App\Models\Order;
 use App\Models\Patient;
 use App\Models\User;
 use App\Support\CurrentSede;
@@ -64,7 +65,17 @@ class NephrologyConsultationController extends Controller
             ->when($request->filled('shift'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('turno', $request->shift)))
             ->when($request->filled('module'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $request->module)))
             ->when($request->doctor_status === 'assigned', fn ($query) => $query->whereNotNull('doctor_id'))
-            ->when($request->doctor_status === 'unassigned', fn ($query) => $query->whereNull('doctor_id'));
+            ->when($request->doctor_status === 'unassigned', fn ($query) => $query->whereNull('doctor_id'))
+            ->when(in_array($request->dialysis_attendance, ['attended', 'absent'], true), function ($query) use ($request) {
+                $method = $request->dialysis_attendance === 'attended' ? 'whereExists' : 'whereNotExists';
+
+                $query->{$method}(fn ($dialysis) => $dialysis
+                    ->selectRaw('1')
+                    ->from('orders as dialysis_orders')
+                    ->whereColumn('dialysis_orders.patient_id', 'nephrology_consultations.patient_id')
+                    ->whereColumn('dialysis_orders.fecha_orden', 'nephrology_consultations.consultation_date')
+                    ->where('dialysis_orders.attention_type', Fua::HEMODIALYSIS));
+            });
 
         $duplicateIds = (clone $consultationsQuery)
             ->get(['nephrology_consultations.id', 'nephrology_consultations.patient_id', 'nephrology_consultations.consultation_date'])
@@ -80,6 +91,24 @@ class NephrologyConsultationController extends Controller
             ->orderBy(Patient::select('other_names')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
             ->orderBy('nephrology_consultations.id')
             ->paginate(30)->withQueryString();
+
+        $dialysisSessions = Order::query()
+            ->whereIn('patient_id', $consultations->pluck('patient_id')->unique())
+            ->where('attention_type', Fua::HEMODIALYSIS)
+            ->orderBy('fecha_orden')
+            ->get(['patient_id', 'fecha_orden'])
+            ->groupBy('patient_id');
+
+        $consultations->getCollection()->each(function (NephrologyConsultation $consultation) use ($dialysisSessions) {
+            $consultationDate = $consultation->consultation_date?->toDateString();
+            $patientSessions = $dialysisSessions->get($consultation->patient_id, collect());
+
+            $consultation->dialysis_attended = $patientSessions
+                ->contains(fn (Order $order) => $order->fecha_orden?->toDateString() === $consultationDate);
+            $consultation->next_dialysis_date = $patientSessions
+                ->first(fn (Order $order) => $order->fecha_orden?->toDateString() > $consultationDate)
+                ?->fecha_orden;
+        });
 
         return view('consultations.index', compact('consultations', 'filterOptions', 'duplicateIds'));
     }
