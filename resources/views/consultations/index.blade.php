@@ -5,12 +5,13 @@
     $visibleIds = $consultations->pluck('id')->map(fn ($id) => (string) $id)->values();
     $fuaByConsultation = $consultations->mapWithKeys(fn ($item) => [(string) $item->id => $item->order?->fua?->id]);
 @endphp
-<div class="container-fluid py-4 nephrology-index" x-data="{ selected: [], format: 'consultation', fuaMap: @js($fuaByConsultation), applyFilters() { this.$refs.filters.requestSubmit() } }">
+<div class="container-fluid py-4 nephrology-index" x-data="{ selected: [], format: 'consultation', duplicateIds: @js($duplicateIds), fuaMap: @js($fuaByConsultation), applyFilters() { this.$refs.filters.requestSubmit() } }">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div><span class="overline">GESTIÓN CLÍNICA</span><h2 class="mb-1">Consultas nefrológicas</h2><p class="text-muted mb-0">Gestiona la consulta, receta médica y FUA desde una sola vista.</p></div>
         <a href="{{ route('orders.nephrology.create') }}" class="btn btn-success rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Generar orden</a>
     </div>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+    @if(session('warning'))<div class="alert alert-warning">{{ session('warning') }}</div>@endif
 
     <div class="card filter-card mb-4"><div class="card-body p-3 p-lg-4"><form class="row g-3 align-items-end" x-ref="filters">
         <div class="col-xl-4 col-md-6"><label class="filter-label">Paciente</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="search" value="{{ request('search') }}" class="form-control" placeholder="Nombre, apellido o DNI" @input.debounce.450ms="applyFilters()"></div></div>
@@ -37,11 +38,20 @@
     @endcan
 
     @can('nephrology.update')
+    <div class="d-flex justify-content-end mb-3">
+        <button type="button" class="btn btn-outline-danger" @click="selected = [...duplicateIds]" :disabled="duplicateIds.length === 0"><i class="bi bi-files me-2"></i>Seleccionar duplicados <span class="badge text-bg-danger ms-1" x-text="duplicateIds.length"></span></button>
+    </div>
     <form method="POST" action="{{ route('consultations.dates.update') }}" class="bulk-date-form mb-3" x-show="selected.length" x-cloak>
         @csrf @method('PATCH')
         <template x-for="id in selected" :key="`date-${id}`"><input type="hidden" name="consultations[]" :value="id"></template>
         <span><strong x-text="selected.length"></strong> consulta(s): asignar una misma fecha a la orden, consulta y FUA</span>
         <div class="d-flex gap-2"><input type="date" name="consultation_date" class="form-control form-control-sm" required><button class="btn btn-light btn-sm fw-semibold" onclick="return confirm('¿Actualizar la fecha de todos los registros seleccionados?')"><i class="bi bi-calendar-check me-2"></i>Actualizar fechas</button></div>
+    </form>
+    <form method="POST" action="{{ route('consultations.duplicates.destroy') }}" class="bulk-delete-form mb-3" x-show="selected.length" x-cloak>
+        @csrf @method('DELETE')
+        <template x-for="id in selected" :key="`delete-${id}`"><input type="hidden" name="consultations[]" :value="id"></template>
+        <span><strong x-text="selected.length"></strong> consulta(s) seleccionada(s). Siempre se conservará al menos una consulta por paciente y fecha.</span>
+        <button class="btn btn-danger btn-sm fw-semibold" onclick="return confirm('¿Eliminar las consultas duplicadas seleccionadas, junto con sus FUA y recetas asociadas? Esta acción no se puede deshacer.')"><i class="bi bi-trash3 me-2"></i>Eliminar duplicados</button>
     </form>
     @endcan
 
@@ -53,5 +63,6 @@
 .nephrology-index{--clinical:#087f5b}.overline{font-size:11px;letter-spacing:2px;color:var(--clinical);font-weight:800}.nephrology-index h2{font-weight:800;color:#163d35}.filter-card,.table-card{border:0;border-radius:16px;box-shadow:0 8px 28px #183f3512;overflow:hidden}.filter-label{display:block;color:#52736c;font-size:10px;font-weight:800;letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase}.filter-card .input-group-text{background:#fff;border-right:0}.filter-card .input-group .form-control{border-left:0}.document-tabs{display:flex;gap:6px;border-bottom:1px solid #dce8e4}.document-tabs button{border:0;background:transparent;color:#668078;padding:11px 20px;font-weight:700;border-bottom:3px solid transparent}.document-tabs button.active{color:var(--clinical);border-color:var(--clinical)}.document-tabs i{margin-right:7px}.table thead th{background:#f1f7f5;color:#52736c;font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:14px 12px;border:0}.table td{padding:15px 12px;border-color:#edf2f0}.patient-name{font-weight:750;color:#183f37}.table small{color:#82958f}.schedule-badge{display:inline-block;background:#e0f4ed;color:var(--clinical);border-radius:8px;padding:4px 8px;font-weight:800;font-size:12px}.bulkbar{background:linear-gradient(90deg,#07684c,#07966b);color:#fff;padding:12px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center}.selector{width:42px}.empty-state{text-align:center!important;padding:55px!important;color:#82958f}.empty-state i,.empty-state strong,.empty-state span{display:block}.empty-state i{font-size:2rem}.form-control:focus,.form-select:focus{border-color:#63b99d;box-shadow:0 0 0 .2rem #087f5b1f}
 .date-editor{display:flex;align-items:center;gap:5px;min-width:178px}.date-editor .form-control{min-width:135px}
 .bulk-date-form{background:#e7f5ef;border:1px solid #b8dfd0;border-radius:12px;color:#185c48;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:15px}.bulk-date-form .form-control{min-width:145px}.bulk-date-form .btn{white-space:nowrap;color:#087f5b}
+.bulk-delete-form{background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:15px}.bulk-delete-form .btn{white-space:nowrap}
 </style>
 @endsection
