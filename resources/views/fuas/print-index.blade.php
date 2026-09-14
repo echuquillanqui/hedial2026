@@ -7,7 +7,41 @@
     $bulkRoute = $isMultisectorial ? route('fuas.multisectorial.bulk-pdf') : ($isConsultation ? route('fuas.nephrology.bulk-pdf') : route('fuas.hemodialysis.bulk-pdf'));
     $attentionLabel = mb_strtolower(\App\Support\ClinicalService::label($type));
 @endphp
-<div class="container py-3" x-data="fuaPdfViewer()">
+<style>
+    .fua-print-page {
+        max-width: 1540px;
+    }
+
+    .fua-filter-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 1.8fr 1.15fr 1.15fr 1.15fr .75fr 1.15fr;
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .fua-filter-check { padding-top: 2rem; }
+    .fua-filter-action { padding-top: 1.75rem; }
+
+    @media (max-width: 1199.98px) {
+        .fua-filter-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+        .fua-filter-date,
+        .fua-filter-select,
+        .fua-filter-check,
+        .fua-filter-action { grid-column: span 3; }
+        .fua-filter-patient { grid-column: span 6; }
+    }
+
+    @media (max-width: 767.98px) {
+        .fua-filter-date,
+        .fua-filter-patient,
+        .fua-filter-select,
+        .fua-filter-check,
+        .fua-filter-action { grid-column: 1 / -1; }
+        .fua-filter-check,
+        .fua-filter-action { padding-top: 0; }
+    }
+</style>
+<div class="container-fluid fua-print-page px-3 px-xl-4 py-3" x-data="fuaPdfViewer()">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <span class="text-uppercase small fw-bold text-primary">Impresiones</span>
@@ -17,23 +51,23 @@
     </div>
 
     <div class="card shadow-sm mb-4"><div class="card-body">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3 col-lg-2">
+        <form method="GET" class="fua-filter-grid">
+            <div class="fua-filter-date">
                 <label class="form-label fw-semibold">Fecha de atención</label>
                 <input type="date" name="date" value="{{ $date }}" class="form-control" @disabled(request()->boolean('all_dates'))>
             </div>
             @if($isMultisectorial)
             <input type="hidden" name="type" value="{{ $type }}">
-            <div class="col-md-3 col-lg-2"><label class="form-label fw-semibold">Profesional</label><select name="professional_id" class="form-select"><option value="">Todos</option>@foreach($professionals as $professional)<option value="{{ $professional->id }}" @selected((string)request('professional_id') === (string)$professional->id)>{{ $professional->name }}</option>@endforeach</select></div>
-            <div class="col-md-3 col-lg-2"><label class="form-label fw-semibold">Estado FUA</label><select name="status" class="form-select"><option value="">Todos</option><option value="GENERATED" @selected(request('status') === 'GENERATED')>Generada</option></select></div>
-            <div class="col-md-3 col-lg-2"><label class="form-label fw-semibold">Sede</label><select name="sede_id" class="form-select"><option value="">Sede activa</option>@foreach($sedes as $sede)<option value="{{ $sede->id }}" @selected((string)request('sede_id') === (string)$sede->id)>{{ $sede->name }}</option>@endforeach</select></div>
+            <div class="fua-filter-select"><label class="form-label fw-semibold">Profesional</label><select name="professional_id" class="form-select"><option value="">Todos</option>@foreach($professionals as $professional)<option value="{{ $professional->id }}" @selected((string)request('professional_id') === (string)$professional->id)>{{ $professional->name }}</option>@endforeach</select></div>
+            <div class="fua-filter-select"><label class="form-label fw-semibold">Estado FUA</label><select name="status" class="form-select"><option value="">Todos</option><option value="GENERATED" @selected(request('status') === 'GENERATED')>Generada</option></select></div>
+            <div class="fua-filter-select"><label class="form-label fw-semibold">Sede</label><select name="sede_id" class="form-select"><option value="">Sede activa</option>@foreach($sedes as $sede)<option value="{{ $sede->id }}" @selected((string)request('sede_id') === (string)$sede->id)>{{ $sede->name }}</option>@endforeach</select></div>
             @endif
-            <div class="col-md-5 col-lg-3">
+            <div class="fua-filter-patient">
                 <label class="form-label fw-semibold">Nombre o DNI del paciente</label>
                 <input name="patient" value="{{ request('patient') }}" class="form-control" placeholder="Escribe el nombre, apellido o DNI">
             </div>
             @if($type === \App\Models\Fua::HEMODIALYSIS)
-            <div class="col-md-3 col-lg-2">
+            <div class="fua-filter-select">
                 <label class="form-label fw-semibold" for="sequence">Secuencia del paciente</label>
                 <select name="sequence" id="sequence" class="form-select">
                     <option value="">Todas las secuencias</option>
@@ -43,7 +77,7 @@
                 <div class="form-text">Se selecciona automáticamente según la fecha.</div>
             </div>
             @endif
-            @unless($isMultisectorial)<div class="col-md-3 col-lg-2">
+            @unless($isMultisectorial)<div class="fua-filter-select">
                 <label class="form-label fw-semibold" for="modulo">Módulo</label>
                 <select name="modulo" id="modulo" class="form-select">
                     <option value="">Todos los módulos</option>
@@ -52,7 +86,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-3 col-lg-2">
+            <div class="fua-filter-select">
                 <label class="form-label fw-semibold" for="turno">Turno</label>
                 <select name="turno" id="turno" class="form-select">
                     <option value="">Todos los turnos</option>
@@ -61,13 +95,13 @@
                     @endforeach
                 </select>
             </div>@endunless
-            <div class="col-md-3 col-lg-1">
-                <div class="form-check mb-2">
+            <div class="fua-filter-check">
+                <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="all_dates" value="1" id="allDates" @checked(request()->boolean('all_dates')) onchange="this.form.querySelector('[name=date]').disabled=this.checked">
                     <label class="form-check-label" for="allDates">Todas las FUA</label>
                 </div>
             </div>
-            <div class="col-md-3 col-lg-2"><button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Filtrar</button></div>
+            <div class="fua-filter-action"><button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Filtrar</button></div>
         </form>
     </div></div>
 
@@ -82,7 +116,7 @@
             <div class="table-responsive"><table class="table table-hover align-middle mb-0">
                 <thead class="table-light"><tr>
                     <th class="text-center"><input type="checkbox" class="form-check-input" aria-label="Seleccionar esta página" @change="selected = $event.target.checked ? {{ $fuas->pluck('id')->values()->toJson() }} : []"></th>
-                    <th>FUA</th><th>Paciente</th><th>DNI</th><th>Fecha</th><th>Sede</th><th class="text-end">Documento</th>
+                    <th>FUA</th><th>Paciente</th><th>DNI</th><th>Fecha</th><th>Módulo</th><th>Turno</th><th>Sede</th><th class="text-end">Documento</th>
                 </tr></thead>
                 <tbody>@forelse($fuas as $fua)
                     <tr>
@@ -91,10 +125,12 @@
                         <td>{{ $fua->order?->patient?->full_name ?: 'Sin paciente' }}</td>
                         <td>{{ $fua->order?->patient?->dni ?: '—' }}</td>
                         <td>{{ $fua->order?->fecha_orden ? \Carbon\Carbon::parse($fua->order->fecha_orden)->format('d/m/Y') : $fua->created_at->format('d/m/Y') }}</td>
+                        <td>{{ $fua->order?->patient?->modulo ? 'Módulo '.$fua->order->patient->modulo : ($fua->order?->sala ?: '—') }}</td>
+                        <td>{{ $fua->order?->turno ? 'Turno '.$fua->order->turno : '—' }}</td>
                         <td>{{ $fua->order?->sede?->name ?: '—' }}</td>
                         <td class="text-end"><button type="button" @click="openPdf('{{ route('fuas.pdf', $fua) }}', 'FUA {{ $fua->number }}')" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>Ver</button></td>
                     </tr>
-                @empty<tr><td colspan="7" class="text-center text-muted py-5">No hay FUA de {{ $attentionLabel }} para los filtros seleccionados.</td></tr>@endforelse</tbody>
+                @empty<tr><td colspan="9" class="text-center text-muted py-5">No hay FUA de {{ $attentionLabel }} para los filtros seleccionados.</td></tr>@endforelse</tbody>
             </table></div>
             @if($fuas->hasPages())<div class="card-footer bg-white">{{ $fuas->links() }}</div>@endif
         </div>
