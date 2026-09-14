@@ -11,6 +11,7 @@ use App\Models\Treatment;
 use App\Models\ExtraMaterial;
 use App\Models\HemodialysisMaterialConsumption;
 use App\Services\MultisectorialOrderService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Order extends Model
@@ -122,6 +123,17 @@ class Order extends Model
     {
         // Asegúrate de que sea hasMany (una orden tiene muchos tratamientos)
         return $this->hasMany(Treatment::class, 'order_id');
+    }
+
+    /**
+     * Limit the query to sessions whose complete hemodialysis workflow was closed.
+     */
+    public function scopeFinalizedHemodialysis(Builder $query): Builder
+    {
+        return $query
+            ->whereHas('medical', fn (Builder $medical) => $medical->whereNotNull('hora_final'))
+            ->whereHas('nurse', fn (Builder $nurse) => $nurse->whereNotNull('enfermero_que_finaliza_id'))
+            ->whereHas('treatments', fn (Builder $treatment) => $treatment->whereNotNull('hora'));
     }
 
     public function extraMaterials()
