@@ -5,9 +5,12 @@ namespace Tests\Feature;
 use App\Http\Controllers\NephrologyConsultationController;
 use App\Models\Fua;
 use App\Models\MedicationCatalog;
+use App\Models\Medical;
 use App\Models\NephrologyConsultation;
+use App\Models\Nurse;
 use App\Models\Order;
 use App\Models\Patient;
+use App\Models\Treatment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -382,10 +385,11 @@ class NephrologyConsultationTest extends TestCase
         ])->assertRedirect();
 
         foreach ([
-            [$attendedPatient, '2026-09-10', 'HD-ATTENDED'],
-            [$absentPatient, '2026-09-12', 'HD-NEXT'],
-        ] as [$patient, $date, $code]) {
-            Order::create([
+            [$attendedPatient, '2026-09-10', 'HD-ATTENDED', true],
+            [$absentPatient, '2026-09-10', 'HD-NOT-FINISHED', false],
+            [$absentPatient, '2026-09-12', 'HD-NEXT', true],
+        ] as [$patient, $date, $code, $finalized]) {
+            $order = Order::create([
                 'patient_id' => $patient->id,
                 'codigo_unico' => $code,
                 'sala' => 'SALA 1',
@@ -395,6 +399,12 @@ class NephrologyConsultationTest extends TestCase
                 'fecha_orden' => $date,
                 'sede_id' => $patient->sede_id,
             ]);
+
+            if ($finalized) {
+                Medical::create(['order_id' => $order->id, 'hora_final' => '12:00']);
+                Nurse::create(['order_id' => $order->id, 'enfermero_que_finaliza_id' => $user->id]);
+                Treatment::create(['order_id' => $order->id, 'hora' => '11:30']);
+            }
         }
 
         $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
@@ -412,6 +422,12 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee($absentPatient->full_name)
             ->assertDontSee($attendedPatient->full_name)
             ->assertSee('<option value="absent" selected>', false);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', [
+            'dialysis_attendance' => 'attended',
+        ]))->assertOk()
+            ->assertSee($attendedPatient->full_name)
+            ->assertDontSee($absentPatient->full_name);
     }
 
     public function test_duplicate_consultations_can_be_selected_and_deleted_in_bulk_while_one_is_preserved(): void
