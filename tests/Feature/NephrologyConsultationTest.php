@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\NephrologyConsultationController;
-use App\Models\NephrologyConsultation;
+use App\Models\Fua;
 use App\Models\MedicationCatalog;
+use App\Models\NephrologyConsultation;
+use App\Models\Order;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -366,6 +368,50 @@ class NephrologyConsultationTest extends TestCase
         $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', ['doctor_status' => 'unassigned']))
             ->assertOk()->assertSee($unassignedPatient->full_name)->assertDontSee($assignedPatient->full_name)
             ->assertSee('<option value="unassigned" selected>', false);
+    }
+
+    public function test_consultation_index_detects_dialysis_attendance_and_the_next_session(): void
+    {
+        $user = User::factory()->create();
+        $attendedPatient = Patient::factory()->create();
+        $absentPatient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$attendedPatient->id, $absentPatient->id],
+            'fecha_orden' => '2026-09-10',
+        ])->assertRedirect();
+
+        foreach ([
+            [$attendedPatient, '2026-09-10', 'HD-ATTENDED'],
+            [$absentPatient, '2026-09-12', 'HD-NEXT'],
+        ] as [$patient, $date, $code]) {
+            Order::create([
+                'patient_id' => $patient->id,
+                'codigo_unico' => $code,
+                'sala' => 'SALA 1',
+                'turno' => '1',
+                'attention_type' => Fua::HEMODIALYSIS,
+                'horas_dialisis' => 3.5,
+                'fecha_orden' => $date,
+                'sede_id' => $patient->sede_id,
+            ]);
+        }
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
+            ->assertOk()
+            ->assertSee('Asistencia HD')
+            ->assertSee('Sí vino')
+            ->assertSee('No vino')
+            ->assertSee('Siguiente sesión:')
+            ->assertSee('12/09/2026')
+            ->assertSee('Usar esta fecha');
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', [
+            'dialysis_attendance' => 'absent',
+        ]))->assertOk()
+            ->assertSee($absentPatient->full_name)
+            ->assertDontSee($attendedPatient->full_name)
+            ->assertSee('<option value="absent" selected>', false);
     }
 
     public function test_duplicate_consultations_can_be_selected_and_deleted_in_bulk_while_one_is_preserved(): void
