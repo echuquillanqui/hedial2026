@@ -215,9 +215,7 @@
         const minutosTotales = Math.round(duracion * 60);
         let [hBase, mBase] = horaBaseInput.value.split(':').map(Number);
         let minutosAcumulados = 0;
-
-        tbody.innerHTML = '';
-        insertarFila(horaBaseInput.value);
+        const horasCalculadas = [horaBaseInput.value];
 
         while (minutosAcumulados < minutosTotales) {
             const minutosRestantes = minutosTotales - minutosAcumulados;
@@ -228,8 +226,20 @@
             const h = Math.floor(minutosDesdeInicio / 60);
             const m = minutosDesdeInicio % 60;
             const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-            insertarFila(timeStr);
+            horasCalculadas.push(timeStr);
         }
+
+        // Reutilizar las filas conserva PA, FC, QB, CND, presiones y observaciones
+        // ya registradas. Si faltan filas, solo se agregan las necesarias.
+        horasCalculadas.forEach((hora, index) => {
+            let fila = tbody.rows[index];
+            if (!fila) {
+                insertarFila(hora);
+                fila = tbody.rows[index];
+            }
+
+            fila.querySelector('.hora-input').value = hora;
+        });
     }
 
     function insertarFila(hora) {
