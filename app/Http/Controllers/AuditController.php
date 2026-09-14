@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Fua;
 use App\Models\LaboratoryOrder;
+use App\Models\NephrologyConsultation;
 use App\Models\Order;
 use App\Models\Patient;
 use App\Support\ClinicalService;
@@ -65,6 +66,57 @@ class AuditController extends Controller
             ->withQueryString();
 
         return view('audit.fissal', compact('orders', 'sequence', 'status'));
+    }
+
+    public function consultations(Request $request)
+    {
+        $request->validate([
+            'date' => ['nullable', 'date'],
+            'secuencia' => ['nullable', 'in:L-M-V,M-J-S'],
+            'doctor' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $date = $request->input('date', today()->toDateString());
+
+        $consultations = NephrologyConsultation::query()
+            ->whereNotNull('doctor_id')
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
+            ->when($date, fn (Builder $query) => $query->whereDate('consultation_date', $date))
+            ->when($request->filled('doctor'), fn (Builder $query) => $query->where('doctor_id', $request->integer('doctor')))
+            ->whereHas('patient', function (Builder $patient) use ($request) {
+                $patient
+                    ->when($request->filled('secuencia'), fn (Builder $query) => $query->where('secuencia', $request->input('secuencia')))
+                    ->when($request->filled('turno'), fn (Builder $query) => $query->where('turno', $request->input('turno')))
+                    ->when($request->filled('modulo'), fn (Builder $query) => $query->where('modulo', $request->input('modulo')))
+                    ->when($request->filled('search'), function (Builder $query) use ($request) {
+                        $search = trim((string) $request->input('search'));
+                        $query->where(fn (Builder $names) => $names
+                            ->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('other_names', 'like', "%{$search}%")
+                            ->orWhere('surname', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('dni', 'like', "%{$search}%"));
+                    });
+            })
+            ->with(['patient', 'doctor', 'order.fua', 'medications'])
+            ->orderBy('consultation_date', 'desc')
+            ->orderBy('consultation_time')
+            ->orderBy(Patient::select('surname')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
+            ->paginate(25)
+            ->withQueryString();
+
+        $doctors = NephrologyConsultation::query()
+            ->whereNotNull('doctor_id')
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
+            ->with('doctor:id,name')
+            ->get()
+            ->pluck('doctor')
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+
+        return view('audit.consultations', compact('consultations', 'doctors'));
     }
 
     public function pendingDocuments(Request $request)

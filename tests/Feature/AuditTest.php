@@ -456,6 +456,73 @@ class AuditTest extends TestCase
             ->assertDontSee('PACIENTE AUDITADO');
     }
 
+    public function test_consultation_audit_only_shows_assigned_doctors_and_prescription_details(): void
+    {
+        [$user, $sede] = $this->auditScenario();
+        $doctor = User::factory()->create(['name' => 'DRA. CONSULTA AUDITADA']);
+        $patient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'surname' => 'QUISPE',
+            'last_name' => 'RAMOS',
+            'first_name' => 'MARÍA',
+            'other_names' => 'ELENA',
+            'dni' => '76543210',
+            'secuencia' => 'L-M-V',
+            'modulo' => '3',
+            'turno' => '2',
+        ]);
+        $order = Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $patient->id,
+            'codigo_unico' => 'ORD-CONSULT-AUDIT',
+            'fecha_orden' => today(),
+            'attention_type' => Fua::NEPHROLOGY,
+        ]);
+        $consultation = NephrologyConsultation::create([
+            'order_id' => $order->id,
+            'sede_id' => $sede->id,
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'consultation_date' => today(),
+            'consultation_time' => '09:35',
+        ]);
+        $consultation->medications()->create([
+            'fua_code' => 'MED-001',
+            'description' => 'LOSARTÁN 50 MG',
+            'c' => 'TABLETA',
+            'prescribed_quantity' => 30,
+            'delivered_quantity' => 20,
+        ]);
+        Fua::create(['order_id' => $order->id, 'type' => Fua::NEPHROLOGY, 'series' => '0000247', 'correlative' => 88, 'number' => '0000247-0000088']);
+
+        $unassignedPatient = Patient::factory()->create(['sede_id' => $sede->id, 'first_name' => 'SIN MEDICO OCULTO']);
+        NephrologyConsultation::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $unassignedPatient->id,
+            'consultation_date' => today(),
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('audit.consultations', [
+                'date' => today()->toDateString(),
+                'secuencia' => 'L-M-V',
+                'modulo' => 3,
+                'turno' => 2,
+                'doctor' => $doctor->id,
+            ]))
+            ->assertOk()
+            ->assertSeeInOrder(['Fecha', 'Apellidos y nombres completos', 'DNI', 'N.° FUA', 'Hora de consulta', 'Médico que atendió'])
+            ->assertSee('QUISPE RAMOS MARÍA ELENA')
+            ->assertSee('76543210')
+            ->assertSee('>88</td>', false)
+            ->assertSee('09:35')
+            ->assertSee('DRA. CONSULTA AUDITADA')
+            ->assertSee('MED-001')
+            ->assertSee("['Digit1', 'Numpad1']", false)
+            ->assertDontSee('SIN MEDICO OCULTO');
+    }
+
     private function auditScenario(): array
     {
         $user = User::factory()->create();
