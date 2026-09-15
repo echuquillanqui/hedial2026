@@ -27,6 +27,7 @@ use App\Http\Controllers\Eq5dAssessmentController;
 use App\Http\Controllers\SocialWorkAssessmentController;
 use App\Http\Controllers\NursingAnnexController;
 use App\Http\Controllers\RemainingAnnexController;
+use App\Http\Controllers\ProfileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +60,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/seleccionar-sede', [SedeSessionController::class, 'select'])->name('sede.select');
     Route::post('/seleccionar-sede', [SedeSessionController::class, 'store'])->name('sede.store');
+    Route::get('/mi-perfil', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/mi-perfil', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/mi-perfil/contrasena', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
 });
 
 Route::middleware(['auth', 'ensure.sede'])->group(function () {
