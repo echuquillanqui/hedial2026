@@ -35,6 +35,9 @@
                 </small>
             </div>
             <div class="d-flex gap-2">
+                <button type="button" class="btn btn-info btn-sm px-3 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#medicalDetailModal">
+                    <i class="bi bi-eye-fill me-1"></i> VER PARTE MÉDICO
+                </button>
                 <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm"><i class="bi bi-cloud-arrow-up-fill me-1"></i> ACTUALIZAR</button>
                 <a href="{{ route('nurses.index') }}" class="btn btn-sm btn-outline-secondary px-3"><i class="bi bi-arrow-left-circle me-1"></i> Volver</a>
             </div>
@@ -43,8 +46,8 @@
         <div class="card card-medical header-info mb-4 p-3">
             <div class="row g-3">
                 <div class="col-md-1"><label>Sesión №</label><div class="h5 fw-bold text-primary mb-0">#{{ $nurse->numero_hd }}</div></div>
-                <div class="col-md-2"><label data-label="Puesto">Puesto *</label><input type="text" name="puesto" id="puestoInput" class="form-control form-control-sm fw-bold" value="{{ $nurse->puesto }}" required></div>
-                <div class="col-md-2"><label data-label="№ Máquina">№ Máquina *</label><input type="text" name="numero_maquina" id="maquinaInput" class="form-control form-control-sm" value="{{ $nurse->numero_maquina ?? $nurse->puesto }}" required></div>
+                <div class="col-md-2"><label data-label="Puesto">Puesto *</label><input type="text" name="puesto" id="puestoInput" class="form-control form-control-sm fw-bold completion-field" value="{{ $nurse->puesto }}"></div>
+                <div class="col-md-2"><label data-label="№ Máquina">№ Máquina *</label><input type="text" name="numero_maquina" id="maquinaInput" class="form-control form-control-sm completion-field" value="{{ $nurse->numero_maquina ?? $nurse->puesto }}"></div>
                 <div class="col-md-3"><label>Marca / Modelo</label><input type="text" name="marca_modelo" class="form-control form-control-sm" value="{{ $nurse->marca_modelo }}"></div>
                 <div class="col-md-2"><label>Frecuencia</label><input type="text" class="form-control form-control-sm bg-light border-0 fw-bold" value="{{ $nurse->frecuencia_hd ?? '3 VECES POR SEMANA' }}" readonly></div>
                 <div class="col-md-2"><label>Filtro / Dializador</label><input type="text" name="filtro" class="form-control form-control-sm" value="{{ $nurse->filtro }}"></div>
@@ -62,13 +65,13 @@
             <div class="tab-pane fade show active" id="t1">
                 <div class="row g-3">
                     <div class="col-md-3"><label>Acceso Venoso *</label>
-                        <select name="acceso_venoso" class="form-select form-select-sm" required>
+                        <select name="acceso_venoso" class="form-select form-select-sm completion-field">
                             <option value="">-- Seleccione --</option>
                             @foreach(['CVCLP','FAV','INJ','CVCL','CVCT'] as $opt)<option value="{{ $opt }}" {{ ($nurse->acceso_venoso ?? $order->patient->acceso_venoso) == $opt ? 'selected' : '' }}>{{ $opt }}</option>@endforeach
                         </select>
                     </div>
                     <div class="col-md-3"><label>Acceso Arterial *</label>
-                        <select name="acceso_arterial" class="form-select form-select-sm" required>
+                        <select name="acceso_arterial" class="form-select form-select-sm completion-field">
                             <option value="">-- Seleccione --</option>
                             @foreach(['CVCLP','FAV','INJ','CVCL','CVCT'] as $opt)<option value="{{ $opt }}" {{ ($nurse->acceso_arterial ?? $order->patient->acceso_arterial) == $opt ? 'selected' : '' }}>{{ $opt }}</option>@endforeach
                         </select>
@@ -79,7 +82,7 @@
                     <div class="col-md-2"><label>UF Prog (L)</label><input type="text" name="uf" class="form-control form-control-sm" value="{{ $nurse->uf ?? $order->medical->uf }}"></div>
                     <div class="col-md-4"><label>Aspecto Filtro</label><input type="text" name="aspecto_dializador" class="form-control form-control-sm" value="{{ $nurse->aspecto_dializador ?? '0' }}"></div>
                     <div class="col-md-8"><label>Enfermero que Inicia *</label>
-                        <select name="enfermero_que_inicia_id" class="form-select form-select-sm" required>
+                        <select name="enfermero_que_inicia_id" class="form-select form-select-sm completion-field">
                             <option value="">-- Seleccione Profesional --</option>
                             @foreach($enfermeros as $enf)<option value="{{ $enf->id }}" {{ (int) old('enfermero_que_inicia_id', $nurse->enfermero_que_inicia_id ?? auth()->id()) === $enf->id ? 'selected' : '' }}>{{ $enf->name }}</option>@endforeach
                         </select>
@@ -135,8 +138,8 @@
                         </div>
                         @endforeach
                         <div class="col-md-3"><label>Otros Medicamentos</label><input type="text" name="otros_medicamentos" class="form-control form-control-sm" value="{{ $nurse->otros_medicamentos }}"></div>
-                        <div class="col-md-6"><label>Transfusiones realizadas</label><textarea name="transfusions" class="form-control form-control-sm" rows="2" placeholder="Componente, volumen, hora y reacción, si corresponde">{{ $nurse->transfusions }}</textarea></div>
                         <div class="col-md-6"><label>Curaciones realizadas</label><textarea name="dressings" class="form-control form-control-sm" rows="2" placeholder="Tipo de curación, acceso y hallazgos">{{ $nurse->dressings }}</textarea></div>
+                        <div class="col-md-6"><label>Transfusiones realizadas</label><textarea name="transfusions" class="form-control form-control-sm" rows="2" placeholder="Componente, volumen, hora y reacción, si corresponde">{{ $nurse->transfusions }}</textarea></div>
                     </div>
                 </div>
 
@@ -155,13 +158,35 @@
                         <label data-label="Enfermero Cierre">Enfermero Cierre</label>
                         <select name="enfermero_que_finaliza_id" class="form-select form-select-sm closure-field">
                             <option value="">-- Seleccione --</option>
-                            @foreach($enfermeros as $enf)<option value="{{ $enf->id }}" {{ (int) old('enfermero_que_finaliza_id', $nurse->enfermero_que_finaliza_id ?? auth()->id()) === $enf->id ? 'selected' : '' }}>{{ $enf->name }}</option>@endforeach
+                            @foreach($enfermeros as $enf)<option value="{{ $enf->id }}" {{ (int) old('enfermero_que_finaliza_id', $nurse->enfermero_que_finaliza_id) === $enf->id ? 'selected' : '' }}>{{ $enf->name }}</option>@endforeach
                         </select>
                     </div>
                 </div>
             </div>
         </div>
     </form>
+</div>
+
+<div class="modal fade" id="medicalDetailModal" tabindex="-1" aria-labelledby="medicalDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-info-subtle">
+                <div>
+                    <h5 class="modal-title fw-bold" id="medicalDetailModalLabel">
+                        <i class="bi bi-file-medical-fill text-info me-2"></i>Parte médico
+                    </h5>
+                    <small class="text-muted">{{ $order->patient->surname }} {{ $order->patient->first_name }} — Sesión #{{ $nurse->numero_hd }}</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                @include('atenciones.enfermeria.partials.medical-detail', ['medical' => $order->medical])
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -190,9 +215,7 @@
         const minutosTotales = Math.round(duracion * 60);
         let [hBase, mBase] = horaBaseInput.value.split(':').map(Number);
         let minutosAcumulados = 0;
-
-        tbody.innerHTML = '';
-        insertarFila(horaBaseInput.value);
+        const horasCalculadas = [horaBaseInput.value];
 
         while (minutosAcumulados < minutosTotales) {
             const minutosRestantes = minutosTotales - minutosAcumulados;
@@ -203,13 +226,25 @@
             const h = Math.floor(minutosDesdeInicio / 60);
             const m = minutosDesdeInicio % 60;
             const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-            insertarFila(timeStr);
+            horasCalculadas.push(timeStr);
         }
+
+        // Reutilizar las filas conserva PA, FC, QB, CND, presiones y observaciones
+        // ya registradas. Si faltan filas, solo se agregan las necesarias.
+        horasCalculadas.forEach((hora, index) => {
+            let fila = tbody.rows[index];
+            if (!fila) {
+                insertarFila(hora);
+                fila = tbody.rows[index];
+            }
+
+            fila.querySelector('.hora-input').value = hora;
+        });
     }
 
     function insertarFila(hora) {
         const row = `<tr>
-            <td><input type="time" name="t_hora[]" class="hora-input" value="${hora}" required></td>
+            <td><input type="time" name="t_hora[]" class="hora-input" value="${hora}"></td>
             <td style="width: 85px;"><input type="text" name="t_pa[]" placeholder="---/---"></td>
             <td style="width: 65px;"><input type="number" name="t_fc[]"></td>
             <td style="width: 65px;"><input type="text" name="t_qb[]"></td>
@@ -320,12 +355,16 @@
     document.getElementById('nurseForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
-        // Validación dinámica de cierre
+        // Los borradores se guardan incompletos. Las validaciones se activan
+        // únicamente cuando se selecciona al profesional que cierra la sesión.
         const closure = document.querySelectorAll('.closure-field');
-        const isClosing = Array.from(closure).some(el => el.value.trim() !== "");
+        const completion = document.querySelectorAll('.completion-field');
+        const closingNurse = this.querySelector('[name="enfermero_que_finaliza_id"]');
+        const isClosing = isFilled(closingNurse?.value);
         closure.forEach(el => isClosing ? el.setAttribute('required','required') : el.removeAttribute('required'));
+        completion.forEach(el => isClosing ? el.setAttribute('required','required') : el.removeAttribute('required'));
 
-        const monitoringError = validarFilasMonitoreo();
+        const monitoringError = isClosing ? validarFilasMonitoreo() : null;
         if (monitoringError) {
             return Swal.fire({ icon: 'warning', title: 'Monitoreo incompleto', text: monitoringError });
         }

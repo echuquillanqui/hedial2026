@@ -5,17 +5,22 @@
     $editing = $consultation->exists;
     $savedDiagnoses = old('diagnoses', $consultation->diagnoses ?: []);
     $savedExams = old('auxiliary_exams', $consultation->auxiliary_exams ?: []);
+    $selectedPatient = $patients->firstWhere('id', old('patient_id', $consultation->patient_id)) ?? $consultation->patient;
+    $selectedDoctorId = old('doctor_id', $currentDoctorId ?? $consultation->doctor_id);
 @endphp
 <style>
     .clinical-shell { --navy:#172554; --blue:#2563eb; --cyan:#06b6d4; --soft:#eff6ff; }
     .clinical-hero { background:linear-gradient(125deg,var(--navy),var(--blue) 62%,var(--cyan)); color:#fff; border-radius:20px; padding:1.4rem 1.6rem; box-shadow:0 14px 34px rgba(37,99,235,.22); }
+    .clinical-patient { min-width:min(100%, 22rem); padding:.7rem 1rem; border:1px solid rgba(255,255,255,.3); border-radius:14px; background:rgba(255,255,255,.14); backdrop-filter:blur(4px); }
+    .clinical-patient-name { font-size:1rem; font-weight:800; }
     .clinical-tabs { background:#fff; padding:.45rem; border-radius:16px; box-shadow:0 7px 24px rgba(15,23,42,.08); }
     .clinical-tab { border:0; background:transparent; color:#64748b; border-radius:12px; padding:.85rem 1rem; font-weight:700; flex:1; }
     .clinical-tab.active { color:#fff; background:linear-gradient(100deg,var(--blue),#4f46e5); box-shadow:0 6px 16px rgba(37,99,235,.25); }
     .clinical-panel { display:none; } .clinical-panel.active { display:block; }
     .section-card { border:1px solid #e2e8f0!important; overflow:visible; }
     .section-title { color:var(--navy); font-weight:800; }
-    .cie-results { position:absolute; z-index:20; left:0; right:0; top:100%; background:#fff; border:1px solid #bfdbfe; border-radius:10px; max-height:240px; overflow:auto; box-shadow:0 12px 25px rgba(15,23,42,.15); }
+    .cie-results, .medication-results { position:absolute; z-index:20; left:0; right:0; top:100%; background:#fff; border:1px solid #bfdbfe; border-radius:10px; max-height:240px; overflow:auto; box-shadow:0 12px 25px rgba(15,23,42,.15); }
+    .medication-results-floating { position:fixed; z-index:1080; right:auto; top:auto; }
     .cie-option { padding:.65rem .8rem; cursor:pointer; border-bottom:1px solid #eff6ff; } .cie-option:hover { background:#eff6ff; }
     .exam-group { height:100%; border:1px solid #dbeafe; border-radius:14px; padding:1rem; background:linear-gradient(180deg,#fff,#f8fbff); }
     .exam-group h6 { color:var(--blue); font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
@@ -25,10 +30,21 @@
     .exam-check { display:flex; gap:.6rem; padding:.42rem; border-radius:8px; } .exam-check:hover { background:#e0f2fe; }
     .exam-period-selector { border:1px solid #bfdbfe; border-radius:14px; padding:1rem; background:#eff6ff; }
     .exam-period-button.active { color:#fff; background:var(--blue); border-color:var(--blue); box-shadow:0 5px 12px rgba(37,99,235,.22); }
+    .form-control.is-invalid, .form-select.is-invalid,
+    .was-validated .form-control:invalid, .was-validated .form-select:invalid { border-color:#dc3545!important; box-shadow:0 0 0 .2rem rgba(220,53,69,.12); }
+    .clinical-tab.has-errors { color:#dc3545; box-shadow:inset 0 0 0 2px #dc3545; }
+    .clinical-tab.active.has-errors { color:#fff; box-shadow:inset 0 0 0 2px #fecaca,0 6px 16px rgba(37,99,235,.25); }
 </style>
 <div class="container-fluid clinical-shell">
     <div class="clinical-hero d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
         <div><div class="text-uppercase opacity-75 small fw-bold">Atención integral</div><h2 class="mb-1 fw-bold"><i class="bi bi-heart-pulse me-2"></i>Consulta nefrológica</h2><div>Historia clínica, receta y seguimiento en un solo formulario</div></div>
+        @if($selectedPatient)
+            <div class="clinical-patient" aria-label="Paciente de la consulta">
+                <div class="text-uppercase opacity-75 small fw-bold">Paciente</div>
+                <div class="clinical-patient-name">{{ $selectedPatient->full_name }}</div>
+                <div class="small"><span class="opacity-75">DNI:</span> <strong>{{ $selectedPatient->dni ?: '—' }}</strong></div>
+            </div>
+        @endif
         <a href="{{ route('consultations.index') }}" class="btn btn-light fw-bold"><i class="bi bi-arrow-left me-1"></i> Volver</a>
     </div>
     @if($errors->any())<div class="alert alert-danger"><strong>Revise los datos:</strong><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
@@ -41,10 +57,10 @@
 
         <section id="anamnesis" class="clinical-panel active">
             <div class="card section-card shadow-sm mb-3"><div class="card-body"><h5 class="section-title mb-3">Datos de atención</h5><div class="row g-3">
-                <div class="col-lg-5"><label class="form-label">Paciente *</label><select name="patient_id" class="form-select" required><option value="">Seleccione...</option>@foreach($patients as $patient)<option value="{{ $patient->id }}" @selected(old('patient_id', $consultation->patient_id) == $patient->id)>{{ $patient->full_name }} — {{ $patient->dni }}</option>@endforeach</select></div>
-                <div class="col-lg-4"><label class="form-label">Médico</label><select name="doctor_id" class="form-select"><option value="">Usuario actual</option>@foreach($doctors as $doctor)<option value="{{ $doctor->id }}" @selected(old('doctor_id', $consultation->doctor_id) == $doctor->id)>{{ $doctor->name }}</option>@endforeach</select></div>
+                <div class="col-lg-5"><label class="form-label" for="patient_name">Paciente *</label><input type="hidden" name="patient_id" value="{{ $selectedPatient?->id }}"><input id="patient_name" class="form-control" value="{{ $selectedPatient ? $selectedPatient->full_name.' — '.$selectedPatient->dni : '' }}" readonly required aria-readonly="true"></div>
+                <div class="col-lg-4"><label class="form-label">Médico</label><select name="doctor_id" class="form-select"><option value="">Seleccione...</option>@foreach($doctors as $doctor)<option value="{{ $doctor->id }}" @selected((string) $selectedDoctorId === (string) $doctor->id)>{{ $doctor->name }}</option>@endforeach</select></div>
                 <div class="col-lg-2"><label class="form-label">Fecha *</label><input type="date" name="consultation_date" class="form-control" required value="{{ old('consultation_date', optional($consultation->consultation_date)->format('Y-m-d')) }}"></div>
-                <div class="col-lg-1"><label class="form-label">Hora</label><input type="time" name="consultation_time" class="form-control" value="{{ old('consultation_time', $consultation->consultation_time) }}"></div>
+                <div class="col-lg-1"><label class="form-label">Hora</label><input type="time" name="consultation_time" class="form-control" value="{{ substr((string) old('consultation_time', $consultation->consultation_time), 0, 5) }}"></div>
                 @foreach(['blood_pressure'=>'Presión arterial','weight'=>'Peso (kg)','temperature'=>'Temperatura (°C)','heart_rate'=>'Frecuencia cardíaca','oxygen_saturation'=>'Sat. O₂ (%)'] as $field=>$label)<div class="col-md"><label class="form-label">{{ $label }}</label><input name="{{ $field }}" type="{{ $field === 'blood_pressure' ? 'text' : 'number' }}" step="{{ in_array($field, ['weight','temperature']) ? '0.1' : '1' }}" class="form-control" value="{{ old($field, $consultation->$field) }}"></div>@endforeach
                 @foreach(['height'=>'Talla (m)','respiratory_rate'=>'Frecuencia respiratoria','bmi'=>'IMC','diuresis'=>'Diuresis (ml)'] as $field=>$label)<div class="col-md-3"><label class="form-label">{{ $label }}</label><input name="{{ $field }}" type="number" step="{{ in_array($field, ['height','bmi']) ? '0.01' : '1' }}" class="form-control" value="{{ old($field, $consultation->$field) }}"></div>@endforeach
             </div></div></div>
@@ -63,7 +79,7 @@
 
         <section id="recipe" class="clinical-panel">
             <div class="card section-card shadow-sm mb-3"><div class="card-header bg-white py-3 d-flex justify-content-between"><strong class="section-title"><i class="bi bi-prescription2 me-1"></i> Receta mensual</strong><button type="button" id="addMedication" class="btn btn-sm btn-primary">Agregar medicamento</button></div><div class="table-responsive"><table class="table align-middle mb-0"><thead class="table-light"><tr><th>Código</th><th style="min-width:260px">Medicamento</th><th style="min-width:240px">Prescripción</th><th>C. prescrita</th><th>C. entregada</th><th></th></tr></thead><tbody id="medications">
-                @foreach(old('medications', $medications->toArray()) as $i=>$medication)<tr><td><input class="form-control" name="medications[{{ $i }}][fua_code]" value="{{ $medication['fua_code'] ?? '' }}"></td><td><input required class="form-control" name="medications[{{ $i }}][description]" value="{{ $medication['description'] ?? '' }}"></td><td><input class="form-control" name="medications[{{ $i }}][c]" value="{{ $medication['c'] ?? '' }}"></td><td><input type="number" min="0" step="0.01" class="form-control" name="medications[{{ $i }}][prescribed_quantity]" value="{{ $medication['prescribed_quantity'] ?? 0 }}"></td><td><input type="number" min="0" step="0.01" class="form-control" name="medications[{{ $i }}][delivered_quantity]" value="{{ $medication['delivered_quantity'] ?? 0 }}"></td><td><button type="button" class="btn btn-outline-danger remove-row">×</button></td></tr>@endforeach
+                @foreach(old('medications', $medications->toArray()) as $i=>$medication)<tr class="medication-row"><td><input autocomplete="off" class="form-control medication-search medication-code" name="medications[{{ $i }}][fua_code]" value="{{ $medication['fua_code'] ?? '' }}"></td><td><input autocomplete="off" required class="form-control medication-search medication-name" name="medications[{{ $i }}][description]" value="{{ $medication['description'] ?? '' }}"></td><td><input class="form-control medication-indication" name="medications[{{ $i }}][c]" value="{{ $medication['c'] ?? '' }}"></td><td><input type="number" min="0" step="0.01" class="form-control prescribed-quantity" name="medications[{{ $i }}][prescribed_quantity]" value="{{ $medication['prescribed_quantity'] ?? 0 }}"></td><td><input type="number" min="0" step="0.01" class="form-control delivered-quantity" name="medications[{{ $i }}][delivered_quantity]" value="{{ $medication['delivered_quantity'] ?? 0 }}"></td><td><button type="button" class="btn btn-outline-danger remove-row">×</button></td></tr>@endforeach
             </tbody></table></div></div>
         </section>
 
@@ -82,6 +98,7 @@
 @endsection
 @push('scripts')<script>
 document.addEventListener('DOMContentLoaded', () => {
+    const validationErrors = @json($errors->keys());
     const examPeriods = ['M', 'B', 'T', 'S'];
     const examGroups = [...document.querySelectorAll('[data-exam-group]')];
     const periodButtons = [...document.querySelectorAll('[data-exam-period]')];
@@ -115,8 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.clinical-tab,.clinical-panel').forEach(item => item.classList.remove('active'));
         button.classList.add('active'); document.getElementById(button.dataset.tab).classList.add('active');
     }));
-    const meds=document.getElementById('medications');
-    document.getElementById('addMedication').onclick=()=>{const i=meds.querySelectorAll('tr').length;meds.insertAdjacentHTML('beforeend',medicationRow(i));};
+    const meds=document.getElementById('medications'); let medicationIndex=meds.querySelectorAll('tr').length;
+    document.getElementById('addMedication').onclick=()=>meds.insertAdjacentHTML('beforeend',medicationRow(medicationIndex++));
     meds.addEventListener('click',e=>{if(e.target.classList.contains('remove-row')&&meds.children.length>1)e.target.closest('tr').remove();});
     const diagnosisBox=document.getElementById('diagnoses'); let diagnosisIndex=0;
     const initial=@json(array_values($savedDiagnoses));
@@ -125,7 +142,59 @@ document.addEventListener('DOMContentLoaded', () => {
     function addDiagnosis(item={}) { const i=diagnosisIndex++; diagnosisBox.insertAdjacentHTML('beforeend', `<div class="row g-2 align-items-center mb-2 diagnosis-row"><div class="col-md-3"><input type="hidden" name="diagnoses[${i}][cie10_id]" value="${escapeHtml(item.cie10_id||'')}"><input class="form-control cie-code" name="diagnoses[${i}][codigo]" placeholder="Código CIE-10" autocomplete="off" value="${escapeHtml(item.codigo||'')}"></div><div class="col-md-8 position-relative"><input class="form-control cie-description" name="diagnoses[${i}][descripcion]" placeholder="Buscar diagnóstico..." autocomplete="off" value="${escapeHtml(item.descripcion||'')}"><div class="cie-results d-none"></div></div><div class="col-md-1"><button type="button" class="btn btn-outline-danger remove-diagnosis">×</button></div></div>`); }
     let timer; diagnosisBox.addEventListener('input', e=>{if(!e.target.matches('.cie-code,.cie-description'))return; const row=e.target.closest('.diagnosis-row'), results=row.querySelector('.cie-results'), term=e.target.value.trim(); clearTimeout(timer); if(term.length<2){results.classList.add('d-none');return;} timer=setTimeout(async()=>{const response=await fetch(`{{ route('referrals.cie10.search') }}?q=${encodeURIComponent(term)}`); const items=await response.json(); results.innerHTML=items.map(x=>`<div class="cie-option" data-id="${x.id}" data-code="${escapeHtml(x.codigo)}" data-description="${escapeHtml(x.descripcion)}"><strong>${escapeHtml(x.codigo)}</strong> — ${escapeHtml(x.descripcion)}</div>`).join('')||'<div class="p-3 text-muted">Sin resultados</div>';results.classList.remove('d-none');},250);});
     diagnosisBox.addEventListener('click',e=>{const option=e.target.closest('.cie-option');if(option){const row=option.closest('.diagnosis-row');row.querySelector('[type=hidden]').value=option.dataset.id;row.querySelector('.cie-code').value=option.dataset.code;row.querySelector('.cie-description').value=option.dataset.description;row.querySelector('.cie-results').classList.add('d-none');}if(e.target.classList.contains('remove-diagnosis')&&diagnosisBox.children.length>1)e.target.closest('.diagnosis-row').remove();});
-    function medicationRow(i){return `<tr><td><input class="form-control" name="medications[${i}][fua_code]"></td><td><input required class="form-control" name="medications[${i}][description]"></td><td><input class="form-control" name="medications[${i}][c]"></td><td><input type="number" min="0" step=".01" value="0" class="form-control" name="medications[${i}][prescribed_quantity]"></td><td><input type="number" min="0" step=".01" value="0" class="form-control" name="medications[${i}][delivered_quantity]"></td><td><button type="button" class="btn btn-outline-danger remove-row">×</button></td></tr>`;}
+    let medicationTimer, activeMedicationInput;
+    const medicationResults=document.createElement('div');
+    medicationResults.className='medication-results medication-results-floating d-none';
+    document.body.appendChild(medicationResults);
+    const closeMedicationResults=()=>{medicationResults.classList.add('d-none');activeMedicationInput=null;};
+    const placeMedicationResults=()=>{
+        if(!activeMedicationInput)return;
+        const rect=activeMedicationInput.getBoundingClientRect(), maxHeight=240, gap=4;
+        const spaceBelow=window.innerHeight-rect.bottom-gap;
+        medicationResults.style.left=`${rect.left}px`;
+        medicationResults.style.width=`${rect.width}px`;
+        const openAbove=spaceBelow<160&&rect.top>spaceBelow;
+        medicationResults.style.maxHeight=`${Math.min(maxHeight,Math.max(100,openAbove?rect.top-gap:spaceBelow))}px`;
+        medicationResults.style.top=openAbove?'auto':`${rect.bottom+gap}px`;
+        medicationResults.style.bottom=openAbove?`${window.innerHeight-rect.top+gap}px`:'auto';
+    };
+    meds.addEventListener('input',e=>{if(!e.target.classList.contains('medication-search'))return;const term=e.target.value.trim();clearTimeout(medicationTimer);activeMedicationInput=e.target;if(term.length<1){closeMedicationResults();return;}medicationTimer=setTimeout(async()=>{const requestedInput=e.target;const response=await fetch(`{{ route('medication-catalog.search') }}?q=${encodeURIComponent(term)}`);const items=await response.json();if(activeMedicationInput!==requestedInput)return;medicationResults.innerHTML=items.map(x=>`<div class="cie-option medication-option" data-code="${escapeHtml(x.code||'')}" data-name="${escapeHtml(x.name)}" data-indication="${escapeHtml(x.indication||'')}" data-quantity="${x.reference_quantity}"><strong>${escapeHtml(x.code||'Sin código')}</strong> — ${escapeHtml(x.name)} <small class="text-muted">(${x.reference_quantity} · ${escapeHtml(x.frequency)})</small></div>`).join('')||'<div class="p-3 text-muted">Sin resultados</div>';placeMedicationResults();medicationResults.classList.remove('d-none');},200);});
+    medicationResults.addEventListener('click',e=>{const option=e.target.closest('.medication-option');if(!option||!activeMedicationInput)return;const row=activeMedicationInput.closest('.medication-row');row.querySelector('.medication-code').value=option.dataset.code;row.querySelector('.medication-name').value=option.dataset.name;row.querySelector('.medication-indication').value=option.dataset.indication;row.querySelector('.prescribed-quantity').value=option.dataset.quantity;row.querySelector('.delivered-quantity').value=option.dataset.quantity;closeMedicationResults();});
+    document.addEventListener('click',e=>{if(!e.target.closest('.medication-search')&&!e.target.closest('.medication-results-floating'))closeMedicationResults();});
+    window.addEventListener('resize',closeMedicationResults);
+    window.addEventListener('scroll',closeMedicationResults,true);
+    function medicationRow(i){return `<tr class="medication-row"><td><input autocomplete="off" class="form-control medication-search medication-code" name="medications[${i}][fua_code]"></td><td><input autocomplete="off" required class="form-control medication-search medication-name" name="medications[${i}][description]"></td><td><input class="form-control medication-indication" name="medications[${i}][c]"></td><td><input type="number" min="0" step=".01" value="0" class="form-control prescribed-quantity" name="medications[${i}][prescribed_quantity]"></td><td><input type="number" min="0" step=".01" value="0" class="form-control delivered-quantity" name="medications[${i}][delivered_quantity]"></td><td><button type="button" class="btn btn-outline-danger remove-row">×</button></td></tr>`;}
     function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));}
+
+    const form = document.querySelector('.clinical-shell form');
+    const fieldForError = key => {
+        const parts = key.split('.');
+        const bracketName = parts.shift() + parts.map(part => `[${part}]`).join('');
+        return form.elements.namedItem(key) || form.elements.namedItem(bracketName);
+    };
+    let firstInvalid = null;
+    validationErrors.forEach(key => {
+        const field = fieldForError(key);
+        if (!field) return;
+        const element = field instanceof RadioNodeList ? field[0] : field;
+        element.classList.add('is-invalid');
+        const panel = element.closest('.clinical-panel');
+        document.querySelector(`[data-tab="${panel.id}"]`)?.classList.add('has-errors');
+        firstInvalid ||= element;
+    });
+    if (firstInvalid) {
+        const panel = firstInvalid.closest('.clinical-panel');
+        document.querySelectorAll('.clinical-tab,.clinical-panel').forEach(item => item.classList.remove('active'));
+        document.querySelector(`[data-tab="${panel.id}"]`)?.classList.add('active');
+        panel.classList.add('active');
+        firstInvalid.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    form.addEventListener('submit', event => {
+        form.classList.add('was-validated');
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            form.querySelector(':invalid')?.scrollIntoView({behavior:'smooth', block:'center'});
+        }
+    });
 });
 </script>@endpush

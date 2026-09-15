@@ -9,10 +9,12 @@ use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\CurrentSede;
 use App\Services\WarehouseConsumptionService;
+use App\Support\DailyHemodialysisSequence;
 
 class NurseController extends Controller
 {
@@ -34,7 +36,7 @@ class NurseController extends Controller
                 ->first()
             : null;
         $moduleFilter = $requiresModuleAssignment
-            ? $moduleAssignment?->module
+            ? ($moduleAssignment?->includesAllModules() ? null : $moduleAssignment?->module)
             : $request->get('modulo');
 
         $nurses = $this->filteredNurses($request, $moduleFilter, $requiresModuleAssignment && ! $moduleAssignment)
@@ -57,6 +59,7 @@ class NurseController extends Controller
     private function filteredNurses(Request $request, $moduleFilter, bool $hideResults = false)
     {
         $dateFilter = $request->get('date', date('Y-m-d'));
+        $dailySequence = DailyHemodialysisSequence::forDate($dateFilter);
 
         return Nurse::with(['order.patient', 'order.medical.usuarioInicia', 'order.medical.usuarioFinaliza', 'order.treatments', 'enfermeroInicia', 'enfermeroFinaliza'])
         ->when($hideResults, fn ($query) => $query->whereRaw('1 = 0'))
@@ -79,16 +82,16 @@ class NurseController extends Controller
                 $q->whereDate('fecha_orden', $date);
             });
         })
+        ->when($dailySequence, function ($query, $sequence) {
+            $query->whereHas('order.patient', fn ($patient) => $patient->where('secuencia', $sequence));
+        })
         ->when($request->turno, function ($query, $turno) {
             $query->whereHas('order', function($q) use ($turno) {
                 $q->where('turno', $turno);
             });
         })
         ->when($moduleFilter, function ($query, $modulo) {
-            $query->whereHas('order', function($q) use ($modulo) {
-                // Ajustado a tu base de datos de medicina: 'MODULO ' . $valor
-                $q->where('sala', 'MODULO ' . $modulo);
-            });
+            $query->whereHas('order.patient', fn ($q) => $q->where('modulo', $modulo));
         })
         ->when($request->estado, function ($query, $estado) {
             if ($estado === 'finalizado') {
@@ -103,8 +106,12 @@ class NurseController extends Controller
     {
         abort_unless($request->user()->isNursingProfessional(), 403);
 
+        $minimumModule = NurseModuleAssignment::allModulesEnabledToday()
+            ? NurseModuleAssignment::ALL_MODULES
+            : 1;
+
         $validated = $request->validate([
-            'module' => ['required', 'integer', 'between:1,4'],
+            'module' => ['required', 'integer', 'between:'.$minimumModule.',4'],
         ]);
 
         NurseModuleAssignment::updateOrCreate(
@@ -125,25 +132,13 @@ class NurseController extends Controller
         if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
             abort(403, 'Atención fuera de la sede activa.');
         }
-        $nurse->load(['order.patient', 'order.medical', 'order.treatments']);
+        $nurse->load([
+            'order.patient',
+            'order.medical.usuarioInicia',
+            'order.medical.usuarioFinaliza',
+            'order.treatments',
+        ]);
         $order = $nurse->order;
-
-        // Si el numero_hd es nulo o cero, calculamos el correlativo real
-        if (!$nurse->numero_hd) {
-            $inicioMes = now()->startOfMonth();
-            $finMes = now()->endOfMonth();
-
-            // CONTAMOS registros ANTERIORES (excluyendo el actual si ya tiene ID)
-            $conteoPrevio = Nurse::whereHas('order', function($q) use ($order) {
-                    $q->where('patient_id', $order->patient_id);
-                })
-                ->whereBetween('created_at', [$inicioMes, $finMes])
-                ->where('id', '!=', $nurse->id) // EXCLUIR EL ACTUAL
-                ->count();
-
-            $nurse->numero_hd = $conteoPrevio + 1;
-            $nurse->save();
-        }
 
         $enfermeros = User::nursingProfessionals()
             ->orderBy('name')
@@ -151,19 +146,52 @@ class NurseController extends Controller
         return view('atenciones.enfermeria.edit', compact('nurse', 'order', 'enfermeros'));
     }
 
+    public function show(Nurse $nurse)
+    {
+        $nurse->load([
+            'order.patient',
+            'order.medical.usuarioInicia',
+            'order.medical.usuarioFinaliza',
+        ]);
+
+        if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Atención fuera de la sede activa.');
+        }
+
+        return view('atenciones.enfermeria.show', [
+            'nurse' => $nurse,
+            'order' => $nurse->order,
+            'medical' => $nurse->order?->medical,
+        ]);
+    }
+
     public function update(Request $request, Nurse $nurse)
     {
         if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
             abort(403, 'Atención fuera de la sede activa.');
         }
+        $isClosing = $request->filled('enfermero_que_finaliza_id');
+        $requiredOnClosure = Rule::requiredIf($isClosing);
+
         $validator = Validator::make($request->all(), [
             't_hora.*' => ['nullable', 'date_format:H:i'],
             'peso_seco' => ['nullable', 'numeric', 'between:0,999.99'],
-            'acceso_arterial' => ['required', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
-            'acceso_venoso' => ['required', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
+            'puesto' => [$requiredOnClosure],
+            'numero_maquina' => [$requiredOnClosure],
+            'acceso_arterial' => [$requiredOnClosure, 'nullable', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
+            'acceso_venoso' => [$requiredOnClosure, 'nullable', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
+            'enfermero_que_inicia_id' => [$requiredOnClosure, 'nullable', 'exists:users,id'],
+            'pa_final' => [$requiredOnClosure],
+            'peso_final' => [$requiredOnClosure, 'nullable', 'numeric'],
+            'observacion_final' => [$requiredOnClosure],
+            'enfermero_que_finaliza_id' => ['nullable', 'exists:users,id'],
         ]);
 
-        $validator->after(function ($validator) use ($request) {
+        $validator->after(function ($validator) use ($request, $isClosing) {
+            if (! $isClosing) {
+                return;
+            }
+
             $monitoringFields = ['t_hora', 't_pa', 't_fc', 't_qb', 't_cnd', 't_ra', 't_rv', 't_ptm', 't_obs'];
             $clinicalFields = ['t_pa', 't_fc', 't_qb', 't_cnd', 't_ra', 't_rv', 't_ptm', 't_obs'];
             $rowsCount = collect($monitoringFields)
@@ -225,9 +253,35 @@ class NurseController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($request, $nurse) {
+            DB::transaction(function () use ($request, $nurse, $isClosing) {
+                // Serializar los cierres del mismo paciente evita que dos
+                // atenciones reciban el mismo correlativo simultáneamente.
+                $nurse->order->patient()->lockForUpdate()->firstOrFail();
+
+                $wasFinalized = filled($nurse->enfermero_que_finaliza_id);
+
                 // Actualizamos la tabla nurses
                 $nurse->update($request->all());
+
+                if (! $isClosing) {
+                    // Una atención en borrador todavía no constituye una sesión.
+                    $nurse->update(['numero_hd' => null]);
+                } elseif (! $wasFinalized) {
+                    $sessionDate = $nurse->order->fecha_orden;
+                    $completedSessions = Nurse::query()
+                        ->whereKeyNot($nurse->id)
+                        ->whereNotNull('enfermero_que_finaliza_id')
+                        ->whereHas('order', function ($query) use ($nurse, $sessionDate) {
+                            $query->where('patient_id', $nurse->order->patient_id)
+                                ->whereBetween('fecha_orden', [
+                                    $sessionDate->copy()->startOfMonth()->toDateString(),
+                                    $sessionDate->copy()->endOfMonth()->toDateString(),
+                                ]);
+                        })
+                        ->count();
+
+                    $nurse->update(['numero_hd' => $completedSessions + 1]);
+                }
 
                 // Se fijan una sola vez en la ficha del paciente, durante su
                 // primera atención, para precargar las sesiones posteriores.
@@ -244,9 +298,21 @@ class NurseController extends Controller
                 if ($request->has('t_hora')) {
                     $nurse->order->treatments()->delete();
                     foreach ($request->t_hora as $key => $hora) {
-                        if (!empty($hora)) {
+                        $rowValues = [
+                            $hora,
+                            $request->t_pa[$key] ?? null,
+                            $request->t_fc[$key] ?? null,
+                            $request->t_qb[$key] ?? null,
+                            $request->t_cnd[$key] ?? null,
+                            $request->t_ra[$key] ?? null,
+                            $request->t_rv[$key] ?? null,
+                            $request->t_ptm[$key] ?? null,
+                            $request->t_obs[$key] ?? null,
+                        ];
+
+                        if (collect($rowValues)->contains(fn ($value) => filled($value))) {
                             $nurse->order->treatments()->create([
-                                'hora'        => $hora,
+                                'hora'        => $hora ?: null,
                                 'pa'          => $request->t_pa[$key] ?? null,
                                 'fc'          => $request->t_fc[$key] ?? null,
                                 'qb'          => $request->t_qb[$key] ?? null,
@@ -320,7 +386,7 @@ class NurseController extends Controller
                 ->first()
             : null;
         $moduleFilter = $requiresModuleAssignment
-            ? $moduleAssignment?->module
+            ? ($moduleAssignment?->includesAllModules() ? null : $moduleAssignment?->module)
             : $request->get('modulo');
 
         return $this->filteredNurses(

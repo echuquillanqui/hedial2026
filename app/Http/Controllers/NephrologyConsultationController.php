@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\FuaConfiguration;
 use App\Models\Fua;
+use App\Models\MedicationCatalog;
 use App\Models\NephrologyConsultation;
+use App\Models\Order;
 use App\Models\Patient;
 use App\Models\User;
 use App\Support\CurrentSede;
@@ -12,24 +14,16 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 
 class NephrologyConsultationController extends Controller
 {
     public function __construct()
     {
         $this->middleware('permission:nephrology.view')->only(['index']);
-        $this->middleware('permission:nephrology.update')->only(['edit', 'update']);
+        $this->middleware('permission:nephrology.update')->only(['edit', 'update', 'updateDate', 'updateDates', 'destroyDuplicates']);
         $this->middleware('permission:nephrology.print')->only(['consultationPdf', 'prescriptionPdf', 'bulkPdf']);
     }
-
-    public const DEFAULT_MEDICATIONS = [
-        ['fua_code' => '06127', 'description' => 'Tiamina 100 mg tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-        ['fua_code' => '05491', 'description' => 'Piridoxina 50 mg tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-        ['fua_code' => '00200', 'description' => 'Ácido fólico 500 mcg (0,5 mg) tableta', 'c' => '1 tableta VO cada 24 horas', 'prescribed_quantity' => 30, 'delivered_quantity' => 30],
-        ['fua_code' => '3107', 'description' => 'Epoetina alfa 2 000 UI/ml, inyectable', 'c' => 'Según esquema de hemodiálisis', 'prescribed_quantity' => 13, 'delivered_quantity' => 13],
-        ['fua_code' => '3979', 'description' => 'Vitamina B12, inyectable', 'c' => 'Según indicación médica', 'prescribed_quantity' => 13, 'delivered_quantity' => 13],
-        ['fua_code' => '19238', 'description' => 'Hierro sacarato, inyectable', 'c' => 'Según indicación médica', 'prescribed_quantity' => 4, 'delivered_quantity' => 4],
-    ];
 
     public const AUXILIARY_EXAMS = [
         'Mensual' => ['Hematocrito', 'Hemoglobina', 'Nitrógeno ureico (urea pre y post diálisis)', 'Perfil de electrolitos (cloro, sodio y potasio)', 'Calcio total', 'Fósforo inorgánico (fosfato)'],
@@ -40,31 +34,90 @@ class NephrologyConsultationController extends Controller
 
     public function index(Request $request)
     {
-        $consultations = NephrologyConsultation::with(['patient', 'doctor', 'order.fua'])
+        $patientsWithConsultations = Patient::query()
+            ->whereHas('nephrologyConsultations', fn ($query) => $query
+                ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
+                ->when(CurrentSede::id(), fn ($consultations, $sede) => $consultations->where('sede_id', $sede)))
+            ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede));
+
+        $filterOptions = collect(['secuencia', 'turno', 'modulo'])->mapWithKeys(function (string $field) use ($patientsWithConsultations) {
+            return [$field => (clone $patientsWithConsultations)->whereNotNull($field)->where($field, '!=', '')
+                ->distinct()->pluck($field)->sort(SORT_NATURAL | SORT_FLAG_CASE)->values()];
+        });
+
+        $consultationsQuery = NephrologyConsultation::with(['patient', 'doctor', 'order.fua'])
             ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->string('search')->trim();
-                $query->whereHas('patient', fn ($patient) => $patient->where('dni', 'like', "%{$search}%")
-                    ->orWhere('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"));
+                $query->whereHas('patient', fn ($patient) => $patient->where(function ($patient) use ($search) {
+                    $patient->where('dni', 'like', "%{$search}%")
+                        ->orWhere('medical_history_number', 'like', "%{$search}%")
+                        ->orWhere('affiliation_code', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('other_names', 'like', "%{$search}%")
+                        ->orWhere('surname', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                }));
             })
             ->when($request->filled('date'), fn ($query) => $query->whereDate('consultation_date', $request->date))
             ->when($request->filled('sequence'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $request->sequence)))
             ->when($request->filled('shift'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('turno', $request->shift)))
             ->when($request->filled('module'), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $request->module)))
-            ->latest('consultation_date')->paginate(15)->withQueryString();
+            ->when($request->doctor_status === 'assigned', fn ($query) => $query->whereNotNull('doctor_id'))
+            ->when($request->doctor_status === 'unassigned', fn ($query) => $query->whereNull('doctor_id'))
+            ->when(in_array($request->dialysis_attendance, ['attended', 'absent'], true), function ($query) use ($request) {
+                $query->whereDialysisAttendance($request->dialysis_attendance);
+            });
 
-        return view('consultations.index', compact('consultations'));
+        $duplicateIds = (clone $consultationsQuery)
+            ->get(['nephrology_consultations.id', 'nephrology_consultations.patient_id', 'nephrology_consultations.consultation_date'])
+            ->groupBy(fn (NephrologyConsultation $item) => $item->patient_id.'|'.$item->consultation_date?->format('Y-m-d'))
+            ->flatMap(fn ($group) => $group->sortBy('id')->skip(1)->pluck('id'))
+            ->map(fn ($id) => (string) $id)
+            ->values();
+
+        $consultations = $consultationsQuery
+            ->orderBy(Patient::select('surname')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
+            ->orderBy(Patient::select('last_name')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
+            ->orderBy(Patient::select('first_name')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
+            ->orderBy(Patient::select('other_names')->whereColumn('patients.id', 'nephrology_consultations.patient_id'))
+            ->orderBy('nephrology_consultations.id')
+            ->paginate(30)->withQueryString();
+
+        $dialysisSessions = Order::query()
+            ->whereIn('patient_id', $consultations->pluck('patient_id')->unique())
+            ->where('attention_type', Fua::HEMODIALYSIS)
+            ->finalizedHemodialysis()
+            ->orderBy('fecha_orden')
+            ->get(['patient_id', 'fecha_orden'])
+            ->groupBy('patient_id');
+
+        $consultations->getCollection()->each(function (NephrologyConsultation $consultation) use ($dialysisSessions) {
+            $consultationDate = $consultation->consultation_date?->toDateString();
+            $patientSessions = $dialysisSessions->get($consultation->patient_id, collect());
+
+            $consultation->dialysis_attended = $patientSessions
+                ->contains(fn (Order $order) => $order->fecha_orden?->toDateString() === $consultationDate);
+            $consultation->next_dialysis_date = $patientSessions
+                ->first(fn (Order $order) => $order->fecha_orden?->toDateString() > $consultationDate)
+                ?->fecha_orden;
+        });
+
+        return view('consultations.index', compact('consultations', 'filterOptions', 'duplicateIds'));
     }
 
     public function create()
     {
+        $currentDoctorId = Auth::user()?->isMedicalProfessional() ? Auth::id() : null;
+
         return view('consultations.form', [
             'consultation' => new NephrologyConsultation(['consultation_date' => now()]),
             'patients' => Patient::when(CurrentSede::id(), fn ($q, $sede) => $q->where('sede_id', $sede))->orderBy('surname')->get(),
-            'doctors' => User::where('profession', 'like', '%MEDIC%')->orderBy('name')->get(),
-            'medications' => collect(self::DEFAULT_MEDICATIONS),
+            'doctors' => User::medicalProfessionals()->orderBy('name')->get(),
+            'medications' => $this->defaultMedications(),
             'examGroups' => self::AUXILIARY_EXAMS,
+            'currentDoctorId' => $currentDoctorId,
         ]);
     }
 
@@ -75,7 +128,8 @@ class NephrologyConsultationController extends Controller
         DB::transaction(function () use ($data) {
             $medications = $data['medications']; unset($data['medications']);
             $data['sede_id'] = CurrentSede::id();
-            $data['doctor_id'] = $data['doctor_id'] ?? Auth::id();
+            $data['doctor_id'] = $data['doctor_id']
+                ?? (Auth::user()?->isMedicalProfessional() ? Auth::id() : null);
             $consultation = NephrologyConsultation::create($data);
             $consultation->medications()->createMany($medications);
         });
@@ -89,15 +143,18 @@ class NephrologyConsultationController extends Controller
         $medications = $consultation->medications;
 
         if ($medications->isEmpty()) {
-            $medications = collect(self::DEFAULT_MEDICATIONS);
+            $medications = $this->defaultMedications();
         }
+
+        $currentDoctorId = Auth::user()?->isMedicalProfessional() ? Auth::id() : null;
 
         return view('consultations.form', [
             'consultation' => $consultation,
             'patients' => Patient::when(CurrentSede::id(), fn ($q, $sede) => $q->where('sede_id', $sede))->orderBy('surname')->get(),
-            'doctors' => User::where('profession', 'like', '%MEDIC%')->orderBy('name')->get(),
+            'doctors' => User::medicalProfessionals()->orderBy('name')->get(),
             'medications' => $medications,
             'examGroups' => self::AUXILIARY_EXAMS,
+            'currentDoctorId' => $currentDoctorId,
         ]);
     }
 
@@ -106,13 +163,109 @@ class NephrologyConsultationController extends Controller
         $this->authorizeSede($consultation);
         abort_unless($consultation->order?->attention_type === Fua::NEPHROLOGY, 404);
         $data = $this->validated($request);
+        // The patient belongs to the generated consultation and cannot be
+        // reassigned from the fill-in form, even if the request is tampered with.
+        $data['patient_id'] = $consultation->patient_id;
         $data['diagnosis'] = $this->diagnosisSummary($data);
         DB::transaction(function () use ($data, $consultation) {
             $medications = $data['medications']; unset($data['medications']);
             $consultation->update($data); $consultation->medications()->delete();
             $consultation->medications()->createMany($medications);
+            $consultation->order?->update(['fecha_orden' => $consultation->consultation_date]);
         });
         return redirect()->route('consultations.index')->with('success', 'Consulta nefrológica actualizada.');
+    }
+
+    public function updateDate(Request $request, NephrologyConsultation $consultation)
+    {
+        $this->authorizeSede($consultation);
+        abort_unless($consultation->order?->attention_type === Fua::NEPHROLOGY, 404);
+        $data = $request->validate(['consultation_date' => ['required', 'date']]);
+
+        DB::transaction(function () use ($consultation, $data) {
+            $consultation->update($data);
+            // La fecha que imprime la FUA proviene de la orden asociada.
+            $consultation->order->update(['fecha_orden' => $data['consultation_date']]);
+        });
+
+        return back()->with('success', 'Fecha de consulta y FUA actualizada.');
+    }
+
+    public function updateDates(Request $request)
+    {
+        $data = $request->validate([
+            'consultations' => ['required', 'array', 'min:1'],
+            'consultations.*' => ['integer', 'distinct', 'exists:nephrology_consultations,id'],
+            'consultation_date' => ['required', 'date'],
+        ]);
+
+        $consultations = NephrologyConsultation::query()
+            ->whereIn('id', $data['consultations'])
+            ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
+            ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+            ->with('order')
+            ->get();
+
+        abort_unless($consultations->count() === count($data['consultations']), 403);
+
+        DB::transaction(function () use ($consultations, $data) {
+            foreach ($consultations as $consultation) {
+                $consultation->update(['consultation_date' => $data['consultation_date']]);
+                $consultation->order->update(['fecha_orden' => $data['consultation_date']]);
+            }
+        });
+
+        return back()->with('success', $consultations->count().' consultas y sus FUA fueron actualizadas.');
+    }
+
+    public function destroyDuplicates(Request $request)
+    {
+        $data = $request->validate([
+            'consultations' => ['required', 'array', 'min:1'],
+            'consultations.*' => ['integer', 'distinct', 'exists:nephrology_consultations,id'],
+        ]);
+
+        [$deleted, $protected] = DB::transaction(function () use ($data) {
+            $consultations = NephrologyConsultation::query()
+                ->whereIn('id', $data['consultations'])
+                ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
+                ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+                ->with('order')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->get();
+
+            abort_unless($consultations->count() === count($data['consultations']), 403);
+            $deleted = 0;
+            $protected = 0;
+
+            foreach ($consultations as $consultation) {
+                $duplicates = NephrologyConsultation::query()
+                    ->where('patient_id', $consultation->patient_id)
+                    ->whereDate('consultation_date', $consultation->consultation_date)
+                    ->whereHas('order', fn ($order) => $order->where('attention_type', Fua::NEPHROLOGY))
+                    ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+                    ->count();
+
+                if ($duplicates < 2) {
+                    $protected++;
+                    continue;
+                }
+
+                // Deleting the order also removes its consultation, medications and FUA.
+                $consultation->order->delete();
+                $deleted++;
+            }
+
+            return [$deleted, $protected];
+        });
+
+        $message = $deleted.' consulta(s) duplicada(s) eliminada(s).';
+        if ($protected > 0) {
+            $message .= ' Se conservaron '.$protected.' registro(s) porque eran la única consulta restante.';
+        }
+
+        return back()->with($deleted > 0 ? 'success' : 'warning', $message);
     }
 
     public function prescriptionPdf(NephrologyConsultation $consultation)
@@ -184,6 +337,15 @@ class NephrologyConsultationController extends Controller
 
     private function validated(Request $request): array
     {
+        // MySQL returns TIME values with seconds (HH:MM:SS), while the browser's
+        // time control normally submits HH:MM. Normalize both representations so
+        // editing an existing consultation cannot fail without user intervention.
+        if ($request->filled('consultation_time')) {
+            $request->merge([
+                'consultation_time' => substr((string) $request->input('consultation_time'), 0, 5),
+            ]);
+        }
+
         return $request->validate([
             'patient_id' => ['required', 'exists:patients,id'], 'doctor_id' => ['nullable', 'exists:users,id'],
             'consultation_date' => ['required', 'date'], 'blood_pressure' => ['nullable', 'string', 'max:20'],
@@ -211,6 +373,30 @@ class NephrologyConsultationController extends Controller
             'medications' => ['required', 'array', 'min:1'], 'medications.*.fua_code' => ['nullable', 'string', 'max:30'],
             'medications.*.description' => ['required', 'string', 'max:255'], 'medications.*.c' => ['nullable', 'string', 'max:50'],
             'medications.*.prescribed_quantity' => ['nullable', 'numeric', 'min:0'], 'medications.*.delivered_quantity' => ['nullable', 'numeric', 'min:0'],
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'required_with' => 'El campo :attribute es obligatorio.',
+            'date_format' => 'El campo :attribute no tiene un formato válido.',
+        ], [
+            'patient_id' => 'paciente',
+            'consultation_date' => 'fecha',
+            'consultation_time' => 'hora',
+            'medications' => 'medicamentos',
+            'medications.*.description' => 'medicamento',
+            'diagnoses.*.codigo' => 'código CIE-10',
+            'diagnoses.*.descripcion' => 'descripción del diagnóstico',
+        ]);
+    }
+
+    /** Build the editable default prescription from the current medication catalog. */
+    private function defaultMedications(): Collection
+    {
+        return MedicationCatalog::query()->orderBy('name')->get()->map(fn (MedicationCatalog $medication) => [
+            'fua_code' => $medication->code,
+            'description' => $medication->name,
+            'c' => $medication->indication,
+            'prescribed_quantity' => $medication->reference_quantity,
+            'delivered_quantity' => $medication->reference_quantity,
         ]);
     }
 

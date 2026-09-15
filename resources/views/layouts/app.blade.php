@@ -30,6 +30,12 @@
         .card { border: none; border-radius: 12px; transition: all 0.3s; }
         .shadow-sm { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; }
         [x-cloak] { display: none !important; }
+        .account-menu { min-width: 285px; padding: .5rem; border-radius: 14px; }
+        .account-menu .dropdown-header { white-space: normal; }
+        .account-menu .dropdown-item { padding: .65rem .75rem; border-radius: 9px; }
+        .account-menu .dropdown-item i { width: 1.25rem; text-align: center; }
+        .account-trigger { max-width: 300px; }
+        .account-trigger .account-name { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
         /* Contenedor que ocupa todo el ancho */
         .main-content {
@@ -49,7 +55,7 @@
         .logistics-panel { border:1px solid #e2e8f0; border-radius:18px; background:#fff; box-shadow:0 10px 30px rgba(15,23,42,.06); }
         .logistics-table thead th { padding:1rem; color:#64748b; background:#f8fafc; border-bottom:1px solid #e2e8f0; font-size:.75rem; letter-spacing:.04em; text-transform:uppercase; }
         .logistics-table tbody td { padding:1rem; border-color:#eef2f7; }
-        @media(max-width:767px){.main-content{padding:1rem}.logistics-hero{align-items:flex-start;flex-direction:column;padding:1.4rem}.logistics-location{width:100%}}
+        @media(max-width:767px){.main-content{padding:1rem}.logistics-hero{align-items:flex-start;flex-direction:column;padding:1.4rem}.logistics-location{width:100%}.navbar-collapse{align-items:stretch!important}.navbar-nav.ms-auto{align-items:stretch!important;width:100%}.account-trigger{max-width:none;width:100%;justify-content:space-between}.account-menu{position:static!important;width:100%;min-width:0;margin-top:.35rem!important;transform:none!important}}
     </style>
 </head>
 <body>
@@ -244,7 +250,7 @@
 
     @if($canSeeNephrology)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.nephrology.*', 'consultations.*', 'initial-histories.*', 'consents.*', 'referrals.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('orders.nephrology.*', 'consultations.*', 'medication-catalog.*', 'initial-histories.*', 'consents.*', 'referrals.*') ? 'active fw-bold' : '' }}"
                 type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-journal-medical me-1"></i> Nefrología
         </button>
@@ -255,6 +261,9 @@
             @if($canViewNephrology)
             <li><a class="dropdown-item {{ request()->routeIs('consultations.*') ? 'active' : '' }}" href="{{ route('consultations.index') }}"><i class="bi bi-person-vcard me-2"></i> Atenciones nefrológicas</a></li>
             @endif
+            @can('nephrology.update')
+            <li><a class="dropdown-item {{ request()->routeIs('medication-catalog.*') ? 'active' : '' }}" href="{{ route('medication-catalog.index') }}"><i class="bi bi-capsule me-2"></i> Catálogo de medicamentos</a></li>
+            @endcan
             @if($canViewReferrals)
             <li><a class="dropdown-item {{ request()->routeIs('referrals.*') ? 'active' : '' }}" href="{{ route('referrals.index') }}"><i class="bi bi-file-earmark-plus me-2"></i> Referencias</a></li>
             @endif
@@ -357,6 +366,9 @@
             <li><a class="dropdown-item {{ request()->routeIs('audit.fissal') ? 'active' : '' }}" href="{{ route('audit.fissal') }}">
                 <i class="bi bi-table me-2"></i> FISSAL
             </a></li>
+            <li><a class="dropdown-item {{ request()->routeIs('audit.consultations') ? 'active' : '' }}" href="{{ route('audit.consultations') }}">
+                <i class="bi bi-clipboard2-pulse me-2"></i> CONSULTAS
+            </a></li>
             <li><a class="dropdown-item {{ request()->routeIs('audit.ktv') ? 'active' : '' }}" href="{{ route('audit.ktv') }}">
                 <i class="bi bi-calculator me-2"></i> KTV
             </a></li>
@@ -374,17 +386,25 @@
                             <a class="btn btn-sm btn-outline-light" href="{{ route('sede.select') }}">Cambiar sede</a>
                         </li>
                         <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-                            <button class="nav-link dropdown-toggle d-flex align-items-center border-0 bg-transparent" type="button" @click="open = !open" :aria-expanded="open.toString()">
+                            <button class="nav-link dropdown-toggle d-flex align-items-center border-0 bg-transparent account-trigger" type="button" @click="open = !open" :aria-expanded="open.toString()" aria-label="Abrir menú de usuario">
                                 <div class="text-end me-2 d-none d-sm-block">
-                                    <div class="small fw-bold lh-1">{{ Auth::user()->name }}</div>
+                                    <div class="small fw-bold lh-1 account-name">{{ Auth::user()->name }}</div>
                                     <small class="opacity-75" style="font-size: 0.7rem;">{{ Auth::user()->profession }}</small>
                                 </div>
                                 <i class="bi bi-person-circle fs-4"></i>
                             </button>
-                            <div class="dropdown-menu dropdown-menu-end border-0 shadow" :class="{ 'show': open }" x-transition x-cloak>
+                            <div class="dropdown-menu dropdown-menu-end border-0 shadow account-menu" :class="{ 'show': open }" x-transition x-cloak>
+                                <div class="dropdown-header px-2 py-2 d-sm-none">
+                                    <strong class="d-block text-dark">{{ Auth::user()->name }}</strong>
+                                    <span>{{ Auth::user()->email }}</span>
+                                </div>
+                                <a class="dropdown-item {{ request()->routeIs('profile.*') ? 'active' : '' }}" href="{{ route('profile.edit') }}">
+                                    <i class="bi bi-person-gear me-2"></i> Mi perfil
+                                </a>
+                                <div class="dropdown-divider"></div>
                                 <a class="dropdown-item text-danger" href="{{ route('logout') }}" 
                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                                    Cerrar Sesión
+                                    <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
                                 </a>
                                 <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">@csrf</form>
                             </div>

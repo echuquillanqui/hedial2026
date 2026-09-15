@@ -16,6 +16,7 @@ use App\Http\Controllers\LaboratoryOrderController;
 use App\Http\Controllers\FuaConfigurationController;
 use App\Http\Controllers\FuaController;
 use App\Http\Controllers\NephrologyConsultationController;
+use App\Http\Controllers\MedicationCatalogController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\InitialClinicalHistoryController;
 use App\Http\Controllers\HemodialysisConsentController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\Eq5dAssessmentController;
 use App\Http\Controllers\SocialWorkAssessmentController;
 use App\Http\Controllers\NursingAnnexController;
 use App\Http\Controllers\RemainingAnnexController;
+use App\Http\Controllers\ProfileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,6 +49,7 @@ Auth::routes();
 Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('auditoria/historias', [AuditController::class, 'histories'])->name('audit.histories');
     Route::get('auditoria/fissal', [AuditController::class, 'fissal'])->name('audit.fissal');
+    Route::get('auditoria/consultas', [AuditController::class, 'consultations'])->name('audit.consultations');
     Route::get('auditoria/ktv', [AuditController::class, 'ktv'])->name('audit.ktv');
     Route::get('auditoria/pendientes', [AuditController::class, 'pendingDocuments'])->name('audit.pending-documents');
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
@@ -57,6 +60,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/seleccionar-sede', [SedeSessionController::class, 'select'])->name('sede.select');
     Route::post('/seleccionar-sede', [SedeSessionController::class, 'store'])->name('sede.store');
+    Route::get('/mi-perfil', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/mi-perfil', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/mi-perfil/contrasena', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
 });
 
 Route::middleware(['auth', 'ensure.sede'])->group(function () {
@@ -90,6 +96,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::put('catalogo/perfiles/{profile}', [CatalogController::class, 'updateProfile'])->name('catalog.profiles.update');
     Route::delete('catalogo/perfiles/{profile}', [CatalogController::class, 'destroyProfile'])->name('catalog.profiles.destroy');
     Route::post('catalogo', [CatalogController::class, 'store'])->name('catalog.store');
+    Route::get('catalogo-medicamentos', [MedicationCatalogController::class, 'index'])->name('medication-catalog.index');
+    Route::put('catalogo-medicamentos', [MedicationCatalogController::class, 'update'])->name('medication-catalog.update');
+    Route::get('catalogo-medicamentos/buscar', [MedicationCatalogController::class, 'search'])->name('medication-catalog.search');
 
     Route::get('laboratory/orders/create', [LaboratoryOrderController::class, 'create'])->name('laboratory.orders.create');
     Route::post('laboratory/orders', [LaboratoryOrderController::class, 'store'])->name('laboratory.orders.store');
@@ -99,6 +108,10 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('laboratory/results/{laboratoryOrder}/pdf', [LaboratoryOrderController::class, 'pdf'])->name('laboratory.results.pdf');
     Route::post('laboratory/results/pdf/bulk', [LaboratoryOrderController::class, 'bulkPdf'])->name('laboratory.results.bulk-pdf');
     Route::put('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'updateResults'])->name('laboratory.results.update');
+    Route::put('laboratory/profile/digital-seal', [LaboratoryOrderController::class, 'updateDigitalSeal'])
+        ->middleware('permission:laboratory.results.update')->name('laboratory.profile.digital-seal.update');
+    Route::delete('laboratory/profile/digital-seal', [LaboratoryOrderController::class, 'destroyDigitalSeal'])
+        ->middleware('permission:laboratory.results.update')->name('laboratory.profile.digital-seal.destroy');
 
     Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');
     Route::post('/users/permissions', [UserController::class, 'storePermission'])->name('users.permissions.store');
@@ -144,6 +157,8 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('servicio-social/{socialWork}/editar',[SocialWorkAssessmentController::class,'edit'])->name('social-work.edit');
     Route::put('servicio-social/{socialWork}',[SocialWorkAssessmentController::class,'update'])->name('social-work.update');
     Route::get('anexos/enfermeria', [NursingAnnexController::class, 'index'])->name('nursing-annexes.index');
+    Route::post('anexos/enfermeria/anexo-12', [NursingAnnexController::class, 'storeCare'])->name('nursing-annexes.care.store');
+    Route::get('anexos/enfermeria/anexo-12/{annex}/pdf', [NursingAnnexController::class, 'generatedCarePdf'])->name('nursing-annexes.care.generated-pdf');
     Route::post('anexos/enfermeria/{order}/descarte', [NursingAnnexController::class, 'storeDiscard'])->name('nursing-annexes.discards.store');
     Route::get('anexos/enfermeria/descarte/{category}/pdf', [NursingAnnexController::class, 'discardPdf'])->name('nursing-annexes.discards.pdf');
     Route::get('anexos/enfermeria/atenciones/pdf', [NursingAnnexController::class, 'carePdf'])->name('nursing-annexes.care.pdf');
@@ -169,6 +184,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('orders/multisectorial/create', [OrderController::class, 'createMultisectorial'])->name('orders.multisectorial.create');
     Route::post('orders/multisectorial', [OrderController::class, 'storeMultisectorial'])->name('orders.multisectorial.store');
     Route::post('orders/multisectorial/bulk', [OrderController::class, 'storeMultisectorialBulk'])->name('orders.multisectorial.store-bulk');
+    Route::delete('orders/bulk/duplicates', [OrderController::class, 'destroyBulk'])->name('orders.destroy-bulk');
     Route::resource('orders', App\Http\Controllers\OrderController::class);
     Route::post('orders/store-bulk', [App\Http\Controllers\OrderController::class, 'storeBulk'])
         ->name('orders.store_bulk');
@@ -177,6 +193,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('consultas/{consultation}/consulta.pdf', [NephrologyConsultationController::class, 'consultationPdf'])->name('consultations.pdf');
     Route::get('consultas/{consultation}/receta.pdf', [NephrologyConsultationController::class, 'prescriptionPdf'])->name('consultations.prescription.pdf');
     Route::post('consultas/imprimir/bloque', [NephrologyConsultationController::class, 'bulkPdf'])->name('consultations.bulk-pdf');
+    Route::patch('consultas/fecha/bloque', [NephrologyConsultationController::class, 'updateDates'])->name('consultations.dates.update');
+    Route::delete('consultas/duplicados', [NephrologyConsultationController::class, 'destroyDuplicates'])->name('consultations.duplicates.destroy');
+    Route::patch('consultas/{consultation}/fecha', [NephrologyConsultationController::class, 'updateDate'])->name('consultations.date.update');
     Route::resource('consultas', NephrologyConsultationController::class)
         ->only(['index', 'edit', 'update'])
         ->parameters(['consultas' => 'consultation'])

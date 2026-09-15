@@ -3,8 +3,14 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\NephrologyConsultationController;
+use App\Models\Fua;
+use App\Models\MedicationCatalog;
+use App\Models\Medical;
 use App\Models\NephrologyConsultation;
+use App\Models\Nurse;
+use App\Models\Order;
 use App\Models\Patient;
+use App\Models\Treatment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -12,6 +18,92 @@ use Tests\TestCase;
 class NephrologyConsultationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_medication_catalog_is_seeded_and_codes_can_be_completed_manually(): void
+    {
+        $user = User::factory()->create();
+        $medication = MedicationCatalog::where('name', 'like', 'Hierro%')->firstOrFail();
+
+        $payload = MedicationCatalog::all()->mapWithKeys(fn ($item) => [$item->id => [
+            'code' => $item->is($medication) ? 'MED-001' : $item->code,
+            'name' => $item->name,
+            'reference_quantity' => $item->reference_quantity,
+            'frequency' => $item->frequency,
+            'indication' => $item->indication,
+        ]])->all();
+
+        $this->actingAs($user)->withoutMiddleware()->put(route('medication-catalog.update'), [
+            'medications' => $payload,
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertDatabaseHas('medication_catalog', [
+            'id' => $medication->id, 'code' => 'MED-001', 'reference_quantity' => 4, 'frequency' => 'Mensual',
+        ]);
+    }
+
+    public function test_medication_catalog_displays_and_updates_registered_indications(): void
+    {
+        $user = User::factory()->create();
+        $losartan = MedicationCatalog::where('name', 'like', 'Losartan%')->firstOrFail();
+
+        $this->assertSame(
+            '1 tableta cada 12 horas. En algunos pacientes: cada 24 horas.',
+            $losartan->indication
+        );
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('medication-catalog.index'))
+            ->assertOk()
+            ->assertSee('Indicación')
+            ->assertSee($losartan->indication);
+
+        $payload = MedicationCatalog::all()->mapWithKeys(fn ($item) => [$item->id => [
+            'code' => $item->code,
+            'name' => $item->name,
+            'reference_quantity' => $item->reference_quantity,
+            'frequency' => $item->frequency,
+            'indication' => $item->is($losartan) ? 'Indicación actualizada.' : $item->indication,
+        ]])->all();
+
+        $this->actingAs($user)->withoutMiddleware()->put(route('medication-catalog.update'), [
+            'medications' => $payload,
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertDatabaseHas('medication_catalog', [
+            'id' => $losartan->id,
+            'indication' => 'Indicación actualizada.',
+        ]);
+    }
+
+    public function test_medication_search_matches_name_or_code_and_form_exposes_autocomplete(): void
+    {
+        $user = User::factory()->create();
+        $medication = MedicationCatalog::where('name', 'like', 'Epoetina alfa%2000%')->firstOrFail();
+        $medication->update([
+            'code' => 'EPO-2000',
+            'indication' => 'Aplicar después de cada sesión de hemodiálisis.',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->getJson(route('medication-catalog.search', ['q' => 'EPO-2000']))
+            ->assertOk()->assertJsonFragment([
+                'name' => $medication->name,
+                'reference_quantity' => 12,
+                'indication' => $medication->indication,
+            ]);
+        $this->actingAs($user)->withoutMiddleware()->getJson(route('medication-catalog.search', ['q' => 'Eritropoyetina']))
+            ->assertOk()->assertJsonFragment(['code' => 'EPO-2000']);
+
+        $patient = Patient::factory()->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id], 'fecha_orden' => '2026-09-13',
+        ]);
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.edit', NephrologyConsultation::firstOrFail()))
+            ->assertOk()
+            ->assertSee('medication-search')
+            ->assertSee('medication-indication')
+            ->assertSee('data-indication=', false)
+            ->assertSee("row.querySelector('.medication-indication').value=option.dataset.indication", false)
+            ->assertSee(route('medication-catalog.search'), false);
+    }
 
     public function test_nephrology_order_form_filters_patients_by_schedule_and_search(): void
     {
@@ -67,6 +159,162 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('FUA');
     }
 
+    public function test_nephrology_consultation_index_displays_thirty_records_per_page(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(31)->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(),
+            'fecha_orden' => '2026-08-14',
+        ])->assertRedirect(route('orders.index'));
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
+            ->assertOk()
+            ->assertViewHas('consultations', fn ($consultations): bool => $consultations->perPage() === 30
+                && $consultations->count() === 30
+                && $consultations->total() === 31);
+    }
+
+    public function test_empty_nephrology_consultation_uses_the_current_medication_catalog_as_defaults(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $catalogMedication = MedicationCatalog::firstOrFail();
+        $catalogMedication->update([
+            'code' => 'CAT-001',
+            'name' => 'Medicamento actualizado en catálogo',
+            'reference_quantity' => 17,
+            'indication' => 'Aplicar según catálogo.',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-08-14',
+        ])->assertRedirect(route('orders.index'));
+
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.edit', $consultation))
+            ->assertOk()
+            ->assertViewHas('medications', function ($medications) use ($catalogMedication): bool {
+                $default = $medications->firstWhere('description', $catalogMedication->name);
+
+                return $medications->count() === MedicationCatalog::count()
+                    && $default === [
+                        'fua_code' => 'CAT-001',
+                        'description' => 'Medicamento actualizado en catálogo',
+                        'c' => 'Aplicar según catálogo.',
+                        'prescribed_quantity' => 17,
+                        'delivered_quantity' => 17,
+                    ];
+            })
+            ->assertSee('Medicamento actualizado en catálogo')
+            ->assertSee('Epoetina alfa')
+            ->assertSee('Vitamina B12')
+            ->assertSee('Losartan potásico 50 mg TAB');
+    }
+
+    public function test_second_nephrology_consultation_copies_the_previous_clinical_data_and_medications(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-08-14',
+        ]);
+
+        $previous = NephrologyConsultation::firstOrFail();
+        $previous->update([
+            'doctor_id' => $user->id,
+            'consultation_time' => '09:35',
+            'blood_pressure' => '120/80',
+            'weight' => 68.5,
+            'reason' => 'Control mensual',
+            'current_illness' => 'Paciente estable',
+            'diagnoses' => [['codigo' => 'N18.6', 'descripcion' => 'Enfermedad renal terminal']],
+            'auxiliary_exams' => ['Mensual|Hemoglobina'],
+            'treatment_plan' => 'Continuar hemodiálisis',
+            'next_appointment_date' => '2026-09-14',
+        ]);
+        $previous->medications()->create([
+            'fua_code' => 'MED-100',
+            'description' => 'Medicamento personalizado',
+            'c' => '1 tableta diaria',
+            'prescribed_quantity' => 30,
+            'delivered_quantity' => 25,
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-09-14',
+        ])->assertRedirect(route('orders.index'));
+
+        $current = NephrologyConsultation::latest('id')->firstOrFail();
+
+        $this->assertNotSame($previous->id, $current->id);
+        $this->assertNotSame($previous->order_id, $current->order_id);
+        $this->assertSame('2026-09-14', $current->consultation_date->toDateString());
+        $this->assertSame($previous->doctor_id, $current->doctor_id);
+        $this->assertSame('09:35', substr($current->consultation_time, 0, 5));
+        $this->assertSame($previous->blood_pressure, $current->blood_pressure);
+        $this->assertSame($previous->weight, $current->weight);
+        $this->assertSame($previous->reason, $current->reason);
+        $this->assertSame($previous->current_illness, $current->current_illness);
+        $this->assertSame($previous->diagnoses, $current->diagnoses);
+        $this->assertSame($previous->auxiliary_exams, $current->auxiliary_exams);
+        $this->assertSame($previous->treatment_plan, $current->treatment_plan);
+        $this->assertSame('2026-09-14', $current->next_appointment_date->toDateString());
+        $this->assertDatabaseHas('medications', [
+            'nephrology_consultation_id' => $current->id,
+            'fua_code' => 'MED-100',
+            'description' => 'Medicamento personalizado',
+            'c' => '1 tableta diaria',
+            'prescribed_quantity' => 30,
+            'delivered_quantity' => 25,
+        ]);
+    }
+
+    public function test_first_nephrology_consultation_remains_empty(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-08-14',
+        ])->assertRedirect(route('orders.index'));
+
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $this->assertNull($consultation->reason);
+        $this->assertNull($consultation->doctor_id);
+        $this->assertTrue($consultation->medications()->doesntExist());
+    }
+
+    public function test_each_patient_can_receive_an_individual_date_during_bulk_generation(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(3)->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(),
+            'fecha_orden' => '2026-09-10',
+            'patient_dates' => [
+                $patients[0]->id => '2026-09-08',
+                $patients[1]->id => '2026-09-12',
+            ],
+        ])->assertRedirect(route('orders.index'));
+
+        foreach (['2026-09-08', '2026-09-12', '2026-09-10'] as $index => $date) {
+            $consultation = NephrologyConsultation::where('patient_id', $patients[$index]->id)->firstOrFail();
+
+            $this->assertSame($date, $consultation->consultation_date->toDateString());
+            $this->assertSame($date, $consultation->order->fecha_orden->toDateString());
+        }
+    }
+
     public function test_consultations_can_only_be_generated_from_nephrology_orders(): void
     {
         $user = User::factory()->create();
@@ -103,6 +351,226 @@ class NephrologyConsultationTest extends TestCase
             ->assertSee('Imprimir bloque')->assertSee('Consulta')->assertSee('Receta')->assertSee('FUA');
     }
 
+    public function test_consultation_index_filters_by_doctor_assignment_status(): void
+    {
+        $user = User::factory()->create();
+        $doctor = User::factory()->create();
+        $assignedPatient = Patient::factory()->create();
+        $unassignedPatient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$assignedPatient->id, $unassignedPatient->id],
+            'fecha_orden' => '2026-08-14',
+        ]);
+        NephrologyConsultation::where('patient_id', $assignedPatient->id)->update(['doctor_id' => $doctor->id]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', ['doctor_status' => 'assigned']))
+            ->assertOk()->assertSee($assignedPatient->full_name)->assertDontSee($unassignedPatient->full_name)
+            ->assertSee('<option value="assigned" selected>', false);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', ['doctor_status' => 'unassigned']))
+            ->assertOk()->assertSee($unassignedPatient->full_name)->assertDontSee($assignedPatient->full_name)
+            ->assertSee('<option value="unassigned" selected>', false);
+    }
+
+    public function test_consultation_index_detects_dialysis_attendance_and_the_next_session(): void
+    {
+        $user = User::factory()->create();
+        $attendedPatient = Patient::factory()->create();
+        $absentPatient = Patient::factory()->create();
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$attendedPatient->id, $absentPatient->id],
+            'fecha_orden' => '2026-09-10',
+        ])->assertRedirect();
+
+        foreach ([
+            [$attendedPatient, '2026-09-10', 'HD-ATTENDED', true],
+            [$absentPatient, '2026-09-10', 'HD-NOT-FINISHED', false],
+            [$absentPatient, '2026-09-12', 'HD-NEXT', true],
+        ] as [$patient, $date, $code, $finalized]) {
+            $order = Order::create([
+                'patient_id' => $patient->id,
+                'codigo_unico' => $code,
+                'sala' => 'SALA 1',
+                'turno' => '1',
+                'attention_type' => Fua::HEMODIALYSIS,
+                'horas_dialisis' => 3.5,
+                'fecha_orden' => $date,
+                'sede_id' => $patient->sede_id,
+            ]);
+
+            if ($finalized) {
+                Medical::create(['order_id' => $order->id, 'hora_final' => '12:00']);
+                Nurse::create(['order_id' => $order->id, 'enfermero_que_finaliza_id' => $user->id]);
+                Treatment::create(['order_id' => $order->id, 'hora' => '11:30']);
+            }
+        }
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
+            ->assertOk()
+            ->assertSee('Asistencia HD')
+            ->assertSee('Sí vino')
+            ->assertSee('No vino')
+            ->assertSee('Siguiente sesión:')
+            ->assertSee('12/09/2026')
+            ->assertSee('Usar esta fecha');
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', [
+            'dialysis_attendance' => 'absent',
+        ]))->assertOk()
+            ->assertSee($absentPatient->full_name)
+            ->assertDontSee($attendedPatient->full_name)
+            ->assertSee('<option value="absent" selected>', false);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', [
+            'dialysis_attendance' => 'attended',
+        ]))->assertOk()
+            ->assertSee($attendedPatient->full_name)
+            ->assertDontSee($absentPatient->full_name);
+    }
+
+    public function test_dialysis_attendance_uses_the_same_nursing_completion_as_fissal_audit(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-09-11',
+        ]);
+
+        $dialysis = Order::create([
+            'patient_id' => $patient->id,
+            'codigo_unico' => 'HD-CERRADA-ENFERMERIA',
+            'sala' => 'MODULO 1',
+            'turno' => '1',
+            'attention_type' => Fua::HEMODIALYSIS,
+            'horas_dialisis' => 3.5,
+            'fecha_orden' => '2026-09-11',
+            'sede_id' => $patient->sede_id,
+        ]);
+        Nurse::create([
+            'order_id' => $dialysis->id,
+            'enfermero_que_finaliza_id' => $user->id,
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', [
+            'date' => '2026-09-11',
+            'dialysis_attendance' => 'attended',
+        ]))->assertOk()->assertSee($patient->full_name)->assertSee('Sí vino');
+    }
+
+    public function test_duplicate_consultations_can_be_selected_and_deleted_in_bulk_while_one_is_preserved(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+
+        foreach (range(1, 3) as $unused) {
+            $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+                'patient_ids' => [$patient->id], 'fecha_orden' => '2026-08-14',
+            ])->assertRedirect();
+        }
+
+        $consultations = NephrologyConsultation::orderBy('id')->get();
+        $duplicateIds = $consultations->skip(1)->pluck('id')->map(fn ($id) => (string) $id)->values()->all();
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index'))
+            ->assertOk()
+            ->assertSee('Seleccionar duplicados')
+            ->assertViewHas('duplicateIds', fn ($ids) => $ids->all() === $duplicateIds);
+
+        $this->actingAs($user)->withoutMiddleware()->delete(route('consultations.duplicates.destroy'), [
+            'consultations' => $consultations->pluck('id')->all(),
+        ])->assertRedirect()->assertSessionHas('success', fn ($message) => str_contains($message, '2 consulta(s) duplicada(s)'));
+
+        $this->assertDatabaseCount('nephrology_consultations', 1);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('fuas', 1);
+        $this->assertDatabaseHas('nephrology_consultations', ['id' => $consultations->first()->id]);
+    }
+
+    public function test_consultation_index_is_alphabetical_with_and_without_filters(): void
+    {
+        $user = User::factory()->create();
+        $patients = collect([
+            Patient::factory()->create(['surname' => 'ZAPATA', 'last_name' => 'ARIAS', 'first_name' => 'ANA', 'secuencia' => 'L-M-V']),
+            Patient::factory()->create(['surname' => 'ALVAREZ', 'last_name' => 'ZURITA', 'first_name' => 'CARLA', 'secuencia' => 'L-M-V']),
+            Patient::factory()->create(['surname' => 'ALVAREZ', 'last_name' => 'BENITES', 'first_name' => 'BEATRIZ', 'secuencia' => 'L-M-V']),
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(),
+            'fecha_orden' => '2026-08-14',
+        ]);
+
+        $expectedPatientIds = [$patients[2]->id, $patients[1]->id, $patients[0]->id];
+
+        foreach ([[], ['sequence' => 'L-M-V']] as $filters) {
+            $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', $filters))
+                ->assertOk()
+                ->assertViewHas('consultations', fn ($consultations): bool => $consultations
+                    ->pluck('patient_id')->all() === $expectedPatientIds);
+        }
+    }
+
+    public function test_consultation_filters_use_patient_data_and_search_all_identifiers(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'medical_history_number' => 'HC-FILTRO-99',
+            'secuencia' => 'ESPECIAL',
+            'turno' => 'NOCHE',
+            'modulo' => 'MOD-8',
+        ]);
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id], 'fecha_orden' => '2026-08-14',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('consultations.index', [
+            'search' => 'HC-FILTRO-99', 'sequence' => 'ESPECIAL', 'shift' => 'NOCHE', 'module' => 'MOD-8',
+        ]))->assertOk()->assertSee($patient->full_name)
+            ->assertSee('<option value="ESPECIAL" selected>', false)
+            ->assertSee('<option value="NOCHE" selected>', false)
+            ->assertSee('<option value="MOD-8" selected>', false);
+    }
+
+    public function test_editing_consultation_date_also_updates_the_date_printed_on_the_fua(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id], 'fecha_orden' => '2026-08-14',
+        ]);
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $this->actingAs($user)->withoutMiddleware()->patch(route('consultations.date.update', $consultation), [
+            'consultation_date' => '2026-09-10',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertSame('2026-09-10', $consultation->fresh()->consultation_date->toDateString());
+        $this->assertSame('2026-09-10', $consultation->order->fresh()->fecha_orden->toDateString());
+    }
+
+    public function test_dates_can_be_updated_in_bulk_for_consultations_and_their_orders(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(2)->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => $patients->modelKeys(), 'fecha_orden' => '2026-08-14',
+        ]);
+        $consultations = NephrologyConsultation::all();
+
+        $this->actingAs($user)->withoutMiddleware()->patch(route('consultations.dates.update'), [
+            'consultations' => $consultations->modelKeys(),
+            'consultation_date' => '2026-09-15',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        foreach ($consultations as $consultation) {
+            $this->assertSame('2026-09-15', $consultation->fresh()->consultation_date->toDateString());
+            $this->assertSame('2026-09-15', $consultation->order->fresh()->fecha_orden->toDateString());
+        }
+    }
+
     public function test_consultations_and_prescriptions_can_be_printed_in_bulk(): void
     {
         $user = User::factory()->create();
@@ -129,7 +597,7 @@ class NephrologyConsultationTest extends TestCase
             'doctor_id' => $user->id,
             'consultation_date' => '2026-08-14',
         ]);
-        $consultation->medications()->create(NephrologyConsultationController::DEFAULT_MEDICATIONS[0] + [
+        $consultation->medications()->create($this->sampleMedication() + [
             'prescribed_quantity' => 2, 'delivered_quantity' => 1,
         ]);
 
@@ -178,6 +646,103 @@ class NephrologyConsultationTest extends TestCase
         );
     }
 
+    public function test_validation_preserves_consultation_fields_and_accepts_database_time_format(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-08-14',
+        ]);
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->from(route('consultations.edit', $consultation))
+            ->put(route('consultations.update', $consultation), [
+                'patient_id' => $patient->id,
+                'consultation_date' => '2026-08-14',
+                'consultation_time' => '09:35:00',
+                'reason' => 'Control mensual que debe conservarse',
+                'medications' => [[
+                    'description' => '',
+                    'prescribed_quantity' => 1,
+                    'delivered_quantity' => 1,
+                ]],
+            ]);
+
+        $response->assertRedirect(route('consultations.edit', $consultation))
+            ->assertSessionHasErrors('medications.0.description')
+            ->assertSessionDoesntHaveErrors('consultation_time')
+            ->assertSessionHasInput('reason', 'Control mensual que debe conservarse')
+            ->assertSessionHasInput('consultation_time', '09:35');
+    }
+
+    public function test_form_marks_server_validation_errors_and_formats_saved_time(): void
+    {
+        $consultation = new NephrologyConsultation(['consultation_time' => '09:35:00']);
+        $consultation->id = 1;
+        $consultation->exists = true;
+        $patients = collect();
+        $doctors = collect();
+        $medications = collect([$this->sampleMedication()]);
+        $examGroups = NephrologyConsultationController::AUXILIARY_EXAMS;
+        $errors = new \Illuminate\Support\ViewErrorBag();
+        $errors->put('default', new \Illuminate\Support\MessageBag([
+            'medications.0.description' => ['El campo medicamento es obligatorio.'],
+        ]));
+
+        $currentDoctorId = null;
+        $document = view('consultations.form', compact('consultation', 'patients', 'doctors', 'medications', 'examGroups', 'errors', 'currentDoctorId'))->render();
+
+        $this->assertStringContainsString('value="09:35"', $document);
+        $this->assertStringContainsString('const validationErrors = ["medications.0.description"]', $document);
+        $this->assertStringContainsString("element.classList.add('is-invalid')", $document);
+    }
+
+    public function test_fill_in_form_keeps_patient_read_only_and_selects_logged_in_doctor(): void
+    {
+        $doctor = User::factory()->create(['profession' => 'Médico Nefrólogo']);
+        $patient = Patient::factory()->create();
+        $this->actingAs($doctor)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-09-14',
+        ]);
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $response = $this->actingAs($doctor)->withoutMiddleware()
+            ->get(route('consultations.edit', $consultation));
+
+        $response->assertOk()
+            ->assertSee('aria-label="Paciente de la consulta"', false)
+            ->assertSee($patient->full_name)
+            ->assertSee('DNI:')
+            ->assertSee($patient->dni)
+            ->assertSee('name="patient_id" value="'.$patient->id.'"', false)
+            ->assertSee('id="patient_name"', false)
+            ->assertSee('readonly', false)
+            ->assertSee('value="'.$doctor->id.'" selected', false);
+    }
+
+    public function test_update_cannot_reassign_the_consultation_patient(): void
+    {
+        $doctor = User::factory()->create(['profession' => 'MEDICO']);
+        $patient = Patient::factory()->create();
+        $otherPatient = Patient::factory()->create();
+        $this->actingAs($doctor)->withoutMiddleware()->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$patient->id],
+            'fecha_orden' => '2026-09-14',
+        ]);
+        $consultation = NephrologyConsultation::firstOrFail();
+
+        $this->actingAs($doctor)->withoutMiddleware()->put(route('consultations.update', $consultation), [
+            'patient_id' => $otherPatient->id,
+            'doctor_id' => $doctor->id,
+            'consultation_date' => '2026-09-14',
+            'medications' => [$this->sampleMedication()],
+        ])->assertRedirect(route('consultations.index'));
+
+        $this->assertSame($patient->id, $consultation->fresh()->patient_id);
+    }
+
     public function test_consultation_document_lists_only_selected_exam_names_in_three_columns_without_prescription(): void
     {
         $user = User::factory()->create();
@@ -192,7 +757,7 @@ class NephrologyConsultationTest extends TestCase
                 'Trimestral|Albúmina',
             ],
         ]);
-        $consultation->medications()->create(NephrologyConsultationController::DEFAULT_MEDICATIONS[0]);
+        $consultation->medications()->create($this->sampleMedication());
         $consultation->load(['patient', 'doctor', 'sede']);
 
         $document = view('consultations.consultation_pdf', compact('consultation'))->render();
@@ -209,5 +774,16 @@ class NephrologyConsultationTest extends TestCase
         $this->assertStringNotContainsString('Mensual|', $document);
         $this->assertStringNotContainsString('Tratamiento prescrito', $document);
         $this->assertStringNotContainsString('Tiamina 100 mg tableta', $document);
+    }
+
+    private function sampleMedication(): array
+    {
+        return [
+            'fua_code' => '06127',
+            'description' => 'Tiamina clorhidrato 100 mg tableta',
+            'c' => '1 tableta cada 24 horas en el desayuno',
+            'prescribed_quantity' => 30,
+            'delivered_quantity' => 30,
+        ];
     }
 }

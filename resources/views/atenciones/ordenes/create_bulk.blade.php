@@ -115,12 +115,9 @@
                                                 @csrf
                                                 <input type="hidden" name="patient_id" value="{{ $patient->id }}">
                                                 <div class="col-md-3">
-                                                    <select name="sala" class="form-select form-select-sm border-success" required>
-                                                        <option value="MODULO 1" {{ $patient->modulo == '1' ? 'selected' : '' }}>MOD 1</option>
-                                                        <option value="MODULO 2" {{ $patient->modulo == '2' ? 'selected' : '' }}>MOD 2</option>
-                                                        <option value="MODULO 3" {{ $patient->modulo == '3' ? 'selected' : '' }}>MOD 3</option>
-                                                        <option value="MODULO 4" {{ $patient->modulo == '4' ? 'selected' : '' }}>MOD 4</option>
-                                                    </select>
+                                                    <span class="badge bg-light text-success border border-success w-100 py-2">
+                                                        MÓDULO {{ $patient->modulo }}
+                                                    </span>
                                                 </div>
                                                 <div class="col-md-2">
                                                     <select name="turno" class="form-select form-select-sm border-success" required>
@@ -191,12 +188,11 @@
                         <div class="card-header py-3">DATOS DE GENERACIÓN</div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <label class="data-title text-success" for="sala">Ubicación destino</label>
-                                <select id="sala" name="sala" class="form-select border-success fw-bold" required>
-                                    @foreach(range(1, 4) as $module)
-                                        <option value="MODULO {{ $module }}" @selected(request('modulo') == $module)>MÓDULO {{ $module }}</option>
-                                    @endforeach
-                                </select>
+                                <label class="data-title text-success">Ubicación destino</label>
+                                <div class="form-control border-success fw-bold bg-light">
+                                    MÓDULO DE CADA PACIENTE
+                                </div>
+                                <small class="text-muted">Cada orden usará automáticamente el módulo asignado al paciente.</small>
                             </div>
 
                             <div class="mb-4">

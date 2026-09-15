@@ -1,7 +1,7 @@
 <tr>
     <td>
-        <input type="time" name="t_hora[]" class="hora-input" 
-               value="{{ isset($t) ? substr($t->hora, 0, 5) : '' }}" required>
+        <input type="time" name="t_hora[]" class="hora-input"
+               value="{{ isset($t) ? substr($t->hora, 0, 5) : '' }}">
     </td>
     <td style="width: 85px;">
         <input type="text" name="t_pa[]" value="{{ $t->pa ?? $nurse->pa_inicial ?? '' }}" placeholder="120/80">

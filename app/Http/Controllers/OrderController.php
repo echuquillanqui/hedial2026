@@ -23,6 +23,7 @@ use App\Models\User;
 use App\Models\HemodialysisConsent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
+use App\Support\DailyHemodialysisSequence;
 
 class OrderController extends Controller
 {
@@ -31,7 +32,7 @@ class OrderController extends Controller
         $this->middleware('permission:orders.view')->only(['index']);
         $this->middleware('permission:orders.create')->only(['create', 'store', 'storeBulk', 'createNephrology', 'storeNephrology']);
         $this->middleware('permission:orders.edit')->only(['edit', 'update']);
-        $this->middleware('permission:orders.delete')->only(['destroy']);
+        $this->middleware('permission:orders.delete')->only(['destroy', 'destroyBulk']);
     }
 
     /**
@@ -45,10 +46,20 @@ class OrderController extends Controller
         $dateFilter = $request->boolean('all_dates')
             ? null
             : $request->input('date', now()->toDateString());
+        $dailySequence = $dateFilter ? DailyHemodialysisSequence::forDate($dateFilter) : null;
 
         $currentSedeId = CurrentSede::id();
 
-        $orders = Order::with(['patient', 'medical', 'sede', 'fua'])
+        $ordersQuery = Order::with(['patient', 'medical', 'nurse', 'treatments', 'sede', 'fua'])
+            ->select('orders.*')
+            ->where('orders.attention_type', ClinicalService::HEMODIALYSIS)
+            ->selectSub(function ($duplicates) {
+                $duplicates->from('orders as daily_orders')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('daily_orders.patient_id', 'orders.patient_id')
+                    ->whereColumn('daily_orders.fecha_orden', 'orders.fecha_orden')
+                    ->whereColumn('daily_orders.attention_type', 'orders.attention_type');
+            }, 'daily_duplicate_count')
             ->when($currentSedeId, fn ($query) => $query->where('sede_id', $currentSedeId))
             ->when($request->search, function ($query, $search) {
                 $query->where(function($q) use ($search) {
@@ -63,17 +74,41 @@ class OrderController extends Controller
             ->when($dateFilter, function ($query, $date) {
                 $query->whereDate('fecha_orden', $date);
             })
+            ->when($dailySequence, function ($query, $sequence) {
+                $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $sequence));
+            })
             ->when($request->turno, function ($query, $turno) {
                 $query->where('turno', $turno);
             })
             ->when($request->sala, function ($query, $sala) {
                 $query->where('sala', $sala);
             })
+            ->when($request->boolean('duplicates_only'), fn ($query) => $query->whereExists(function ($duplicates) {
+                $duplicates->selectRaw('1')
+                    ->from('orders as duplicate_orders')
+                    ->whereColumn('duplicate_orders.patient_id', 'orders.patient_id')
+                    ->whereColumn('duplicate_orders.fecha_orden', 'orders.fecha_orden')
+                    ->whereColumn('duplicate_orders.attention_type', 'orders.attention_type')
+                    ->whereColumn('duplicate_orders.id', '!=', 'orders.id');
+            }));
+
+        $recordCount = (clone $ordersQuery)->count();
+        $patientCount = (clone $ordersQuery)->distinct()->count('orders.patient_id');
+        $duplicateCount = (clone $ordersQuery)
+            ->get(['orders.id', 'orders.patient_id', 'orders.fecha_orden', 'orders.attention_type'])
+            ->groupBy(fn (Order $order) => implode('|', [
+                $order->patient_id,
+                $order->fecha_orden->toDateString(),
+                $order->attention_type,
+            ]))
+            ->sum(fn ($group) => max(0, $group->count() - 1));
+
+        $orders = $ordersQuery
             ->latest()
             ->paginate(15)
             ->appends($request->all()); // Muy importante para mantener filtros en la paginación
 
-        return view('atenciones.ordenes.index', compact('orders'));
+        return view('atenciones.ordenes.index', compact('orders', 'recordCount', 'patientCount', 'duplicateCount'));
     }
 
     public function multisectorialIndex(Request $request)
@@ -257,7 +292,6 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             'patient_id'     => 'required|exists:patients,id',
-            'sala'           => 'required|string',
             'turno'          => 'required|string',
             'horas_dialisis' => 'required|numeric|min:0.5',
             'fecha_orden'    => 'required|date',
@@ -267,14 +301,26 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
-            $patient = Patient::findOrFail($validated['patient_id']);
+            // Lock the patient while checking/creating the daily order. This makes
+            // two almost simultaneous submissions serialize instead of creating
+            // two clinical records for the same session.
+            $patient = Patient::query()->lockForUpdate()->findOrFail($validated['patient_id']);
             $currentSedeId = CurrentSede::id();
             if ($currentSedeId && (int) $patient->sede_id !== (int) $currentSedeId) {
                 abort(403, 'Paciente fuera de la sede activa.');
             }
 
+            $existingOrder = $this->dailyHemodialysisOrder($patient->id, $validated['fecha_orden']);
+            if ($existingOrder) {
+                DB::rollBack();
+
+                return redirect()->route('orders.index', ['date' => $validated['fecha_orden']])
+                    ->with('warning', $this->duplicateOrderMessage($existingOrder));
+            }
+
             $order = Order::create(array_merge($validated, [
                 'codigo_unico' => $this->generateCode(),
+                'sala' => 'MODULO '.$patient->modulo,
                 'sede_id' => $patient->sede_id,
                 'attention_type' => Fua::HEMODIALYSIS,
             ]));
@@ -301,7 +347,7 @@ class OrderController extends Controller
     {
         $request->validate([
             'patient_ids'      => 'required|array|min:1',
-            'sala'             => 'required|string',
+            'patient_ids.*'    => 'integer|distinct|exists:patients,id',
             'fecha_orden'      => 'required|date',
             'horas_individual' => 'required|array', // Captura el array de la vista
             'laboratory_periods' => 'required|array',
@@ -311,11 +357,23 @@ class OrderController extends Controller
         try {
             DB::beginTransaction();
 
-            foreach ($request->patient_ids as $id) {
-                $patient = Patient::findOrFail($id);
+            // A stable lock order avoids deadlocks when two bulk requests contain
+            // the same patients in a different order.
+            $patientIds = collect($request->patient_ids)->map(fn ($id) => (int) $id)->sort()->values();
+            $patients = Patient::query()->whereIn('id', $patientIds)->lockForUpdate()->get()->keyBy('id');
+            $skippedOrders = collect();
+
+            foreach ($patientIds as $id) {
+                $patient = $patients->get($id);
                 $currentSedeId = CurrentSede::id();
                 if ($currentSedeId && (int) $patient->sede_id !== (int) $currentSedeId) {
                     abort(403, 'Paciente fuera de la sede activa.');
+                }
+
+                $existingOrder = $this->dailyHemodialysisOrder($patient->id, $request->fecha_orden);
+                if ($existingOrder) {
+                    $skippedOrders->push($existingOrder);
+                    continue;
                 }
                 
                 // 1. Capturar la hora individual (ej: 3.5)
@@ -326,7 +384,8 @@ class OrderController extends Controller
                 $order = Order::create([
                     'patient_id'     => $id,
                     'codigo_unico'   => $this->generateCode(),
-                    'sala'           => $request->sala,
+                    // La sala pertenece al paciente, no a la selección global del lote.
+                    'sala'           => 'MODULO '.$patient->modulo,
                     'turno'          => $patient->turno,
                     'es_covid'       => isset($request->covid_flags[$id]),
                     'laboratory_period' => $laboratoryPeriod,
@@ -344,7 +403,14 @@ class OrderController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('orders.index')->with('success', 'Órdenes guardadas con horas actualizadas.');
+            $createdCount = $patientIds->count() - $skippedOrders->count();
+            $message = $createdCount.' órdenes nuevas guardadas.';
+            if ($skippedOrders->isNotEmpty()) {
+                $message .= ' Se omitieron '.$skippedOrders->count().' pacientes que ya tenían orden de hemodiálisis ese día; sus datos clínicos se conservaron.';
+            }
+
+            return redirect()->route('orders.index', ['date' => $request->fecha_orden])
+                ->with($createdCount > 0 ? 'success' : 'warning', $message);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -388,6 +454,8 @@ class OrderController extends Controller
             'patient_ids' => ['required', 'array', 'min:1'],
             'patient_ids.*' => ['integer', 'distinct', 'exists:patients,id'],
             'fecha_orden' => ['required', 'date'],
+            'patient_dates' => ['nullable', 'array'],
+            'patient_dates.*' => ['nullable', 'date'],
         ]);
 
         DB::transaction(function () use ($data) {
@@ -395,6 +463,9 @@ class OrderController extends Controller
                 if (CurrentSede::id() && (int) $patient->sede_id !== (int) CurrentSede::id()) {
                     abort(403, 'Paciente fuera de la sede activa.');
                 }
+
+                $individualDate = $data['patient_dates'][$patient->id] ?? null;
+                $consultationDate = filled($individualDate) ? $individualDate : $data['fecha_orden'];
 
                 $order = Order::create([
                     'patient_id' => $patient->id,
@@ -404,20 +475,49 @@ class OrderController extends Controller
                     'attention_type' => Fua::NEPHROLOGY,
                     'laboratory_period' => null,
                     'horas_dialisis' => 0.5,
-                    'fecha_orden' => $data['fecha_orden'],
+                    'fecha_orden' => $consultationDate,
                     'sede_id' => $patient->sede_id,
                 ]);
 
                 app(FuaNumberService::class)->createForOrder($order);
 
-                // La orden agenda la atención; debe quedar disponible de inmediato
-                // en el módulo donde el nefrólogo completa la historia clínica.
-                NephrologyConsultation::create([
+                // A partir de la segunda atención, se usa la consulta cronológicamente
+                // anterior como base para evitar volver a digitar la información clínica.
+                // La fecha y la orden siempre pertenecen a la nueva atención.
+                $previousConsultation = NephrologyConsultation::query()
+                    ->where('patient_id', $patient->id)
+                    ->whereDate('consultation_date', '<=', $consultationDate)
+                    ->latest('consultation_date')
+                    ->latest('id')
+                    ->first();
+
+                $consultation = $previousConsultation
+                    ? $previousConsultation->replicate([
+                        'order_id',
+                        'consultation_date',
+                        'created_at',
+                        'updated_at',
+                    ])
+                    : new NephrologyConsultation();
+
+                $consultation->fill([
                     'order_id' => $order->id,
                     'sede_id' => $patient->sede_id,
                     'patient_id' => $patient->id,
-                    'consultation_date' => $data['fecha_orden'],
-                ]);
+                    'consultation_date' => $consultationDate,
+                ])->save();
+
+                if ($previousConsultation) {
+                    $previousConsultation->medications()->get()->each(function ($medication) use ($consultation) {
+                        $consultation->medications()->create($medication->only([
+                            'fua_code',
+                            'description',
+                            'c',
+                            'prescribed_quantity',
+                            'delivered_quantity',
+                        ]));
+                    });
+                }
             });
         });
 
@@ -494,8 +594,11 @@ class OrderController extends Controller
         if (CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id()) {
             abort(403, 'Orden fuera de la sede activa.');
         }
-        if ($order->medical && $order->medical->hora_final) {
-            return back()->with('toastr', ['type' => 'warning', 'message' => 'No se puede eliminar una atención finalizada.']);
+        if ($order->hasRecordedClinicalData()) {
+            return back()->with('toastr', [
+                'type' => 'warning',
+                'message' => 'Esta orden contiene datos clínicos y debe conservarse. Elimine solamente el duplicado identificado como vacío.',
+            ]);
         }
 
         $order->delete(); // Cascade delete debe estar activo en la DB
@@ -503,6 +606,57 @@ class OrderController extends Controller
         return redirect()->route('orders.index')->with('toastr', [
             'type' => 'error', 
             'message' => 'Orden y registros clínicos eliminados.'
+        ]);
+    }
+
+    public function destroyBulk(Request $request)
+    {
+        $validated = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['integer', 'distinct', 'exists:orders,id'],
+        ]);
+
+        [$deleted, $protected] = DB::transaction(function () use ($validated) {
+            $orders = Order::query()
+                ->whereIn('id', $validated['order_ids'])
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->get();
+            $deleted = 0;
+            $protected = 0;
+
+            foreach ($orders as $order) {
+                if (CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id()) {
+                    abort(403, 'Una de las órdenes está fuera de la sede activa.');
+                }
+
+                $duplicates = Order::query()
+                    ->where('patient_id', $order->patient_id)
+                    ->whereDate('fecha_orden', $order->fecha_orden)
+                    ->where('attention_type', $order->attention_type)
+                    ->count();
+
+                // Never remove clinical information or the last order in a group.
+                if ($duplicates < 2 || $order->hasRecordedClinicalData()) {
+                    $protected++;
+                    continue;
+                }
+
+                $order->delete();
+                $deleted++;
+            }
+
+            return [$deleted, $protected];
+        });
+
+        $message = $deleted.' duplicado(s) vacío(s) eliminado(s).';
+        if ($protected > 0) {
+            $message .= ' Se conservaron '.$protected.' orden(es) por contener datos clínicos o ser la única ficha restante.';
+        }
+
+        return back()->with('toastr', [
+            'type' => $deleted > 0 ? 'success' : 'warning',
+            'message' => $message,
         ]);
     }
 
@@ -532,7 +686,10 @@ class OrderController extends Controller
             'sede_id' => $patient->sede_id,
             'physician_id' => $isPhysician ? $creator->id : null,
             'created_by' => $creator->id,
-            'consented_at' => $attentionDate->startOfDay(),
+            // Automatic consents represent the order's clinical date, not the
+            // moment the batch was prepared. Noon also keeps that calendar date
+            // stable when timestamp values cross the application/DB timezone.
+            'consented_at' => $attentionDate->startOfDay()->addHours(12),
             'version' => '02',
             'accepted' => true,
             'notes' => 'Generado automáticamente con la primera atención de hemodiálisis del mes.',
@@ -579,6 +736,22 @@ class OrderController extends Controller
     private function generateCode()
     {
         return 'ORD-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
+    }
+
+    private function dailyHemodialysisOrder(int $patientId, string $date): ?Order
+    {
+        return Order::query()
+            ->where('patient_id', $patientId)
+            ->where('attention_type', Fua::HEMODIALYSIS)
+            ->whereDate('fecha_orden', $date)
+            ->oldest('id')
+            ->first();
+    }
+
+    private function duplicateOrderMessage(Order $order): string
+    {
+        return 'No se generó otra orden: el paciente ya tiene la orden '
+            .$order->codigo_unico.' para esa fecha. La orden existente y todos sus datos clínicos se conservaron.';
     }
 
     private function addLaboratoryItems(LaboratoryOrder $laboratoryOrder, string $period): void

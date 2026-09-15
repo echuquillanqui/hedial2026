@@ -13,6 +13,17 @@
 </style>
 
 <div class="container-fluid px-0 py-0">
+    @if(session('warning'))
+        <div class="alert alert-warning border-0 shadow-sm" role="alert">
+            <i class="bi bi-shield-exclamation me-2"></i>{{ session('warning') }}
+        </div>
+    @endif
+    @if(session('success'))
+        <div class="alert alert-success border-0 shadow-sm" role="alert">
+            <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
+        </div>
+    @endif
+
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold text-uppercase m-0 text-success"><i class="bi bi-file-earmark-medical me-2"></i> Control de Órdenes</h4>
         <div class="d-flex gap-2">
@@ -67,6 +78,11 @@
                     </select>
                 </div>
                 <div class="col-md-2">
+                    <div class="form-check mb-2">
+                        <input id="duplicatesOnlyFilter" type="checkbox" name="duplicates_only" value="1"
+                               class="form-check-input filter-input" @checked(request()->boolean('duplicates_only'))>
+                        <label for="duplicatesOnlyFilter" class="form-check-label small fw-semibold text-danger">Solo duplicados</label>
+                    </div>
                     <a href="{{ route('orders.index') }}" class="btn btn-sm btn-outline-secondary w-100 fw-bold">
                         <i class="bi bi-arrow-clockwise me-1"></i> LIMPIAR
                     </a>
@@ -75,14 +91,37 @@
         </div>
     </div>
 
+    <div class="alert {{ $duplicateCount ? 'alert-warning' : 'alert-success' }} border-0 shadow-sm d-flex flex-wrap align-items-center gap-3" role="status">
+        <span><strong>{{ $patientCount }}</strong> pacientes</span>
+        <span><strong>{{ $recordCount }}</strong> registros</span>
+        <span><strong>{{ $duplicateCount }}</strong> duplicados adicionales</span>
+        @if($duplicateCount)
+            <span class="small">Se marcan las fichas repetidas; las que contienen datos clínicos se conservan.</span>
+        @endif
+    </div>
+
     <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-end">
+            <form id="bulkDeleteForm" method="POST" action="{{ route('orders.destroy-bulk') }}"
+                  onsubmit="return confirm('¿Eliminar los duplicados vacíos seleccionados? Las órdenes con datos serán protegidas automáticamente.')">
+                @csrf
+                @method('DELETE')
+                <button id="bulkDeleteButton" type="submit" class="btn btn-sm btn-outline-danger fw-bold" disabled>
+                    <i class="bi bi-trash3 me-1"></i> ELIMINAR DUPLICADOS SELECCIONADOS
+                </button>
+            </form>
+        </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th class="px-3 text-center">
+                                <input id="selectPageDuplicates" class="form-check-input" type="checkbox" aria-label="Seleccionar todos los duplicados vacíos de esta página">
+                            </th>
                             <th class="px-3 data-title text-left">Código</th>
                             <th class="data-title text-left">Paciente</th>
+                            <th class="data-title text-center">Módulo</th>
                             <th class="data-title text-center">Sala</th>
                             <th class="data-title text-center">Turno</th>
                             <th class="data-title text-center">Horas</th>
@@ -94,10 +133,30 @@
                     <tbody>
                         @forelse($orders as $order)
                         <tr>
-                            <td class="px-3 fw-bold text-success small text-left">{{ $order->codigo_unico }}</td>
+                            <td class="px-3 text-center">
+                                @if($order->daily_duplicate_count > 1 && ! $order->hasRecordedClinicalData())
+                                    <input class="form-check-input duplicate-order-checkbox" type="checkbox"
+                                           name="order_ids[]" value="{{ $order->id }}" form="bulkDeleteForm"
+                                           aria-label="Seleccionar duplicado vacío {{ $order->codigo_unico }}">
+                                @endif
+                            </td>
+                            <td class="px-3 fw-bold text-success small text-left">
+                                {{ $order->codigo_unico }}
+                                @if($order->daily_duplicate_count > 1)
+                                    <div><span class="badge bg-warning text-dark mt-1">DUPLICADA (ID {{ $order->id }})</span></div>
+                                    <div class="mt-1">
+                                        @if($order->hasRecordedClinicalData())
+                                            <span class="badge bg-danger">CON DATOS: CONSERVAR</span>
+                                        @else
+                                            <span class="badge bg-secondary">VACÍA: PUEDE ELIMINARSE</span>
+                                        @endif
+                                    </div>
+                                @endif
+                            </td>
                             <td class="text-start">
                                 <div class="fw-bold text-uppercase small">{{ $order->patient->surname }} {{ $order->patient->last_name }}, {{ $order->patient->first_name }} {{ $order->patient->other_names }}</div>
                             </td>
+                            <td class="text-center"><span class="badge bg-light text-success border border-success">MÓDULO {{ $order->patient->modulo ?: '—' }}</span></td>
                             <td class="text-center"><span class="badge bg-light text-success border border-success">{{ $order->sala }}</span></td>
                             <td class="fw-bold small text-center">TURNO - {{ $order->turno }}</td>
                             <td class="fw-bold text-primary text-center">{{ number_format($order->horas_dialisis, 1) }}</td>
@@ -114,8 +173,8 @@
                                     </a>
                                     @endif
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editOrderModal"
-                                            data-id="{{ $order->id }}" data-paciente="{{ $order->patient->surname }} {{ $order->patient->first_name }}"
-                                            data-type="{{ $order->attention_type }}" data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden }}" data-laboratory-period="{{ $order->laboratory_period }}">
+                                            data-id="{{ $order->id }}" data-paciente="{{ $order->patient->full_name }}"
+                                            data-type="{{ $order->attention_type }}" data-sala="{{ $order->sala }}" data-turno="{{ $order->turno }}" data-horas="{{ $order->horas_dialisis }}" data-fecha="{{ $order->fecha_orden?->toDateString() }}" data-laboratory-period="{{ $order->laboratory_period }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
                                     
@@ -127,7 +186,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="8" class="text-center py-5 text-muted">No se encontraron órdenes.</td></tr>
+                        <tr><td colspan="10" class="text-center py-5 text-muted">No se encontraron órdenes.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -227,6 +286,23 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const bulkDeleteButton = document.getElementById('bulkDeleteButton');
+    const selectPageDuplicates = document.getElementById('selectPageDuplicates');
+    const duplicateCheckboxes = [...document.querySelectorAll('.duplicate-order-checkbox')];
+    const updateBulkSelection = () => {
+        const selected = duplicateCheckboxes.filter(checkbox => checkbox.checked).length;
+        bulkDeleteButton.disabled = selected === 0;
+        bulkDeleteButton.innerHTML = `<i class="bi bi-trash3 me-1"></i> ELIMINAR ${selected || ''} DUPLICADOS SELECCIONADOS`;
+        selectPageDuplicates.checked = duplicateCheckboxes.length > 0 && selected === duplicateCheckboxes.length;
+        selectPageDuplicates.indeterminate = selected > 0 && selected < duplicateCheckboxes.length;
+    };
+    duplicateCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateBulkSelection));
+    selectPageDuplicates.disabled = duplicateCheckboxes.length === 0;
+    selectPageDuplicates.addEventListener('change', () => {
+        duplicateCheckboxes.forEach(checkbox => checkbox.checked = selectPageDuplicates.checked);
+        updateBulkSelection();
+    });
+
     // Lógica Filtros Reactivos
     const filterForm = document.getElementById('filterForm');
     const dateFilter = document.getElementById('dateFilter');

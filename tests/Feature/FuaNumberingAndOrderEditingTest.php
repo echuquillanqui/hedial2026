@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\FuaController;
 use App\Models\Fua;
 use App\Models\FuaConfiguration;
 use App\Models\NephrologyConsultation;
@@ -9,12 +10,30 @@ use App\Models\Order;
 use App\Models\Patient;
 use App\Models\User;
 use App\Services\FuaNumberService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class FuaNumberingAndOrderEditingTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_fuas_always_use_the_fissal_logo(): void
+    {
+        FuaConfiguration::global()->update([
+            'logo_path' => 'logos/company-logo.png',
+        ]);
+
+        $method = new \ReflectionMethod(FuaController::class, 'fuaLogoData');
+        $logoData = $method->invoke(app(FuaController::class));
+        $fissalLogo = public_path('logo/logo-fissal.png');
+        $mime = mime_content_type($fissalLogo) ?: 'image/png';
+
+        $this->assertSame(
+            'data:'.$mime.';base64,'.base64_encode(file_get_contents($fissalLogo)),
+            $logoData,
+        );
+    }
 
     public function test_hemodialysis_and_nephrology_use_one_consecutive_sequence(): void
     {
@@ -70,8 +89,12 @@ class FuaNumberingAndOrderEditingTest extends TestCase
 
         foreach ([Fua::HEMODIALYSIS, Fua::NEPHROLOGY] as $index => $type) {
             $order = $this->order($patient, $type, 'FUA-HUELLA-'.$index);
+            $order->medical()->create([
+                'indicaciones' => 'Observación clínica que no corresponde a la FUA',
+                'hora_hd' => 0.5,
+            ]);
             $fua = app(FuaNumberService::class)->createForOrder($order);
-            $fua->load('order.patient');
+            $fua->load(['order.patient', 'order.medical']);
 
             $document = view('fuas.pdf', [
                 'fua' => $fua,
@@ -84,7 +107,8 @@ class FuaNumberingAndOrderEditingTest extends TestCase
 
             $this->assertStringContainsString('MOTIVO DE NO FIRMA DE FUA:', $document);
             $this->assertStringContainsString('Presenta dificultad motora para firmar', $document);
-            $this->assertStringContainsString('PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
+            $this->assertStringContainsString('PACIENTE COLOCA SOLO SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
+            $this->assertStringNotContainsString('Observación clínica que no corresponde a la FUA', $document);
         }
     }
 
@@ -108,6 +132,29 @@ class FuaNumberingAndOrderEditingTest extends TestCase
 
         $this->assertStringNotContainsString('MOTIVO DE NO FIRMA DE FUA:', $document);
         $this->assertStringNotContainsString('PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
+    }
+
+    public function test_fua_attention_time_is_determined_by_the_order_shift(): void
+    {
+        $patient = Patient::factory()->create();
+        $order = $this->order($patient, Fua::HEMODIALYSIS, 'FUA-HORARIOS');
+        $fua = app(FuaNumberService::class)->createForOrder($order);
+
+        foreach (['1' => '5:40', '2' => '9:40', '3' => '13:40', '4' => '17:40'] as $shift => $time) {
+            $order->update(['turno' => $shift]);
+            $fua->setRelation('order', $order->fresh()->load('patient'));
+
+            $document = view('fuas.pdf', [
+                'fua' => $fua,
+                'responsible' => null,
+                'configuration' => FuaConfiguration::global(),
+                'medications' => [],
+                'procedures' => [],
+                'logoData' => null,
+            ])->render();
+
+            $this->assertStringContainsString('rowspan="2" class="value">'.$time.'</td>', $document);
+        }
     }
 
     public function test_fua_print_views_can_filter_by_module_and_shift(): void
@@ -136,8 +183,142 @@ class FuaNumberingAndOrderEditingTest extends TestCase
                 ->assertSee($matchingFua->number)
                 ->assertDontSee($otherFua->number)
                 ->assertSee('value="2" selected', false)
-                ->assertSee('value="3" selected', false);
+                ->assertSee('value="3" selected', false)
+                ->assertSee('Módulo 2')
+                ->assertSee('Turno 3');
         }
+    }
+
+    public function test_nephrology_fua_print_view_shows_and_filters_prescription_status(): void
+    {
+        $user = User::factory()->create();
+        $patientWithPrescription = Patient::factory()->create();
+        $patientWithoutPrescription = Patient::factory()->create();
+
+        $orderWithPrescription = $this->order($patientWithPrescription, Fua::NEPHROLOGY, 'CON-RECETA');
+        $fuaWithPrescription = app(FuaNumberService::class)->createForOrder($orderWithPrescription);
+        $consultationWithPrescription = NephrologyConsultation::create([
+            'order_id' => $orderWithPrescription->id,
+            'patient_id' => $patientWithPrescription->id,
+            'consultation_date' => '2026-08-16',
+        ]);
+        $consultationWithPrescription->medications()->create([
+            'description' => 'Medicamento de prueba',
+            'prescribed_quantity' => 1,
+            'delivered_quantity' => 1,
+        ]);
+
+        $orderWithoutPrescription = $this->order($patientWithoutPrescription, Fua::NEPHROLOGY, 'SIN-RECETA');
+        $fuaWithoutPrescription = app(FuaNumberService::class)->createForOrder($orderWithoutPrescription);
+        NephrologyConsultation::create([
+            'order_id' => $orderWithoutPrescription->id,
+            'patient_id' => $patientWithoutPrescription->id,
+            'consultation_date' => '2026-08-16',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+        ]))->assertOk()
+            ->assertSee('Estado de receta')
+            ->assertSee('Con receta')
+            ->assertSee('Sin receta')
+            ->assertSee($fuaWithPrescription->number)
+            ->assertSee($fuaWithoutPrescription->number);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+            'prescription_status' => 'with_prescription',
+        ]))->assertOk()
+            ->assertSee($fuaWithPrescription->number)
+            ->assertDontSee($fuaWithoutPrescription->number)
+            ->assertSee('value="with_prescription" selected', false);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+            'prescription_status' => 'without_prescription',
+        ]))->assertOk()
+            ->assertDontSee($fuaWithPrescription->number)
+            ->assertSee($fuaWithoutPrescription->number)
+            ->assertSee('value="without_prescription" selected', false);
+    }
+
+    public function test_nephrology_fua_uses_and_filters_the_doctor_saved_in_the_consultation(): void
+    {
+        $user = User::factory()->create();
+        $doctor = User::factory()->create(['name' => 'Dra. Nefróloga Registrada']);
+        $otherDoctor = User::factory()->create(['name' => 'Dr. No Asignado']);
+        $patient = Patient::factory()->create();
+        $order = $this->order($patient, Fua::NEPHROLOGY, 'NEFRO-MEDICO');
+        $fua = app(FuaNumberService::class)->createForOrder($order);
+        NephrologyConsultation::create([
+            'order_id' => $order->id,
+            'patient_id' => $patient->id,
+            'doctor_id' => $doctor->id,
+            'consultation_date' => $order->fecha_orden,
+        ]);
+
+        $fua->load([
+            'responsibleUser', 'order.assignedProfessional', 'order.medical.usuarioInicia',
+            'order.nephrologyConsultation.doctor',
+        ]);
+        $method = new \ReflectionMethod(FuaController::class, 'responsible');
+        $this->assertTrue($doctor->is($method->invoke(app(FuaController::class), $fua)));
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+            'professional_id' => $doctor->id,
+        ]))->assertOk()->assertSee($fua->number)->assertSee($doctor->name);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.nephrology.index', [
+            'all_dates' => 1,
+            'professional_id' => $otherDoctor->id,
+        ]))->assertOk()->assertDontSee($fua->number);
+    }
+
+    public function test_hemodialysis_fua_print_defaults_to_the_patient_sequence_for_the_day(): void
+    {
+        Carbon::setTestNow('2026-09-09 08:00:00');
+        $user = User::factory()->create();
+        $scheduledPatient = Patient::factory()->create(['secuencia' => 'L-M-V']);
+        $otherPatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+
+        $scheduledOrder = $this->order($scheduledPatient, Fua::HEMODIALYSIS, 'FUA-SECUENCIA-DIA');
+        $scheduledOrder->update(['fecha_orden' => '2026-09-09']);
+        $scheduledFua = app(FuaNumberService::class)->createForOrder($scheduledOrder);
+
+        $otherOrder = $this->order($otherPatient, Fua::HEMODIALYSIS, 'FUA-OTRA-SECUENCIA');
+        $otherOrder->update(['fecha_orden' => '2026-09-09']);
+        $otherFua = app(FuaNumberService::class)->createForOrder($otherOrder);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.hemodialysis.index'))
+            ->assertOk()
+            ->assertSee($scheduledFua->number)
+            ->assertDontSee($otherFua->number)
+            ->assertSee('name="sequence"', false)
+            ->assertSee('value="L-M-V" selected', false);
+    }
+
+    public function test_hemodialysis_fua_print_sequence_can_be_changed_or_cleared(): void
+    {
+        $user = User::factory()->create();
+        $lmvPatient = Patient::factory()->create(['secuencia' => 'L-M-V']);
+        $mjsPatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+        $lmvFua = app(FuaNumberService::class)->createForOrder(
+            $this->order($lmvPatient, Fua::HEMODIALYSIS, 'FUA-LMV')
+        );
+        $mjsFua = app(FuaNumberService::class)->createForOrder(
+            $this->order($mjsPatient, Fua::HEMODIALYSIS, 'FUA-MJS')
+        );
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.hemodialysis.index', [
+            'all_dates' => 1,
+            'sequence' => 'M-J-S',
+        ]))->assertOk()->assertSee($mjsFua->number)->assertDontSee($lmvFua->number);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.hemodialysis.index', [
+            'all_dates' => 1,
+            'sequence' => '',
+        ]))->assertOk()->assertSee($mjsFua->number)->assertSee($lmvFua->number);
     }
 
     public function test_order_list_can_show_all_dates_without_an_additional_filter(): void
@@ -157,6 +338,27 @@ class FuaNumberingAndOrderEditingTest extends TestCase
             ->assertSee($secondOrder->codigo_unico)
             ->assertSee('id="allDatesFilter"', false)
             ->assertSee('checked', false);
+    }
+
+    public function test_order_edit_modal_receives_the_full_patient_name_and_an_html_date(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'surname' => 'ARAUCO',
+            'last_name' => 'QUISPE',
+            'first_name' => 'KARINA',
+            'other_names' => 'ELENA',
+        ]);
+        $order = $this->order($patient, Fua::HEMODIALYSIS, 'EDITAR-DATOS');
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'all_dates' => 1,
+        ]));
+
+        $response->assertOk()
+            ->assertSee('data-paciente="ARAUCO QUISPE KARINA ELENA"', false)
+            ->assertSee('data-fecha="2026-08-16"', false)
+            ->assertDontSee('data-fecha="2026-08-16 00:00:00"', false);
     }
 
     public function test_all_dates_can_be_combined_with_additional_order_filters(): void

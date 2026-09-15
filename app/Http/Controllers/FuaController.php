@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Fua;
 use App\Models\FuaConfiguration;
+use App\Models\NephrologyConsultation;
 use App\Models\Test;
 use App\Models\User;
 use App\Models\Order;
 use App\Services\FuaNumberService;
 use App\Support\ClinicalService;
 use App\Support\CurrentSede;
+use App\Support\DailyHemodialysisSequence;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -52,13 +54,23 @@ class FuaController extends Controller
             'patient' => ['nullable', 'string', 'max:100'],
             'modulo' => ['nullable', 'integer', 'between:1,4'],
             'turno' => ['nullable', 'integer', 'between:1,4'],
+            'sequence' => ['nullable', Rule::in([
+                DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
+                DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
+            ])],
             'all_dates' => ['nullable', 'boolean'],
             'professional_id' => ['nullable', 'integer', 'exists:users,id'],
             'status' => ['nullable', 'string', 'max:30'],
+            'prescription_status' => ['nullable', Rule::in(['with_prescription', 'without_prescription'])],
             'sede_id' => ['nullable', 'integer', 'exists:sedes,id'],
         ]);
 
         $date = $request->boolean('all_dates') ? null : ($filters['date'] ?? now()->toDateString());
+        $sequence = $type === Fua::HEMODIALYSIS
+            ? ($request->has('sequence')
+                ? ($filters['sequence'] ?? null)
+                : ($date ? DailyHemodialysisSequence::forDate($date) : null))
+            : null;
         if (CurrentSede::id() && isset($filters['sede_id']) && (int) $filters['sede_id'] !== (int) CurrentSede::id()) {
             abort(403, 'La sede del filtro no coincide con la sede activa.');
         }
@@ -72,8 +84,10 @@ class FuaController extends Controller
             $filters['patient'] ?? null,
             $filters['modulo'] ?? null,
             $filters['turno'] ?? null,
+            $sequence,
             $filters['professional_id'] ?? null,
             $filters['status'] ?? null,
+            $filters['prescription_status'] ?? null,
             $sedeId,
         )
             ->orderByDesc('orders.fecha_orden')
@@ -82,13 +96,25 @@ class FuaController extends Controller
             ->paginate(30)
             ->withQueryString();
 
+        $professionalIds = $type === Fua::NEPHROLOGY
+            ? NephrologyConsultation::query()
+                ->whereNotNull('doctor_id')
+                ->whereHas('order', fn (Builder $order) => $order
+                    ->where('attention_type', $type)
+                    ->when($sedeId, fn (Builder $order) => $order->where('sede_id', $sedeId)))
+                ->select('doctor_id')
+            : Order::query()
+                ->where('attention_type', $type)
+                ->whereNotNull('assigned_professional_id')
+                ->when($sedeId, fn (Builder $order) => $order->where('sede_id', $sedeId))
+                ->select('assigned_professional_id');
+
         return view('fuas.print-index', [
             'fuas' => $fuas,
             'date' => $date,
+            'sequence' => $sequence,
             'type' => $type,
-            'professionals' => User::query()->whereIn('id', Order::query()
-                ->where('attention_type', $type)->whereNotNull('assigned_professional_id')
-                ->select('assigned_professional_id'))->orderBy('name')->get(),
+            'professionals' => User::query()->whereIn('id', $professionalIds)->orderBy('name')->get(),
             'sedes' => $request->user()->sedes()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -195,7 +221,7 @@ class FuaController extends Controller
         return Pdf::loadView($view, [
             'documents' => $documents,
             'configuration' => $configuration,
-            'logoData' => $this->logoData($configuration->logo_path),
+            'logoData' => $this->fuaLogoData(),
         ])->setPaper('a4')->stream('fuas-'.strtolower($type).'.pdf');
     }
 
@@ -205,20 +231,40 @@ class FuaController extends Controller
         ?string $patient,
         ?int $module,
         ?int $shift,
+        ?string $sequence,
         ?int $professional,
         ?string $status,
+        ?string $prescriptionStatus,
         ?int $sede,
     ): Builder
     {
         return Fua::query()
-            ->with(['order.patient', 'order.sede'])
+            ->with([
+                'order.patient',
+                'order.sede',
+                'order.nephrologyConsultation' => fn ($query) => $query->withExists('medications'),
+            ])
             ->join('orders', 'orders.id', '=', 'fuas.order_id')
             ->where('fuas.type', $type)
             ->when($sede, fn (Builder $query) => $query->where('orders.sede_id', $sede))
-            ->when($professional, fn (Builder $query) => $query->where('orders.assigned_professional_id', $professional))
+            ->when($professional, function (Builder $query, int $professional) use ($type) {
+                $type === Fua::NEPHROLOGY
+                    ? $query->whereHas('order.nephrologyConsultation', fn (Builder $consultation) => $consultation
+                        ->where('doctor_id', $professional))
+                    : $query->where('orders.assigned_professional_id', $professional);
+            })
             ->when($status, fn (Builder $query) => $query->where('fuas.status', $status))
+            ->when($type === Fua::NEPHROLOGY && $prescriptionStatus, function (Builder $query) use ($prescriptionStatus) {
+                $relation = 'order.nephrologyConsultation.medications';
+
+                $prescriptionStatus === 'with_prescription'
+                    ? $query->whereHas($relation)
+                    : $query->whereDoesntHave($relation);
+            })
             ->when($date, fn (Builder $query) => $query->whereDate('orders.fecha_orden', $date))
             ->when($shift, fn (Builder $query) => $query->where('orders.turno', (string) $shift))
+            ->when($sequence, fn (Builder $query) => $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery
+                ->where('secuencia', $sequence)))
             ->when($module, function (Builder $query, int $module) use ($type) {
                 if ($type === Fua::NEPHROLOGY) {
                     $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery
@@ -306,7 +352,7 @@ class FuaController extends Controller
         $procedures = $this->procedures($fua);
         $configuration = FuaConfiguration::global();
         $view = $fua->effectiveType() === Fua::NEPHROLOGY ? 'fuas.pdf_nephrology' : 'fuas.pdf';
-        $logoData = $this->logoData($configuration->logo_path);
+        $logoData = $this->fuaLogoData();
         $document = Pdf::loadView($view, [
             'fua' => $fua,
             'configuration' => $configuration,
@@ -326,7 +372,8 @@ class FuaController extends Controller
     {
         return [
             'order.patient', 'order.sede', 'order.medical.usuarioInicia',
-            'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.medications',
+            'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.doctor',
+            'order.nephrologyConsultation.medications',
             'responsibleUser', 'generatedBy', 'correctedFua.order.assignedProfessional',
         ];
     }
@@ -356,15 +403,9 @@ class FuaController extends Controller
             ->all();
     }
 
-    private function logoData(?string $path): ?string
+    private function fuaLogoData(): ?string
     {
-        $absolutePath = $path
-            ? storage_path('app/public/'.$path)
-            : public_path('logo/logo-fissal.png');
-
-        if (! is_file($absolutePath)) {
-            $absolutePath = public_path('logo/logo-fissal.png');
-        }
+        $absolutePath = public_path('logo/logo-fissal.png');
 
         if (! is_file($absolutePath)) {
             return null;
@@ -469,6 +510,7 @@ class FuaController extends Controller
     private function responsible(Fua $fua): ?User
     {
         return $fua->responsibleUser
+            ?: $fua->order?->nephrologyConsultation?->doctor
             ?: $fua->order?->assignedProfessional
             ?: $fua->order?->medical?->usuarioInicia;
     }

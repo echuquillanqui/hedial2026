@@ -17,7 +17,7 @@
     </div></div>
 
     <form method="POST" action="{{ route('consents.bulk-pdf') }}" target="_blank">@csrf
-        @can('consents.print')<div class="bulkbar mb-3" x-show="selected.length" x-cloak><span><strong x-text="selected.length"></strong> consentimiento(s) seleccionado(s)</span><button class="btn btn-light btn-sm fw-semibold"><i class="bi bi-printer me-2"></i>Imprimir selección</button></div>@endcan
+        @can('consents.print')<div class="bulkbar mb-3" x-show="selected.length" x-cloak><span><strong x-text="selected.length"></strong> consentimiento(s) seleccionado(s)</span><button class="btn btn-light btn-sm fw-semibold"><i class="bi bi-printer me-2"></i>Imprimir en bloque</button></div>@endcan
         <div class="card table-card"><div class="table-responsive"><table class="table align-middle mb-0">
             <thead><tr><th class="selector">@can('consents.print')<input class="form-check-input" type="checkbox" aria-label="Seleccionar todos" @change="selected = $event.target.checked ? @js($consents->pluck('id')->map(fn ($id) => (string) $id)->values()) : []">@endcan</th><th>Paciente</th><th>Programación</th><th>Fecha</th><th>Versión</th><th>Decisión</th><th>Médico responsable</th><th class="text-end">Acciones</th></tr></thead>
             <tbody>@forelse($consents as $consent)<tr>

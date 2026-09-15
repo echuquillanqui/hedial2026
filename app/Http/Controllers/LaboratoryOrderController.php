@@ -7,10 +7,14 @@ use App\Models\LaboratoryOrderItem;
 use App\Models\Patient;
 use App\Models\Profile;
 use App\Models\Test;
+use App\Models\User;
 use App\Support\CurrentSede;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use ZipArchive;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -49,8 +53,9 @@ class LaboratoryOrderController extends Controller
         $profiles = Profile::with(['tests' => fn ($query) => $query->where('is_fissal', true)])
             ->orderBy('name')
             ->get();
+        $doctors = $this->doctors()->get(['id', 'name', 'license_number']);
 
-        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles', 'sequence', 'shift'));
+        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles', 'doctors', 'sequence', 'shift'));
     }
 
     public function store(Request $request)
@@ -58,7 +63,7 @@ class LaboratoryOrderController extends Controller
         $data = $request->validate([
             'patient_ids' => 'required|array|min:1',
             'patient_ids.*' => 'integer|exists:patients,id',
-            'requested_by' => 'nullable|string|max:120',
+            'requested_by' => ['nullable', 'string', 'max:120', Rule::in($this->doctors()->pluck('name'))],
             'schedules' => 'required|array|min:1',
             'schedules.*.sampled_at' => 'required|date',
             'schedules.*.period' => 'required|in:M,B,T,S',
@@ -102,6 +107,18 @@ class LaboratoryOrderController extends Controller
             'T' => ['M', 'B', 'T'],
             'S' => ['M', 'B', 'T', 'S'],
         };
+    }
+
+    private function doctors(): Builder
+    {
+        return User::query()
+            ->where(function ($query) {
+                $query->where('profession', 'like', '%MEDIC%')
+                    ->orWhere('profession', 'like', '%MÉDIC%')
+                    ->orWhere('profession', 'like', '%NEFRO%')
+                    ->orWhereHas('roles', fn ($roles) => $roles->where('name', 'medico'));
+            })
+            ->orderBy('name');
     }
 
     public function import(Request $request)
@@ -186,7 +203,10 @@ class LaboratoryOrderController extends Controller
                 in_array($request->query('sequence'), ['L-M-V', 'M-J-S'], true),
                 fn ($query) => $query->whereHas('patient', fn ($query) => $query->where('secuencia', $request->sequence))
             )
-            ->latest()
+            ->orderBy(Patient::select('surname')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
+            ->orderBy(Patient::select('last_name')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
+            ->orderBy(Patient::select('first_name')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
+            ->orderBy('laboratory_orders.id')
             ->paginate(15)->withQueryString();
 
         return view('laboratory.results.index', compact('orders'));
@@ -194,13 +214,13 @@ class LaboratoryOrderController extends Controller
 
     public function show(LaboratoryOrder $laboratoryOrder)
     {
-        $laboratoryOrder->load(['patient', 'items.test.area']);
+        $laboratoryOrder->load(['patient', 'items.test.area', 'validator']);
         return view('laboratory.results.show', ['order' => $laboratoryOrder]);
     }
 
     public function pdf(LaboratoryOrder $laboratoryOrder)
     {
-        $laboratoryOrder->load(['patient', 'items.test.area']);
+        $laboratoryOrder->load(['patient', 'items.test.area', 'validator']);
         return Pdf::loadView('laboratory.results.pdf', ['orders' => collect([$laboratoryOrder])])
             ->setPaper('a4')->stream('laboratorio-'.$laboratoryOrder->id.'.pdf');
     }
@@ -208,7 +228,7 @@ class LaboratoryOrderController extends Controller
     public function bulkPdf(Request $request)
     {
         $data = $request->validate(['order_ids' => 'required|array|min:1', 'order_ids.*' => 'exists:laboratory_orders,id']);
-        $orders = LaboratoryOrder::with(['patient', 'items.test.area'])->whereIn('id', $data['order_ids'])->get();
+        $orders = LaboratoryOrder::with(['patient', 'items.test.area', 'validator'])->whereIn('id', $data['order_ids'])->get();
         return Pdf::loadView('laboratory.results.pdf', compact('orders'))->setPaper('a4')->stream('laboratorios-fissal.pdf');
     }
 
@@ -237,9 +257,42 @@ class LaboratoryOrderController extends Controller
             ->whereNull('completed_at')
             ->exists();
 
-        $laboratoryOrder->update(['status' => $hasPending ? 'pending' : 'completed']);
+        $laboratoryOrder->update([
+            'status' => $hasPending ? 'pending' : 'completed',
+            'validated_by_user_id' => $request->user()->id,
+        ]);
 
         return back()->with('success', 'Resultados actualizados.');
+    }
+
+    public function updateDigitalSeal(Request $request)
+    {
+        $data = $request->validate([
+            'digital_seal' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+        $previousSeal = $user->digital_seal_path;
+        $path = $data['digital_seal']->store('users/digital-seals', 'public');
+        $user->update(['digital_seal_path' => $path]);
+
+        if ($previousSeal) {
+            Storage::disk('public')->delete($previousSeal);
+        }
+
+        return back()->with('success', 'Sello digital actualizado correctamente.');
+    }
+
+    public function destroyDigitalSeal(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->digital_seal_path) {
+            Storage::disk('public')->delete($user->digital_seal_path);
+            $user->update(['digital_seal_path' => null]);
+        }
+
+        return back()->with('success', 'Sello digital eliminado.');
     }
 
     private function normalizeHeader(mixed $value): string

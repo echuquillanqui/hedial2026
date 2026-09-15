@@ -185,6 +185,29 @@ class FissalLaboratoryTest extends TestCase
         });
     }
 
+    public function test_laboratory_generation_lists_only_registered_doctors(): void
+    {
+        $user = User::factory()->create();
+        $doctor = User::factory()->create([
+            'name' => 'Dra. Elena Salazar',
+            'profession' => 'Médico Nefrólogo',
+            'license_number' => '12345',
+        ]);
+        $nonDoctor = User::factory()->create([
+            'name' => 'Personal Administrativo',
+            'profession' => 'Administrador',
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.orders.create'));
+
+        $response->assertOk();
+        $response->assertViewHas('doctors', fn ($doctors): bool => $doctors->contains($doctor)
+            && ! $doctors->contains($nonDoctor));
+        $response->assertSee('Seleccione un médico registrado');
+        $response->assertSee('Dra. Elena Salazar · CMP 12345');
+        $response->assertDontSee('Personal Administrativo');
+    }
+
     public function test_create_order_page_uses_four_period_buttons(): void
     {
         $this->seed(FissalLaboratorySeeder::class);
@@ -290,6 +313,32 @@ class FissalLaboratoryTest extends TestCase
         $response->assertSee('@change="applyFilters()"', false);
     }
 
+    public function test_laboratory_results_are_ordered_ascending_by_patient_surnames(): void
+    {
+        $user = User::factory()->create();
+        $zapata = Patient::factory()->create(['surname' => 'ZAPATA', 'last_name' => 'ARIAS', 'first_name' => 'ANA']);
+        $alvarezZuluaga = Patient::factory()->create(['surname' => 'ALVAREZ', 'last_name' => 'ZULUAGA', 'first_name' => 'BEA']);
+        $alvarezBenites = Patient::factory()->create(['surname' => 'ALVAREZ', 'last_name' => 'BENITES', 'first_name' => 'CARLA']);
+
+        foreach ([$zapata, $alvarezZuluaga, $alvarezBenites] as $patient) {
+            LaboratoryOrder::create([
+                'patient_id' => $patient->id,
+                'patient_name' => $patient->full_name,
+                'period' => 'M',
+                'sampled_at' => today(),
+            ]);
+        }
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.results.index'));
+
+        $response->assertOk();
+        $response->assertViewHas('orders', fn ($orders): bool => $orders->pluck('patient_id')->all() === [
+            $alvarezBenites->id,
+            $alvarezZuluaga->id,
+            $zapata->id,
+        ]);
+    }
+
     public function test_individual_dialysis_order_keeps_laboratory_period_for_fua_without_generating_laboratory_records(): void
     {
         $this->seed(FissalLaboratorySeeder::class);
@@ -359,6 +408,27 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame(2, Fua::where('type', Fua::HEMODIALYSIS)->count());
     }
 
+    public function test_bulk_dialysis_orders_use_each_patients_assigned_module(): void
+    {
+        $user = User::factory()->create();
+        $firstPatient = Patient::factory()->create(['turno' => '1', 'modulo' => '2']);
+        $secondPatient = Patient::factory()->create(['turno' => '1', 'modulo' => '4']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->post(route('orders.store_bulk'), [
+            'patient_ids' => [$firstPatient->id, $secondPatient->id],
+            // Una sala enviada por un cliente antiguo no debe sobrescribir el módulo del paciente.
+            'sala' => 'MODULO 1',
+            'fecha_orden' => '2026-08-14',
+            'horas_individual' => [$firstPatient->id => 3.5, $secondPatient->id => 3.5],
+            'laboratory_periods' => [$firstPatient->id => '', $secondPatient->id => ''],
+        ]);
+
+        $response->assertRedirect(route('orders.index'));
+        $this->assertDatabaseHas('orders', ['patient_id' => $firstPatient->id, 'sala' => 'MODULO 2']);
+        $this->assertDatabaseHas('orders', ['patient_id' => $secondPatient->id, 'sala' => 'MODULO 4']);
+        $this->assertDatabaseMissing('orders', ['sala' => 'MODULO 1']);
+    }
+
     public function test_dialysis_orders_can_be_created_without_laboratory(): void
     {
         $user = User::factory()->create();
@@ -420,5 +490,18 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame(0, Nurse::count());
         $this->assertSame(0, Treatment::count());
         $this->assertSame(0, LaboratoryOrder::count());
+    }
+
+    public function test_nephrology_form_has_a_general_date_for_all_patients(): void
+    {
+        $user = User::factory()->create();
+        Patient::factory()->count(2)->create();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.nephrology.create'));
+
+        $response->assertOk();
+        $response->assertSee('Fecha general para todos');
+        $response->assertSee('name="fecha_orden"', false);
+        $response->assertSee('@change="assignDateToAll()"', false);
     }
 }

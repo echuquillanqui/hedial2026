@@ -22,7 +22,7 @@
             <div>
                 <div class="fw-bold">
                     <i class="bi bi-grid-3x3-gap-fill me-2"></i>
-                    Módulo asignado para hoy: MÓDULO {{ $moduleAssignment->module }}
+                    Módulo asignado para hoy: {{ $moduleAssignment->includesAllModules() ? 'TODOS' : 'MÓDULO '.$moduleAssignment->module }}
                 </div>
                 <small>La lista de pacientes se filtrará automáticamente según esta selección.</small>
             </div>
@@ -50,6 +50,9 @@
                             <label for="moduleAssignmentSelect" class="form-label fw-bold">Módulo de trabajo</label>
                             <select name="module" id="moduleAssignmentSelect" class="form-select" required autofocus>
                                 <option value="">Elegir módulo</option>
+                                @if(\App\Models\NurseModuleAssignment::allModulesEnabledToday())
+                                    <option value="{{ \App\Models\NurseModuleAssignment::ALL_MODULES }}" @selected(optional($moduleAssignment)->module === \App\Models\NurseModuleAssignment::ALL_MODULES)>TODOS</option>
+                                @endif
                                 @foreach(range(1, 4) as $module)
                                     <option value="{{ $module }}" @selected(optional($moduleAssignment)->module === $module)>MÓDULO {{ $module }}</option>
                                 @endforeach
@@ -71,44 +74,44 @@
             <form id="filterForm" class="row g-2">
                 <div class="col-md-3">
                     <label class="form-label small fw-bold text-muted">BUSCAR PACIENTE</label>
-                    <input type="text" name="search" id="searchInput" class="form-control form-control-sm" placeholder="Nombre, DNI...">
+                    <input type="text" name="search" id="searchInput" class="form-control form-control-sm" placeholder="Nombre, DNI..." value="{{ request('search') }}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">FECHA</label>
-                    <input type="date" name="date" id="dateSelect" class="form-control form-control-sm" value="{{ date('Y-m-d') }}">
+                    <input type="date" name="date" id="dateSelect" class="form-control form-control-sm" value="{{ request('date', date('Y-m-d')) }}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">MÓDULO</label>
                     <select name="modulo" id="moduloSelect" class="form-select form-select-sm">
                         @if($requiresModuleAssignment)
                             <option value="{{ optional($moduleAssignment)->module }}" selected>
-                                {{ $moduleAssignment ? 'MÓDULO '.$moduleAssignment->module : 'SIN ASIGNAR' }}
+                                {{ $moduleAssignment ? ($moduleAssignment->includesAllModules() ? 'TODOS' : 'MÓDULO '.$moduleAssignment->module) : 'SIN ASIGNAR' }}
                             </option>
                         @else
-                        <option value="">TODOS</option>
-                        <option value="1">MÓDULO 1</option>
-                        <option value="2">MÓDULO 2</option>
-                        <option value="3">MÓDULO 3</option>
-                        <option value="4">MÓDULO 4</option>
+                        <option value="" @selected(! request()->filled('modulo'))>TODOS</option>
+                        <option value="1" @selected(request('modulo') === '1')>MÓDULO 1</option>
+                        <option value="2" @selected(request('modulo') === '2')>MÓDULO 2</option>
+                        <option value="3" @selected(request('modulo') === '3')>MÓDULO 3</option>
+                        <option value="4" @selected(request('modulo') === '4')>MÓDULO 4</option>
                         @endif
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">TURNO</label>
                     <select name="turno" id="turnoSelect" class="form-select form-select-sm">
-                        <option value="">TODOS</option>
-                        <option value="1">1º TURNO</option>
-                        <option value="2">2º TURNO</option>
-                        <option value="3">3º TURNO</option>
-                        <option value="4">4º TURNO</option>
+                        <option value="" @selected(! request()->filled('turno'))>TODOS</option>
+                        <option value="1" @selected(request('turno') === '1')>1º TURNO</option>
+                        <option value="2" @selected(request('turno') === '2')>2º TURNO</option>
+                        <option value="3" @selected(request('turno') === '3')>3º TURNO</option>
+                        <option value="4" @selected(request('turno') === '4')>4º TURNO</option>
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">ESTADO</label>
                     <select name="estado" id="estadoSelect" class="form-select form-select-sm">
-                        <option value="">TODOS</option>
-                        <option value="en_curso">🟡 EN CURSO</option>
-                        <option value="finalizado">🟢 FINALIZADO</option>
+                        <option value="" @selected(! request()->filled('estado'))>TODOS</option>
+                        <option value="en_curso" @selected(request('estado') === 'en_curso')>🟡 EN CURSO</option>
+                        <option value="finalizado" @selected(request('estado') === 'finalizado')>🟢 FINALIZADO</option>
                     </select>
                 </div>
                 <div class="col-md-1 d-flex align-items-end">
@@ -152,6 +155,31 @@
     </div>
 </div>
 
+<div class="modal fade" id="medicalDetailModal" tabindex="-1" aria-labelledby="medicalDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-info-subtle">
+                <div>
+                    <h5 class="modal-title fw-bold" id="medicalDetailModalLabel">
+                        <i class="bi bi-file-medical-fill text-info me-2"></i>Parte médico
+                    </h5>
+                    <small id="medicalDetailPatient" class="text-muted"></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div id="medicalDetailBody" class="modal-body">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-info" role="status"></div>
+                    <div class="text-muted mt-2">Cargando información médica...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('filterForm');
@@ -161,6 +189,31 @@
         const bulkPrintModalElement = document.getElementById('bulkPrintModal');
         const bulkPrintButton = document.getElementById('btnBulkPrint');
         const bulkPrintMessage = document.getElementById('bulkPrintMessage');
+        const medicalDetailModalElement = document.getElementById('medicalDetailModal');
+        const medicalDetailBody = document.getElementById('medicalDetailBody');
+        const medicalDetailPatient = document.getElementById('medicalDetailPatient');
+
+        container.addEventListener('click', function(event) {
+            const button = event.target.closest('.js-show-medical');
+
+            if (!button) return;
+
+            medicalDetailPatient.textContent = button.dataset.patient;
+            medicalDetailBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info" role="status"></div><div class="text-muted mt-2">Cargando información médica...</div></div>';
+            window.bootstrap.Modal.getOrCreateInstance(medicalDetailModalElement).show();
+
+            fetch(button.dataset.url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('No se pudo cargar el parte médico');
+                return response.text();
+            })
+            .then(html => medicalDetailBody.innerHTML = html)
+            .catch(() => {
+                medicalDetailBody.innerHTML = '<div class="alert alert-danger mb-0" role="alert">No se pudo cargar la información médica. Inténtelo nuevamente.</div>';
+            });
+        });
 
         function updateTable() {
             // Animación de carga

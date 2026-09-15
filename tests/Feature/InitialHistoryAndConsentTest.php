@@ -12,6 +12,7 @@ use App\Models\Test;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -120,6 +121,30 @@ class InitialHistoryAndConsentTest extends TestCase
         );
     }
 
+    public function test_advance_order_uses_the_hemodialysis_date_for_automatic_consent(): void
+    {
+        Carbon::setTestNow('2026-09-09 16:00:00');
+        $this->patient->update(['secuencia' => 'M-J-S']);
+
+        try {
+            $this->actingAs($this->doctor)->withSession($this->session())->post(route('orders.store'), [
+                'patient_id' => $this->patient->id,
+                'turno' => '1',
+                'horas_dialisis' => 3.5,
+                'fecha_orden' => '2026-09-10',
+            ])->assertRedirect(route('orders.index'));
+
+            $order = $this->patient->orders()->firstOrFail();
+            $consent = $this->patient->hemodialysisConsents()->firstOrFail();
+
+            $this->assertSame('2026-09-10', $order->fecha_orden->toDateString());
+            $this->assertSame('2026-09-10', $consent->consented_at->toDateString());
+            $this->assertSame('12:00:00', $consent->consented_at->format('H:i:s'));
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_consent_index_defaults_to_today_and_reacts_to_an_explicit_date(): void
     {
         HemodialysisConsent::query()->create([
@@ -142,6 +167,33 @@ class InitialHistoryAndConsentTest extends TestCase
         $this->actingAs($this->doctor)->withSession($this->session())->get(route('consents.index', ['date' => $yesterday]))
             ->assertOk()->assertViewHas('date', $yesterday)
             ->assertViewHas('consents', fn ($consents) => $consents->total() === 1);
+    }
+
+    public function test_consent_index_offers_bulk_printing_and_pdf_places_system_logo_in_header(): void
+    {
+        $consent = HemodialysisConsent::query()->create([
+            'patient_id' => $this->patient->id, 'sede_id' => $this->sede->id,
+            'physician_id' => $this->doctor->id, 'created_by' => $this->doctor->id,
+            'consented_at' => today()->startOfDay(), 'version' => '02', 'accepted' => true,
+        ])->load(['patient', 'physician']);
+
+        $this->actingAs($this->doctor)->withSession($this->session())->get(route('consents.index'))
+            ->assertOk()
+            ->assertSee('Imprimir en bloque')
+            ->assertSee('consent_ids[]', false);
+
+        $html = view('consents.pdf', [
+            'consent' => $consent,
+            'configuration' => null,
+            'logoData' => 'data:image/png;base64,LOGO_SUBIDO',
+        ])->render();
+
+        $this->assertStringContainsString('class="system-logo"', $html);
+        $this->assertStringContainsString('src="data:image/png;base64,LOGO_SUBIDO"', $html);
+        $this->assertStringContainsString('right:0', $html);
+        $this->assertStringContainsString('@page{margin:1.3cm 2cm}', $html);
+        $this->assertStringContainsString('.consent-copy{text-align:justify}', $html);
+        $this->assertStringContainsString('class="consent-copy"', $html);
     }
 
     public function test_sector_professional_cannot_modify_history_or_create_consents(): void

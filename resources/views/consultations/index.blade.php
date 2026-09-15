@@ -5,20 +5,23 @@
     $visibleIds = $consultations->pluck('id')->map(fn ($id) => (string) $id)->values();
     $fuaByConsultation = $consultations->mapWithKeys(fn ($item) => [(string) $item->id => $item->order?->fua?->id]);
 @endphp
-<div class="container-fluid py-4 nephrology-index" x-data="{ selected: [], format: 'consultation', fuaMap: @js($fuaByConsultation), applyFilters() { this.$refs.filters.requestSubmit() } }">
+<div class="container-fluid py-4 nephrology-index" x-data="{ selected: [], format: 'consultation', duplicateIds: @js($duplicateIds), fuaMap: @js($fuaByConsultation), applyFilters() { this.$refs.filters.requestSubmit() } }">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div><span class="overline">GESTIÓN CLÍNICA</span><h2 class="mb-1">Consultas nefrológicas</h2><p class="text-muted mb-0">Gestiona la consulta, receta médica y FUA desde una sola vista.</p></div>
         <a href="{{ route('orders.nephrology.create') }}" class="btn btn-success rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Generar orden</a>
     </div>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+    @if(session('warning'))<div class="alert alert-warning">{{ session('warning') }}</div>@endif
 
     <div class="card filter-card mb-4"><div class="card-body p-3 p-lg-4"><form class="row g-3 align-items-end" x-ref="filters">
-        <div class="col-xl-4 col-md-6"><label class="filter-label">Paciente</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="search" value="{{ request('search') }}" class="form-control" placeholder="Nombre, apellido o DNI" @input.debounce.450ms="applyFilters()"></div></div>
+        <div class="col-xl-3 col-md-6"><label class="filter-label">Paciente</label><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input name="search" value="{{ request('search') }}" class="form-control" placeholder="Nombre, apellido o DNI" @input.debounce.450ms="applyFilters()"></div></div>
         <div class="col-xl-2 col-md-3"><label class="filter-label">Fecha</label><input type="date" name="date" value="{{ request('date') }}" class="form-control" @change="applyFilters()"></div>
-        <div class="col-xl-2 col-md-3"><label class="filter-label">Secuencia</label><select name="sequence" class="form-select" @change="applyFilters()"><option value="">Todas</option><option @selected(request('sequence') === 'L-M-V')>L-M-V</option><option @selected(request('sequence') === 'M-J-S')>M-J-S</option></select></div>
-        <div class="col-xl-1 col-md-3"><label class="filter-label">Turno</label><select name="shift" class="form-select" @change="applyFilters()"><option value="">Todos</option>@foreach(range(1,4) as $value)<option value="{{ $value }}" @selected((string) request('shift') === (string) $value)>{{ $value }}</option>@endforeach</select></div>
-        <div class="col-xl-1 col-md-3"><label class="filter-label">Módulo</label><select name="module" class="form-select" @change="applyFilters()"><option value="">Todos</option>@foreach(range(1,4) as $value)<option value="{{ $value }}" @selected((string) request('module') === (string) $value)>{{ $value }}</option>@endforeach</select></div>
-        <div class="col-xl-2 col-md-4"><a href="{{ route('consultations.index') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-arrow-counterclockwise me-1"></i>Limpiar</a></div>
+        <div class="col-xl-2 col-md-3"><label class="filter-label">Secuencia</label><select name="sequence" class="form-select" @change="applyFilters()"><option value="">Todas</option>@foreach($filterOptions['secuencia'] as $value)<option value="{{ $value }}" @selected((string) request('sequence') === (string) $value)>{{ $value }}</option>@endforeach</select></div>
+        <div class="col-xl-1 col-md-3"><label class="filter-label">Turno</label><select name="shift" class="form-select" @change="applyFilters()"><option value="">Todos</option>@foreach($filterOptions['turno'] as $value)<option value="{{ $value }}" @selected((string) request('shift') === (string) $value)>{{ $value }}</option>@endforeach</select></div>
+        <div class="col-xl-1 col-md-3"><label class="filter-label">Módulo</label><select name="module" class="form-select" @change="applyFilters()"><option value="">Todos</option>@foreach($filterOptions['modulo'] as $value)<option value="{{ $value }}" @selected((string) request('module') === (string) $value)>{{ $value }}</option>@endforeach</select></div>
+        <div class="col-xl-2 col-md-4"><label class="filter-label">Asistencia a diálisis</label><select name="dialysis_attendance" class="form-select" @change="applyFilters()"><option value="">Todos</option><option value="attended" @selected(request('dialysis_attendance') === 'attended')>Sí vino</option><option value="absent" @selected(request('dialysis_attendance') === 'absent')>No vino</option></select></div>
+        <div class="col-xl-2 col-md-4"><label class="filter-label">Médico</label><select name="doctor_status" class="form-select" @change="applyFilters()"><option value="">Todos</option><option value="assigned" @selected(request('doctor_status') === 'assigned')>Asignado</option><option value="unassigned" @selected(request('doctor_status') === 'unassigned')>Sin asignar</option></select></div>
+        <div class="col-xl-1 col-md-4"><a href="{{ route('consultations.index') }}" class="btn btn-outline-secondary w-100" title="Limpiar filtros" aria-label="Limpiar filtros"><i class="bi bi-arrow-counterclockwise"></i></a></div>
     </form></div></div>
 
     <div class="document-tabs mb-3" role="tablist" aria-label="Formato para imprimir">
@@ -36,11 +39,59 @@
     </form>
     @endcan
 
-    <div class="card table-card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th class="selector">@can('nephrology.print')<input class="form-check-input" type="checkbox" aria-label="Seleccionar visibles" @change="selected = $event.target.checked ? @js($visibleIds) : []">@endcan</th><th>Fecha</th><th>Paciente</th><th>Programación</th><th>Médico</th><th class="text-end">Acciones</th></tr></thead>
-        <tbody>@forelse($consultations as $item)<tr><td>@can('nephrology.print')<input class="form-check-input" type="checkbox" value="{{ $item->id }}" x-model="selected" aria-label="Seleccionar consulta de {{ $item->patient->full_name }}">@endcan</td><td><strong>{{ $item->consultation_date?->format('d/m/Y') }}</strong></td><td><div class="patient-name">{{ $item->patient->full_name }}</div><small>DNI {{ $item->patient->dni ?: '—' }} · H.C. {{ $item->patient->medical_history_number ?: '—' }}</small></td><td><span class="schedule-badge">{{ $item->patient->secuencia ?: '—' }}</span><small class="d-block mt-1">Turno {{ $item->patient->turno ?: '—' }} · Módulo {{ $item->patient->modulo ?: '—' }}</small></td><td>{{ $item->doctor?->name ?: 'Sin asignar' }}</td><td class="text-end text-nowrap"><a href="{{ route('consultations.edit', $item) }}" class="btn btn-sm btn-outline-success" title="Rellenar o editar"><i class="bi bi-pencil"></i></a> <a x-show="format === 'consultation'" target="_blank" href="{{ route('consultations.pdf', $item) }}" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark-pdf me-1"></i>Consulta</a> <a x-show="format === 'prescription'" target="_blank" href="{{ route('consultations.prescription.pdf', $item) }}" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark-pdf me-1"></i>Receta</a> @if($item->order?->fua)<a x-show="format === 'fua'" target="_blank" href="{{ route('fuas.pdf', $item->order->fua) }}" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark-pdf me-1"></i>FUA</a>@else<span x-show="format === 'fua'" class="text-muted small">Sin FUA</span>@endif</td></tr>@empty<tr><td colspan="6" class="empty-state"><i class="bi bi-journal-x"></i><strong>Sin consultas</strong><span>No hay registros que coincidan con los filtros.</span></td></tr>@endforelse</tbody>
+    @can('nephrology.update')
+    <div class="d-flex justify-content-end mb-3">
+        <button type="button" class="btn btn-outline-danger" @click="selected = [...duplicateIds]" :disabled="duplicateIds.length === 0"><i class="bi bi-files me-2"></i>Seleccionar duplicados <span class="badge text-bg-danger ms-1" x-text="duplicateIds.length"></span></button>
+    </div>
+    <form method="POST" action="{{ route('consultations.dates.update') }}" class="bulk-date-form mb-3" x-show="selected.length" x-cloak>
+        @csrf @method('PATCH')
+        <template x-for="id in selected" :key="`date-${id}`"><input type="hidden" name="consultations[]" :value="id"></template>
+        <span><strong x-text="selected.length"></strong> consulta(s): asignar una misma fecha a la orden, consulta y FUA</span>
+        <div class="d-flex gap-2"><input type="date" name="consultation_date" class="form-control form-control-sm" required><button class="btn btn-light btn-sm fw-semibold" onclick="return confirm('¿Actualizar la fecha de todos los registros seleccionados?')"><i class="bi bi-calendar-check me-2"></i>Actualizar fechas</button></div>
+    </form>
+    <form method="POST" action="{{ route('consultations.duplicates.destroy') }}" class="bulk-delete-form mb-3" x-show="selected.length" x-cloak>
+        @csrf @method('DELETE')
+        <template x-for="id in selected" :key="`delete-${id}`"><input type="hidden" name="consultations[]" :value="id"></template>
+        <span><strong x-text="selected.length"></strong> consulta(s) seleccionada(s). Siempre se conservará al menos una consulta por paciente y fecha.</span>
+        <button class="btn btn-danger btn-sm fw-semibold" onclick="return confirm('¿Eliminar las consultas duplicadas seleccionadas, junto con sus FUA y recetas asociadas? Esta acción no se puede deshacer.')"><i class="bi bi-trash3 me-2"></i>Eliminar duplicados</button>
+    </form>
+    @endcan
+
+    <div class="card table-card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th class="selector">@canany(['nephrology.print', 'nephrology.update'])<input class="form-check-input" type="checkbox" aria-label="Seleccionar visibles" @change="selected = $event.target.checked ? @js($visibleIds) : []">@endcanany</th><th>Fecha</th><th>Paciente</th><th>Programación</th><th>Asistencia HD</th><th>Médico</th><th class="text-end">Acciones</th></tr></thead>
+        <tbody>
+        @forelse($consultations as $item)
+            <tr>
+                <td>@canany(['nephrology.print', 'nephrology.update'])<input class="form-check-input" type="checkbox" value="{{ $item->id }}" x-model="selected" aria-label="Seleccionar consulta de {{ $item->patient->full_name }}">@endcanany</td>
+                <td>@can('nephrology.update')<form method="POST" action="{{ route('consultations.date.update', $item) }}" class="date-editor">@csrf @method('PATCH')<input type="date" name="consultation_date" value="{{ $item->consultation_date?->format('Y-m-d') }}" class="form-control form-control-sm" aria-label="Fecha de consulta de {{ $item->patient->full_name }}" required><button class="btn btn-sm btn-outline-success" title="Guardar fecha de consulta y FUA"><i class="bi bi-calendar-check"></i></button></form>@else<strong>{{ $item->consultation_date?->format('d/m/Y') }}</strong>@endcan</td>
+                <td><div class="patient-name">{{ $item->patient->full_name }}</div><small>DNI {{ $item->patient->dni ?: '—' }} · H.C. {{ $item->patient->medical_history_number ?: '—' }}</small></td>
+                <td><span class="schedule-badge">{{ $item->patient->secuencia ?: '—' }}</span><small class="d-block mt-1">Turno {{ $item->patient->turno ?: '—' }} · Módulo {{ $item->patient->modulo ?: '—' }}</small></td>
+                <td>
+                    @if($item->dialysis_attended)
+                        <span class="attendance-badge attendance-yes"><i class="bi bi-check-circle-fill"></i> Sí vino</span>
+                    @else
+                        <span class="attendance-badge attendance-no"><i class="bi bi-x-circle-fill"></i> No vino</span>
+                        @if($item->next_dialysis_date)
+                            <small class="d-block mt-1">Siguiente sesión: <strong>{{ $item->next_dialysis_date->format('d/m/Y') }}</strong></small>
+                            @can('nephrology.update')
+                                <form method="POST" action="{{ route('consultations.date.update', $item) }}" class="mt-1">@csrf @method('PATCH')<input type="hidden" name="consultation_date" value="{{ $item->next_dialysis_date->format('Y-m-d') }}"><button class="btn btn-sm btn-outline-primary py-0" onclick="return confirm('¿Cambiar la fecha de la consulta y su FUA a la siguiente sesión de hemodiálisis?')">Usar esta fecha</button></form>
+                            @endcan
+                        @endif
+                    @endif
+                </td>
+                <td>{{ $item->doctor?->name ?: 'Sin asignar' }}</td>
+                <td class="text-end text-nowrap"><a href="{{ route('consultations.edit', $item) }}" class="btn btn-sm btn-outline-success" title="Rellenar o editar"><i class="bi bi-pencil"></i></a> <a x-show="format === 'consultation'" target="_blank" href="{{ route('consultations.pdf', $item) }}" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark-pdf me-1"></i>Consulta</a> <a x-show="format === 'prescription'" target="_blank" href="{{ route('consultations.prescription.pdf', $item) }}" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark-pdf me-1"></i>Receta</a> @if($item->order?->fua)<a x-show="format === 'fua'" target="_blank" href="{{ route('fuas.pdf', $item->order->fua) }}" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark-pdf me-1"></i>FUA</a>@else<span x-show="format === 'fua'" class="text-muted small">Sin FUA</span>@endif</td>
+            </tr>
+        @empty
+            <tr><td colspan="7" class="empty-state"><i class="bi bi-journal-x"></i><strong>Sin consultas</strong><span>No hay registros que coincidan con los filtros.</span></td></tr>
+        @endforelse
+        </tbody>
     </table></div>@if($consultations->hasPages())<div class="card-footer bg-white">{{ $consultations->links() }}</div>@endif</div>
 </div>
 <style>
 .nephrology-index{--clinical:#087f5b}.overline{font-size:11px;letter-spacing:2px;color:var(--clinical);font-weight:800}.nephrology-index h2{font-weight:800;color:#163d35}.filter-card,.table-card{border:0;border-radius:16px;box-shadow:0 8px 28px #183f3512;overflow:hidden}.filter-label{display:block;color:#52736c;font-size:10px;font-weight:800;letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase}.filter-card .input-group-text{background:#fff;border-right:0}.filter-card .input-group .form-control{border-left:0}.document-tabs{display:flex;gap:6px;border-bottom:1px solid #dce8e4}.document-tabs button{border:0;background:transparent;color:#668078;padding:11px 20px;font-weight:700;border-bottom:3px solid transparent}.document-tabs button.active{color:var(--clinical);border-color:var(--clinical)}.document-tabs i{margin-right:7px}.table thead th{background:#f1f7f5;color:#52736c;font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:14px 12px;border:0}.table td{padding:15px 12px;border-color:#edf2f0}.patient-name{font-weight:750;color:#183f37}.table small{color:#82958f}.schedule-badge{display:inline-block;background:#e0f4ed;color:var(--clinical);border-radius:8px;padding:4px 8px;font-weight:800;font-size:12px}.bulkbar{background:linear-gradient(90deg,#07684c,#07966b);color:#fff;padding:12px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center}.selector{width:42px}.empty-state{text-align:center!important;padding:55px!important;color:#82958f}.empty-state i,.empty-state strong,.empty-state span{display:block}.empty-state i{font-size:2rem}.form-control:focus,.form-select:focus{border-color:#63b99d;box-shadow:0 0 0 .2rem #087f5b1f}
+.date-editor{display:flex;align-items:center;gap:5px;min-width:178px}.date-editor .form-control{min-width:135px}
+.bulk-date-form{background:#e7f5ef;border:1px solid #b8dfd0;border-radius:12px;color:#185c48;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:15px}.bulk-date-form .form-control{min-width:145px}.bulk-date-form .btn{white-space:nowrap;color:#087f5b}
+.bulk-delete-form{background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#9f1239;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:15px}.bulk-delete-form .btn{white-space:nowrap}
+.attendance-badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:800;white-space:nowrap}.attendance-yes{background:#dff6e8;color:#167344}.attendance-no{background:#ffe5e8;color:#b4233b}
 </style>
 @endsection
