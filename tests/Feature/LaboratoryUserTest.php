@@ -10,6 +10,7 @@ use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -105,5 +106,45 @@ class LaboratoryUserTest extends TestCase
         $this->assertNotNull($path);
         Storage::disk('public')->assertExists($path);
         $this->assertTrue($laboratoryUser->hasRole('laboratorio'));
+    }
+
+    public function test_laboratory_pdf_only_shows_the_validators_seal(): void
+    {
+        $sealPath = 'users/digital-seals/pdf-test-seal.png';
+        $absoluteSealPath = storage_path('app/public/'.$sealPath);
+        File::ensureDirectoryExists(dirname($absoluteSealPath));
+        File::put($absoluteSealPath, 'seal');
+
+        try {
+            $validator = User::factory()->create([
+                'name' => 'Nombre que no debe mostrarse',
+                'license_number' => 'COLEGIATURA-OCULTA',
+                'digital_seal_path' => $sealPath,
+            ]);
+            $area = Area::create(['name' => 'Bioquímica']);
+            $test = Test::create(['area_id' => $area->id, 'name' => 'Glucosa', 'type' => 'number']);
+            $order = LaboratoryOrder::create([
+                'patient_name' => 'Paciente de prueba',
+                'validated_by_user_id' => $validator->id,
+            ]);
+            LaboratoryOrderItem::create([
+                'laboratory_order_id' => $order->id,
+                'test_id' => $test->id,
+                'result_value' => '95',
+            ]);
+
+            $html = view('laboratory.results.pdf', [
+                'orders' => collect([$order->load(['patient', 'items.test.area', 'validator'])]),
+            ])->render();
+
+            $this->assertStringContainsString('alt="Sello digital"', $html);
+            $this->assertStringNotContainsString('Nombre que no debe mostrarse', $html);
+            $this->assertStringNotContainsString('COLEGIATURA-OCULTA', $html);
+            $this->assertStringNotContainsString('LABORATORIO FISSAL', $html);
+            $this->assertStringNotContainsString('Documento generado', $html);
+            $this->assertStringNotContainsString('Orden N.°', $html);
+        } finally {
+            File::delete($absoluteSealPath);
+        }
     }
 }
