@@ -171,7 +171,7 @@
                         sedes_selected: (user.sedes || []).map(s => String(s.id)),
                         operational_areas_selected: (user.operational_areas || []).map(a => String(a.id)),
                     }
-                    : { id: null, name: '', username: '', email: '', dni: '', profession: '', license_number: '', specialty_number: '', roles_selected: [], permissions_selected: [], sedes_selected: [], operational_areas_selected: [] };
+                    : { id: null, name: '', username: '', email: '', dni: '', profession: '', license_number: '', specialty_number: '', digital_seal_path: null, roles_selected: [], permissions_selected: [], sedes_selected: [], operational_areas_selected: [] };
 
                 this.syncOperationalAreasWithSedes();
 

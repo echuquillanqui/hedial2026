@@ -104,6 +104,10 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('laboratory/results/{laboratoryOrder}/pdf', [LaboratoryOrderController::class, 'pdf'])->name('laboratory.results.pdf');
     Route::post('laboratory/results/pdf/bulk', [LaboratoryOrderController::class, 'bulkPdf'])->name('laboratory.results.bulk-pdf');
     Route::put('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'updateResults'])->name('laboratory.results.update');
+    Route::put('laboratory/profile/digital-seal', [LaboratoryOrderController::class, 'updateDigitalSeal'])
+        ->middleware('permission:laboratory.results.update')->name('laboratory.profile.digital-seal.update');
+    Route::delete('laboratory/profile/digital-seal', [LaboratoryOrderController::class, 'destroyDigitalSeal'])
+        ->middleware('permission:laboratory.results.update')->name('laboratory.profile.digital-seal.destroy');
 
     Route::post('/users/roles', [UserController::class, 'storeRole'])->name('users.roles.store');
     Route::post('/users/permissions', [UserController::class, 'storePermission'])->name('users.permissions.store');
