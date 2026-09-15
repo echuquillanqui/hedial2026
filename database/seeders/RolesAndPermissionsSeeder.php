@@ -117,6 +117,9 @@ class RolesAndPermissionsSeeder extends Seeder
                 'fua.view', 'laboratory.results.view', 'materials.view',
                 'annexes.nursing.view', 'annexes.nursing.record', 'annexes.nursing.print',
             ],
+            'laboratorio' => [
+                'laboratory.results.view', 'laboratory.results.update',
+            ],
             'recepcion' => [
                 'dashboard.view',
                 'patients.view', 'patients.create', 'patients.edit',

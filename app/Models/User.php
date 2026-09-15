@@ -31,6 +31,7 @@ class User extends Authenticatable
         'license_number',     // Número de colegiatura
         'specialty_number',   // RNE o número de especialidad
         'profession',         // Profesión (Médico, Enfermero, etc.)
+        'digital_seal_path',
         'password',
     ];
 

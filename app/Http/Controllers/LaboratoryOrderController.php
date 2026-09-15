@@ -12,6 +12,7 @@ use App\Support\CurrentSede;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use ZipArchive;
@@ -213,13 +214,13 @@ class LaboratoryOrderController extends Controller
 
     public function show(LaboratoryOrder $laboratoryOrder)
     {
-        $laboratoryOrder->load(['patient', 'items.test.area']);
+        $laboratoryOrder->load(['patient', 'items.test.area', 'validator']);
         return view('laboratory.results.show', ['order' => $laboratoryOrder]);
     }
 
     public function pdf(LaboratoryOrder $laboratoryOrder)
     {
-        $laboratoryOrder->load(['patient', 'items.test.area']);
+        $laboratoryOrder->load(['patient', 'items.test.area', 'validator']);
         return Pdf::loadView('laboratory.results.pdf', ['orders' => collect([$laboratoryOrder])])
             ->setPaper('a4')->stream('laboratorio-'.$laboratoryOrder->id.'.pdf');
     }
@@ -227,7 +228,7 @@ class LaboratoryOrderController extends Controller
     public function bulkPdf(Request $request)
     {
         $data = $request->validate(['order_ids' => 'required|array|min:1', 'order_ids.*' => 'exists:laboratory_orders,id']);
-        $orders = LaboratoryOrder::with(['patient', 'items.test.area'])->whereIn('id', $data['order_ids'])->get();
+        $orders = LaboratoryOrder::with(['patient', 'items.test.area', 'validator'])->whereIn('id', $data['order_ids'])->get();
         return Pdf::loadView('laboratory.results.pdf', compact('orders'))->setPaper('a4')->stream('laboratorios-fissal.pdf');
     }
 
@@ -256,9 +257,42 @@ class LaboratoryOrderController extends Controller
             ->whereNull('completed_at')
             ->exists();
 
-        $laboratoryOrder->update(['status' => $hasPending ? 'pending' : 'completed']);
+        $laboratoryOrder->update([
+            'status' => $hasPending ? 'pending' : 'completed',
+            'validated_by_user_id' => $request->user()->id,
+        ]);
 
         return back()->with('success', 'Resultados actualizados.');
+    }
+
+    public function updateDigitalSeal(Request $request)
+    {
+        $data = $request->validate([
+            'digital_seal' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+        $previousSeal = $user->digital_seal_path;
+        $path = $data['digital_seal']->store('users/digital-seals', 'public');
+        $user->update(['digital_seal_path' => $path]);
+
+        if ($previousSeal) {
+            Storage::disk('public')->delete($previousSeal);
+        }
+
+        return back()->with('success', 'Sello digital actualizado correctamente.');
+    }
+
+    public function destroyDigitalSeal(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->digital_seal_path) {
+            Storage::disk('public')->delete($user->digital_seal_path);
+            $user->update(['digital_seal_path' => null]);
+        }
+
+        return back()->with('success', 'Sello digital eliminado.');
     }
 
     private function normalizeHeader(mixed $value): string

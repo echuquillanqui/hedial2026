@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LaboratoryOrder extends Model
 {
@@ -19,6 +20,7 @@ class LaboratoryOrder extends Model
         'sampled_at',
         'provenance',
         'status',
+        'validated_by_user_id',
     ];
 
     protected $casts = ['sampled_at' => 'date'];
@@ -36,5 +38,10 @@ class LaboratoryOrder extends Model
     public function items(): HasMany
     {
         return $this->hasMany(LaboratoryOrderItem::class);
+    }
+
+    public function validator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'validated_by_user_id');
     }
 }
