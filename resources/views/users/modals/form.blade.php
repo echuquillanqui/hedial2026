@@ -40,6 +40,7 @@
                                 <option value="MEDICO">MEDICO</option>
                                 <option value="ENFERMERA">ENFERMERA</option>
                                 <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
+                                <option value="LABORATORIO">LABORATORIO</option>
                                 <option value="SUPERADMIN">SUPERADMIN</option>
                             </select>
                         </div>
