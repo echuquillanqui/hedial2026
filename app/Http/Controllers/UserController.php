@@ -7,6 +7,7 @@ use App\Models\OperationalArea;
 use App\Support\CurrentSede;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use App\Models\Sede;
@@ -109,6 +110,7 @@ class UserController extends Controller
             'sedes.*'          => 'exists:sedes,id',
             'operational_areas' => 'nullable|array',
             'operational_areas.*' => 'distinct|exists:operational_areas,id',
+            'digital_seal'     => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
         ]);
 
         $this->ensureOperationalAreasMatchSedes(
@@ -116,7 +118,7 @@ class UserController extends Controller
             $request->input('sedes', [])
         );
 
-        $user = User::create([
+        $userData = [
             'name'             => $request->name,
             'username'         => $request->username,
             'email'            => $request->email,
@@ -125,7 +127,14 @@ class UserController extends Controller
             'profession'       => $request->profession,
             'license_number'   => $request->license_number,
             'specialty_number' => $request->specialty_number,
-        ]);
+        ];
+
+        if ($request->hasFile('digital_seal')) {
+            $userData['digital_seal_path'] = $request->file('digital_seal')
+                ->store('users/digital-seals', 'public');
+        }
+
+        $user = User::create($userData);
 
         $user->syncRoles($request->input('roles', []));
         $user->syncPermissions($request->input('permissions', []));
@@ -166,6 +175,8 @@ class UserController extends Controller
             'sedes.*'          => 'exists:sedes,id',
             'operational_areas' => 'nullable|array',
             'operational_areas.*' => 'distinct|exists:operational_areas,id',
+            'digital_seal'     => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'remove_digital_seal' => ['nullable', 'boolean'],
         ]);
 
         $this->ensureOperationalAreasMatchSedes(
@@ -187,7 +198,20 @@ class UserController extends Controller
             $data['password'] = Hash::make($request->password);
         }
 
+        $previousSeal = $user->digital_seal_path;
+
+        if ($request->hasFile('digital_seal')) {
+            $data['digital_seal_path'] = $request->file('digital_seal')
+                ->store('users/digital-seals', 'public');
+        } elseif ($request->boolean('remove_digital_seal')) {
+            $data['digital_seal_path'] = null;
+        }
+
         $user->update($data);
+
+        if ($previousSeal && ($request->hasFile('digital_seal') || $request->boolean('remove_digital_seal'))) {
+            Storage::disk('public')->delete($previousSeal);
+        }
         $user->syncRoles($request->input('roles', []));
         $user->syncPermissions($request->input('permissions', []));
         $user->sedes()->sync($request->input('sedes', []));

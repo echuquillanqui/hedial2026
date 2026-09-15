@@ -9,7 +9,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
 
-            <form :action="currentUser.id ? `/users/${currentUser.id}` : '/users'" method="POST">
+            <form :action="currentUser.id ? `/users/${currentUser.id}` : '/users'" method="POST" enctype="multipart/form-data">
                 @csrf
                 <template x-if="currentUser.id">
                     <input type="hidden" name="_method" value="PUT">
@@ -51,6 +51,26 @@
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">RNE (Especialidad)</label>
                             <input type="text" name="specialty_number" x-model="currentUser.specialty_number" class="form-control rounded-3">
+                        </div>
+                        <div class="col-12" x-show="currentUser.profession === 'LABORATORIO' || (currentUser.roles_selected || []).includes('laboratorio')" x-cloak>
+                            <div class="card border-success-subtle bg-success bg-opacity-10">
+                                <div class="card-body row g-3 align-items-center">
+                                    <div class="col-md-8">
+                                        <label for="user_digital_seal" class="form-label small fw-bold text-success">
+                                            <i class="bi bi-patch-check me-1"></i>Sello o firma digital de laboratorio
+                                        </label>
+                                        <input id="user_digital_seal" type="file" name="digital_seal" class="form-control" accept="image/png,image/jpeg,image/webp">
+                                        <div class="form-text">Imagen PNG, JPG o WEBP, máximo 2 MB. Se imprimirá en los resultados validados por este usuario.</div>
+                                    </div>
+                                    <div class="col-md-4 text-center" x-show="currentUser.digital_seal_path">
+                                        <img :src="`/storage/${currentUser.digital_seal_path}`" alt="Sello digital actual" class="img-fluid bg-white border rounded p-2" style="max-height:110px">
+                                        <div class="form-check text-start mt-2">
+                                            <input id="remove_digital_seal" class="form-check-input" type="checkbox" name="remove_digital_seal" value="1">
+                                            <label class="form-check-label small" for="remove_digital_seal">Eliminar el sello actual</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-primary">Roles</label>

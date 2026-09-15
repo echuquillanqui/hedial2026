@@ -78,4 +78,32 @@ class LaboratoryUserTest extends TestCase
         $this->assertSame('completed', $order->status);
         $this->assertSame('95', $item->refresh()->result_value);
     }
+
+    public function test_administrator_can_upload_a_seal_from_the_user_form(): void
+    {
+        Storage::fake('public');
+        $this->seed(RolesAndPermissionsSeeder::class);
+        $administrator = User::factory()->create();
+        $administrator->assignRole('superadmin');
+        $laboratoryUser = User::factory()->create([
+            'profession' => 'LABORATORIO',
+            'license_number' => null,
+            'specialty_number' => null,
+        ]);
+
+        $this->actingAs($administrator)->put(route('users.update', $laboratoryUser), [
+            'name' => $laboratoryUser->name,
+            'username' => $laboratoryUser->username,
+            'email' => $laboratoryUser->email,
+            'profession' => 'LABORATORIO',
+            'roles' => ['laboratorio'],
+            'digital_seal' => UploadedFile::fake()->image('firma-laboratorio.png', 240, 100),
+        ])->assertRedirect(route('users.index'))->assertSessionHasNoErrors();
+
+        $path = $laboratoryUser->refresh()->digital_seal_path;
+
+        $this->assertNotNull($path);
+        Storage::disk('public')->assertExists($path);
+        $this->assertTrue($laboratoryUser->hasRole('laboratorio'));
+    }
 }
