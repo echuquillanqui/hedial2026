@@ -134,7 +134,7 @@ class FuaNumberingAndOrderEditingTest extends TestCase
         $this->assertStringNotContainsString('PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
     }
 
-    public function test_hemodialysis_fua_uses_the_medical_start_time(): void
+    public function test_hemodialysis_fua_leaves_the_attention_time_blank(): void
     {
         $patient = Patient::factory()->create();
         $order = $this->order($patient, Fua::HEMODIALYSIS, 'FUA-HORARIOS');
@@ -148,11 +148,11 @@ class FuaNumberingAndOrderEditingTest extends TestCase
 
         $document = $this->renderFua($fua);
 
-        $this->assertStringContainsString('rowspan="2" class="value">07:25</td>', $document);
-        $this->assertStringNotContainsString('rowspan="2" class="value">17:40</td>', $document);
+        $this->assertStringContainsString('rowspan="2" class="value"></td>', $document);
+        $this->assertStringNotContainsString('rowspan="2" class="value">07:25</td>', $document);
     }
 
-    public function test_nephrology_fua_uses_the_nephrology_consultation_time(): void
+    public function test_nephrology_fua_leaves_the_attention_time_blank(): void
     {
         $patient = Patient::factory()->create();
         $order = $this->order($patient, Fua::NEPHROLOGY, 'FUA-NEFRO-HORA');
@@ -167,7 +167,8 @@ class FuaNumberingAndOrderEditingTest extends TestCase
 
         $document = $this->renderFua($fua);
 
-        $this->assertStringContainsString('rowspan="2" class="value">11:45</td>', $document);
+        $this->assertStringContainsString('rowspan="2" class="value"></td>', $document);
+        $this->assertStringNotContainsString('rowspan="2" class="value">11:45</td>', $document);
     }
 
     public function test_fua_print_views_can_filter_by_module_and_shift(): void
