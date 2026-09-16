@@ -49,7 +49,7 @@
 
     <table class="border-full">
         <tr>
-            <td width="15%" class="bold">EXAMEN FISICO</td>
+            <td width="15%" class="bold">FUNCIONES VITALES</td>
             <td width="17%"><span class="bold">PA:</span> {{ $order->medical->pa_inicial }} mmHg</td>
             <td width="17%"><span class="bold">FC:</span> {{ $order->medical->frecuencia_cardiaca }} x'</td>
             <td width="17%"><span class="bold">SATO2:</span> {{ $order->medical->so2 }}%</td>
