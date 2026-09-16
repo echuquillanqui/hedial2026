@@ -134,27 +134,40 @@ class FuaNumberingAndOrderEditingTest extends TestCase
         $this->assertStringNotContainsString('PACIENTE COLOCA SU HUELLA EN SEÑAL DE CONFORMIDAD DE LA ATENCIÓN.', $document);
     }
 
-    public function test_fua_attention_time_is_determined_by_the_order_shift(): void
+    public function test_hemodialysis_fua_uses_the_medical_start_time(): void
     {
         $patient = Patient::factory()->create();
         $order = $this->order($patient, Fua::HEMODIALYSIS, 'FUA-HORARIOS');
+        $order->update(['turno' => '4']);
+        $order->medical()->create([
+            'hora_inicial' => '07:25',
+            'hora_hd' => 0.5,
+        ]);
         $fua = app(FuaNumberService::class)->createForOrder($order);
+        $fua->load(['order.patient', 'order.medical']);
 
-        foreach (['1' => '5:40', '2' => '9:40', '3' => '13:40', '4' => '17:40'] as $shift => $time) {
-            $order->update(['turno' => $shift]);
-            $fua->setRelation('order', $order->fresh()->load('patient'));
+        $document = $this->renderFua($fua);
 
-            $document = view('fuas.pdf', [
-                'fua' => $fua,
-                'responsible' => null,
-                'configuration' => FuaConfiguration::global(),
-                'medications' => [],
-                'procedures' => [],
-                'logoData' => null,
-            ])->render();
+        $this->assertStringContainsString('rowspan="2" class="value">07:25</td>', $document);
+        $this->assertStringNotContainsString('rowspan="2" class="value">17:40</td>', $document);
+    }
 
-            $this->assertStringContainsString('rowspan="2" class="value">'.$time.'</td>', $document);
-        }
+    public function test_nephrology_fua_uses_the_nephrology_consultation_time(): void
+    {
+        $patient = Patient::factory()->create();
+        $order = $this->order($patient, Fua::NEPHROLOGY, 'FUA-NEFRO-HORA');
+        $order->nephrologyConsultation()->create([
+            'patient_id' => $patient->id,
+            'sede_id' => $patient->sede_id,
+            'consultation_date' => '2026-08-16',
+            'consultation_time' => '11:45',
+        ]);
+        $fua = app(FuaNumberService::class)->createForOrder($order);
+        $fua->load(['order.patient', 'order.nephrologyConsultation']);
+
+        $document = $this->renderFua($fua);
+
+        $this->assertStringContainsString('rowspan="2" class="value">11:45</td>', $document);
     }
 
     public function test_fua_print_views_can_filter_by_module_and_shift(): void
@@ -396,5 +409,17 @@ class FuaNumberingAndOrderEditingTest extends TestCase
             'horas_dialisis' => 0.5,
             'fecha_orden' => '2026-08-16',
         ]);
+    }
+
+    private function renderFua(Fua $fua): string
+    {
+        return view('fuas.pdf', [
+            'fua' => $fua,
+            'responsible' => null,
+            'configuration' => FuaConfiguration::global(),
+            'medications' => [],
+            'procedures' => [],
+            'logoData' => null,
+        ])->render();
     }
 }
