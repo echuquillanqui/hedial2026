@@ -83,7 +83,7 @@
           <tr>
             <table width="100%" style="border:2px solid; border-collapse: collapse; border-top: none; margin-top: -2px">
               <tr>
-                  <td style="font-size: 0.6rem;" colspan="2">EXAMEN FISICO</td>
+                  <td style="font-size: 0.6rem;" colspan="2">FUNCIONES VITALES</td>
                   <td style="font-size: 0.5rem;" colspan="2"><strong> PA:</strong> {{ $order->medical->start_pa }} mmHg</td>
                   <td style="font-size: 0.5rem;" colspan="2"><strong>FC:</strong> {{ $order->medical->fc }} x'</td>
                   <td style="font-size: 0.5rem;" colspan="2"><strong>SATO2:</strong> {{ $order->medical->so2 }} %</td>
