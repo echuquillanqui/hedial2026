@@ -21,13 +21,12 @@
     $responsibleType = match($effectiveType) { 'SOCIAL_WORK' => 7, 'PSYCHOLOGY' => 8, 'NUTRITION' => 10, default => 1 };
     $stampRole = match($effectiveType) { 'SOCIAL_WORK' => 'social_worker', 'PSYCHOLOGY' => 'psychologist', 'NUTRITION' => 'nutritionist', default => 'doctor' };
     $date = $fua->order?->fecha_orden ? \Carbon\Carbon::parse($fua->order->fecha_orden) : $fua->created_at;
-    $attentionTime = match ((string) $fua->order?->turno) {
-        '1' => '5:40',
-        '2' => '9:40',
-        '3' => '13:40',
-        '4' => '17:40',
-        default => '',
+    $attentionTime = match ($effectiveType) {
+        'HEMODIALYSIS' => $fua->order?->medical?->hora_inicial,
+        'NEPHROLOGY' => $fua->order?->nephrologyConsultation?->consultation_time,
+        default => null,
     };
+    $attentionTime = $attentionTime ? substr((string) $attentionTime, 0, 5) : '';
     $doctorName = $responsible?->name ?: $configuration->responsible_name;
     $doctorDni = $responsible?->dni ?: $configuration->responsible_document;
     $doctorCmp = $responsible?->license_number ?: $configuration->responsible_college_number;
