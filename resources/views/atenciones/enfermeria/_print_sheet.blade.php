@@ -101,7 +101,7 @@
         </tr>
 
         <tr>
-            <td colspan="4" style="height: 90px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
+            <td colspan="4" style="height: 100px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
                 <div style="width: 50%; margin: 0 auto;">
                     <div class="bold" style="font-size: 8px; text-transform: uppercase;">
                         
@@ -112,7 +112,7 @@
                     </div>
                 </div>
             </td>
-            <td colspan="4" style="height: 90px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
+            <td colspan="4" style="height: 100px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
                 <div style="width: 50%; margin: 0 auto;">
                     <div class="bold" style="font-size: 8px; text-transform: uppercase;">
                     </div>
@@ -275,7 +275,7 @@
 
 <table class="" style="margin-top: 5px; table-layout: fixed; width: 100%; border-collapse: collapse;">
     <tr>
-        <td colspan="4" style="height: 100px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
+        <td colspan="4" style="height: 110px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
             <div style="width: 50%; margin: 0 auto;">
                     <div style="font-size: 9px; margin-top: 2px;" class="bold">
                     @include('pdf.partials.digital_stamp', ['user' => $order->nurse->enfermeroInicia, 'role' => 'nurse', 'showDetails' => false])<br>
@@ -284,7 +284,7 @@
             </div>
         </td>
 
-        <td colspan="4" style="height: 100px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
+        <td colspan="4" style="height: 110px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
             <div style="width: 50%; margin: 0 auto;">
                 <div style="font-size: 9px; margin-top: 2px;" class="bold">
                     @include('pdf.partials.digital_stamp', ['user' => $order->nurse->enfermeroFinaliza, 'role' => 'nurse', 'showDetails' => false])<br>
