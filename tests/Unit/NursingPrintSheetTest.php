@@ -20,4 +20,12 @@ class NursingPrintSheetTest extends TestCase
 
         $this->assertSame(4, substr_count($view, "'showDetails' => false"));
     }
+
+    public function test_print_sheet_leaves_space_for_professional_stamps(): void
+    {
+        $view = file_get_contents(resource_path('views/atenciones/enfermeria/_print_sheet.blade.php'));
+
+        $this->assertSame(2, substr_count($view, 'height: 100px; vertical-align: bottom'));
+        $this->assertSame(2, substr_count($view, 'height: 110px; vertical-align: bottom'));
+    }
 }
