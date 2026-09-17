@@ -107,7 +107,7 @@
                         
                     </div>
                     <div style="font-size: 7px; margin-top: 2px;" class="bold">
-                        @include('pdf.partials.digital_stamp', ['user' => $order->medical->usuarioInicia, 'role' => 'doctor'])<br>
+                        @include('pdf.partials.digital_stamp', ['user' => $order->medical->usuarioInicia, 'role' => 'doctor', 'showDetails' => false])<br>
                         <span>Médico que Inicia HD</span>
                     </div>
                 </div>
@@ -117,7 +117,7 @@
                     <div class="bold" style="font-size: 8px; text-transform: uppercase;">
                     </div>
                     <div style="font-size: 7px; margin-top: 2px;" class="bold">
-                        @include('pdf.partials.digital_stamp', ['user' => $order->medical->usuarioFinaliza, 'role' => 'doctor'])<br>
+                        @include('pdf.partials.digital_stamp', ['user' => $order->medical->usuarioFinaliza, 'role' => 'doctor', 'showDetails' => false])<br>
                         <span>Médico que Finaliza HD</span>
                     </div>
                 </div>
@@ -278,7 +278,7 @@
         <td colspan="4" style="height: 100px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
             <div style="width: 50%; margin: 0 auto;">
                     <div style="font-size: 9px; margin-top: 2px;" class="bold">
-                    @include('pdf.partials.digital_stamp', ['user' => $order->nurse->enfermeroInicia, 'role' => 'nurse'])<br>
+                    @include('pdf.partials.digital_stamp', ['user' => $order->nurse->enfermeroInicia, 'role' => 'nurse', 'showDetails' => false])<br>
                     <span>Enfermero(a) que Inicia HD</span>
                 </div>
             </div>
@@ -287,7 +287,7 @@
         <td colspan="4" style="height: 100px; vertical-align: bottom; text-align: center; padding-bottom: 5px;">
             <div style="width: 50%; margin: 0 auto;">
                 <div style="font-size: 9px; margin-top: 2px;" class="bold">
-                    @include('pdf.partials.digital_stamp', ['user' => $order->nurse->enfermeroFinaliza, 'role' => 'nurse'])<br>
+                    @include('pdf.partials.digital_stamp', ['user' => $order->nurse->enfermeroFinaliza, 'role' => 'nurse', 'showDetails' => false])<br>
                     <span>Enfermero(a) que Finaliza HD</span>
                 </div>
             </div>
