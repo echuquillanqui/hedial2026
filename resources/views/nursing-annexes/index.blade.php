@@ -18,7 +18,7 @@
   <form method="GET" class="row g-2 align-items-end mb-4">
    <div class="col-sm-4 col-lg-3"><label class="form-label">Día</label><input class="form-control" type="date" name="date" value="{{ $date }}"></div>
    <div class="col-sm-3 col-lg-2"><label class="form-label">Frecuencia</label><select class="form-select" name="frequency"><option value="LMV" @selected($frequency==='LMV')>LMV</option><option value="MJS" @selected($frequency==='MJS')>MJS</option></select></div>
-   <div class="col-sm-3 col-lg-2"><label class="form-label">Módulo</label><select class="form-select" name="module">@foreach(['1','2','3','4'] as $m)<option value="{{ $m }}" @selected($module===$m)>Módulo {{ $m }}</option>@endforeach</select></div>
+   <div class="col-sm-3 col-lg-2"><label class="form-label">Módulo</label><select class="form-select" name="module">@foreach(\App\Models\Patient::MODULES as $m)<option value="{{ $m }}" @selected($module===$m)>Módulo {{ $m }}</option>@endforeach</select></div>
    <div class="col-sm-2"><button class="btn btn-primary w-100">Cargar</button></div>
   </form>
   <div class="alert alert-info d-flex justify-content-between align-items-center"><span><strong>{{ $annexOrders->count() }} sesiones</strong> encontradas. Los valores calculados se pueden corregir, incluso cuando cargan en cero.</span>@if($annex)<span class="badge bg-primary">{{ $annex->code }}</span>@else<span class="badge bg-secondary">Borrador nuevo</span>@endif</div>

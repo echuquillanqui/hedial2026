@@ -29,6 +29,7 @@ class DailyHemodialysisSequenceTest extends TestCase
 
         $wednesday = $this->createAttention($sede, 'PACIENTE-MIERCOLES', 'L-M-V', '3', '2026-09-09');
         $otherSequence = $this->createAttention($sede, 'PACIENTE-OTRA-SECUENCIA', 'M-J-S', '4', '2026-09-09');
+        $isolated = $this->createAttention($sede, 'PACIENTE-AISLADO', 'M-J-S', Patient::ISOLATED_MODULE, '2026-09-09');
 
         foreach (['orders.index', 'medicals.index', 'nurses.index'] as $route) {
             $this->actingAs($user)
@@ -36,6 +37,7 @@ class DailyHemodialysisSequenceTest extends TestCase
                 ->get(route($route, ['date' => '2026-09-09']))
                 ->assertOk()
                 ->assertSee($wednesday->patient->first_name)
+                ->assertSee($isolated->patient->first_name)
                 ->assertDontSee($otherSequence->patient->first_name);
         }
 
@@ -43,6 +45,36 @@ class DailyHemodialysisSequenceTest extends TestCase
             ->withSession(['current_sede_id' => $sede->id])
             ->get(route('orders.index', ['date' => '2026-09-09']))
             ->assertSee('MÓDULO 3');
+    }
+
+    public function test_an_isolated_patient_can_receive_an_order_on_any_day(): void
+    {
+        $user = User::factory()->create(['profession' => 'ADMINISTRATIVO']);
+        $sede = Sede::create(['name' => 'Sede aislados', 'code' => 'AIS', 'is_active' => true]);
+        $user->sedes()->attach($sede);
+        Permission::findOrCreate('orders.create', 'web');
+        $user->givePermissionTo('orders.create');
+        $patient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'secuencia' => 'M-J-S',
+            'modulo' => Patient::ISOLATED_MODULE,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->post(route('orders.store'), [
+                'patient_id' => $patient->id,
+                'turno' => '1',
+                'horas_dialisis' => 3.5,
+                'fecha_orden' => '2026-09-09', // Miércoles: no corresponde a M-J-S.
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('orders', [
+            'patient_id' => $patient->id,
+            'fecha_orden' => '2026-09-09',
+            'sala' => 'MODULO AISLADO',
+        ]);
     }
 
     public function test_indexes_switch_to_the_other_sequence_on_thursday(): void

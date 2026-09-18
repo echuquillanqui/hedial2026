@@ -36,8 +36,8 @@
                     <label class="form-label small fw-bold text-primary text-uppercase">Módulo</label>
                     <select name="modulo" class="form-select border-primary">
                         <option value="">Todos los módulos</option>
-                        @foreach(range(1, 4) as $module)
-                            <option value="{{ $module }}" @selected(request('modulo') == $module)>Módulo {{ $module }}</option>
+                        @foreach(\App\Models\Patient::MODULES as $module)
+                            <option value="{{ $module }}" @selected(request('modulo') == $module)>{{ $module === \App\Models\Patient::ISOLATED_MODULE ? 'Módulo AISLADO' : 'Módulo '.$module }}</option>
                         @endforeach
                     </select>
                 </div>

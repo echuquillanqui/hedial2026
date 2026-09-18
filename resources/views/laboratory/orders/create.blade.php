@@ -28,19 +28,28 @@
             </div>
 
             <form action="{{ route('laboratory.orders.create') }}" method="GET" class="row g-2 align-items-end">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="data-title">Secuencia programada</label>
                     <select name="secuencia" class="form-select border-success shadow-sm">
                         <option value="L-M-V" {{ $sequence === 'L-M-V' ? 'selected' : '' }}>L-M-V (lunes, miércoles y viernes)</option>
                         <option value="M-J-S" {{ $sequence === 'M-J-S' ? 'selected' : '' }}>M-J-S (martes, jueves y sábado)</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="data-title">Turno</label>
                     <select name="turno" class="form-select border-success shadow-sm">
                         <option value="" {{ $shift === null ? 'selected' : '' }}>Todos los turnos</option>
                         @foreach(['1' => '1.er turno', '2' => '2.do turno', '3' => '3.er turno', '4' => '4.to turno'] as $value => $label)
                             <option value="{{ $value }}" {{ $shift === $value ? 'selected' : '' }}>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="data-title">Módulo</label>
+                    <select name="modulo" class="form-select border-success shadow-sm">
+                        <option value="">Todos</option>
+                        @foreach(\App\Models\Patient::MODULES as $value)
+                            <option value="{{ $value }}" @selected($module === $value)>{{ $value === \App\Models\Patient::ISOLATED_MODULE ? 'Aislado' : 'Módulo '.$value }}</option>
                         @endforeach
                     </select>
                 </div>

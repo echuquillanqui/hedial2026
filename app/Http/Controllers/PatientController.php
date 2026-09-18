@@ -52,6 +52,7 @@ class PatientController extends Controller
             'birth_date'             => 'nullable|date|before:today',
             'province'               => 'nullable|string|max:100',
             'phone'                  => 'nullable|string|max:30',
+            'modulo'                 => ['nullable', Rule::in(Patient::MODULES)],
             'fua_non_signature_reason' => 'nullable|string|max:500',
             'sede_id'                => ['required', 'exists:sedes,id'],
         ]);
@@ -92,6 +93,7 @@ class PatientController extends Controller
             'insurance_type'         => ['nullable', Rule::in(['ESSALUD', 'SIS', 'SALUDPOL'])],
             'province'               => 'nullable|string|max:100',
             'phone'                  => 'nullable|string|max:30',
+            'modulo'                 => ['nullable', Rule::in(Patient::MODULES)],
             'fua_non_signature_reason' => 'nullable|string|max:500',
             'sede_id'                => ['required', 'exists:sedes,id'],
         ]);

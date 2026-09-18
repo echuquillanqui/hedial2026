@@ -134,6 +134,7 @@
                                 <option value="2">Modulo 2</option>
                                 <option value="3">Modulo 3</option>
                                 <option value="4">Modulo 4</option>
+                                <option value="AISLADO">Modulo AISLADO</option>
                             </select>
                         </div>
                         

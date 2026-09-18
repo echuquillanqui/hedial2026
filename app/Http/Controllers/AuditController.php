@@ -239,7 +239,7 @@ class AuditController extends Controller
             ->when($date, fn ($query) => $query->whereDate('fecha_orden', $date))
             ->when($sequence ?? ($request->filled('secuencia') ? $request->input('secuencia') : null), fn ($query, $sequence) => $query->whereHas(
                 'patient',
-                fn ($patient) => $patient->where('secuencia', $sequence)
+                fn ($patient) => $patient->scheduledForSequence($sequence)
             ))
             ->when($request->filled('turno'), fn ($query) => $query->where('turno', $request->input('turno')))
             ->when($request->filled('modulo'), fn ($query) => $query->where('sala', 'MODULO '.$request->input('modulo')))

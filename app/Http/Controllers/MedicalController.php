@@ -46,7 +46,7 @@ class MedicalController extends Controller
                 });
             })
             ->when($dailySequence, function ($query, $sequence) {
-                $query->whereHas('order.patient', fn ($patient) => $patient->where('secuencia', $sequence));
+                $query->whereHas('order.patient', fn ($patient) => $patient->scheduledForSequence($sequence));
             })
             ->when($request->turno, function ($query, $turno) {
                 $query->whereHas('order', function($q) use ($turno) {

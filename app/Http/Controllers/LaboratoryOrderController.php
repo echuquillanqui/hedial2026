@@ -40,12 +40,16 @@ class LaboratoryOrderController extends Controller
         $shift = in_array($request->query('turno'), ['1', '2', '3', '4'], true)
             ? $request->query('turno')
             : null;
+        $module = in_array($request->query('modulo'), Patient::MODULES, true)
+            ? $request->query('modulo')
+            : null;
 
         $tests = Test::with('area:id,name')->where('is_fissal', true)->orderBy('area_id')->orderBy('name')->get();
         $patients = Patient::query()
             ->when(CurrentSede::id(), fn ($query) => $query->where('sede_id', CurrentSede::id()))
             ->when($sequence, fn ($query) => $query->where('secuencia', $sequence))
             ->when($shift, fn ($query) => $query->where('turno', $shift))
+            ->when($module, fn ($query) => $query->where('modulo', $module))
             ->orderBy('turno')
             ->orderBy('surname')
             ->orderBy('last_name')
@@ -55,7 +59,7 @@ class LaboratoryOrderController extends Controller
             ->get();
         $doctors = $this->doctors()->get(['id', 'name', 'license_number']);
 
-        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles', 'doctors', 'sequence', 'shift'));
+        return view('laboratory.orders.create', compact('tests', 'patients', 'profiles', 'doctors', 'sequence', 'shift', 'module'));
     }
 
     public function store(Request $request)

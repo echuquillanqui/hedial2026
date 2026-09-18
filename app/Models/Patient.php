@@ -13,6 +13,10 @@ class Patient extends Model
 {
     use HasFactory;
 
+    public const ISOLATED_MODULE = 'AISLADO';
+
+    public const MODULES = ['1', '2', '3', '4', self::ISOLATED_MODULE];
+
     protected $casts = [
         'birth_date' => 'date',
         'is_insured' => 'boolean',
@@ -20,6 +24,18 @@ class Patient extends Model
 
     // Permite asignación masiva de todos los campos definidos como nullables en la migración
     protected $guarded = [];
+
+    public function scopeScheduledForSequence($query, ?string $sequence)
+    {
+        if (! $sequence) {
+            return $query;
+        }
+
+        return $query->where(function ($query) use ($sequence) {
+            $query->where('secuencia', $sequence)
+                ->orWhere('modulo', self::ISOLATED_MODULE);
+        });
+    }
 
 
     public function sede(): BelongsTo
