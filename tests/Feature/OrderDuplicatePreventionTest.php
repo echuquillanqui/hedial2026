@@ -8,12 +8,41 @@ use App\Models\Order;
 use App\Models\Patient;
 use App\Models\User;
 use App\Support\ClinicalService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class OrderDuplicatePreventionTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_an_attention_from_the_previous_day_does_not_prevent_a_new_order_in_any_shift(): void
+    {
+        Carbon::setTestNow('2026-09-16 18:00:00');
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create(['turno' => '1']);
+        $this->dailyOrder($patient, '2026-09-16', 'ORD-20260916-ANTERIOR');
+
+        $response = $this->actingAs($user)->withoutMiddleware()->post(route('orders.store'), [
+            'patient_id' => $patient->id,
+            'turno' => '4',
+            'horas_dialisis' => 3.5,
+            'fecha_orden' => '2026-09-17',
+            'laboratory_period' => null,
+        ]);
+
+        $response->assertRedirect(route('orders.index'));
+        $response->assertSessionHas('toastr', fn (array $message) => $message['type'] === 'success');
+        $this->assertDatabaseHas('orders', [
+            'patient_id' => $patient->id,
+            'fecha_orden' => '2026-09-17',
+            'turno' => '4',
+        ]);
+        $this->assertStringStartsWith(
+            'ORD-20260917-',
+            Order::query()->whereDate('fecha_orden', '2026-09-17')->sole()->codigo_unico,
+        );
+    }
 
     public function test_individual_generation_preserves_an_existing_daily_hemodialysis_order(): void
     {
@@ -34,7 +63,9 @@ class OrderDuplicatePreventionTest extends TestCase
         ]);
 
         $response->assertRedirect(route('orders.index', ['date' => '2026-09-10']));
-        $response->assertSessionHas('warning', fn (string $message) => str_contains($message, 'ORD-CONSERVAR'));
+        $response->assertSessionHas('warning', fn (string $message) => str_contains($message, 'ORD-CONSERVAR')
+            && str_contains($message, '10/09/2026')
+            && str_contains($message, 'turno 1'));
         $this->assertSame(1, Order::query()->where('patient_id', $patient->id)->count());
         $this->assertSame('Dato clínico ya registrado', $order->medical->problemas_clinicos);
     }
