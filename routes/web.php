@@ -20,6 +20,7 @@ use App\Http\Controllers\MedicationCatalogController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\InitialClinicalHistoryController;
 use App\Http\Controllers\HemodialysisConsentController;
+use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\NutritionAssessmentController;
 use App\Http\Controllers\MisAssessmentController;
 use App\Http\Controllers\PsychologyAssessmentController;
@@ -58,6 +59,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
 });
 
 Route::middleware(['auth'])->group(function () {
+    Route::post('/respaldos/base-de-datos', [DatabaseBackupController::class, 'store'])->name('database-backups.store');
     Route::get('/seleccionar-sede', [SedeSessionController::class, 'select'])->name('sede.select');
     Route::post('/seleccionar-sede', [SedeSessionController::class, 'store'])->name('sede.store');
     Route::get('/mi-perfil', [ProfileController::class, 'edit'])->name('profile.edit');

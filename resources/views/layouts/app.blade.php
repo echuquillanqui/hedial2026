@@ -401,6 +401,14 @@
                                 <a class="dropdown-item {{ request()->routeIs('profile.*') ? 'active' : '' }}" href="{{ route('profile.edit') }}">
                                     <i class="bi bi-person-gear me-2"></i> Mi perfil
                                 </a>
+                                @can('database.backup.export')
+                                <form action="{{ route('database-backups.store') }}" method="POST" onsubmit="return confirm('¿Desea descargar una copia completa de la base de datos? Guárdela en un lugar seguro.');">
+                                    @csrf
+                                    <button class="dropdown-item" type="submit">
+                                        <i class="bi bi-database-down me-2"></i> Descargar respaldo
+                                    </button>
+                                </form>
+                                @endcan
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item text-danger" href="{{ route('logout') }}" 
                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
