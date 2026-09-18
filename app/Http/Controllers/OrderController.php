@@ -24,6 +24,7 @@ use App\Models\HemodialysisConsent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
 use App\Support\DailyHemodialysisSequence;
+use Carbon\Carbon;
 
 class OrderController extends Controller
 {
@@ -319,7 +320,7 @@ class OrderController extends Controller
             }
 
             $order = Order::create(array_merge($validated, [
-                'codigo_unico' => $this->generateCode(),
+                'codigo_unico' => $this->generateCode($validated['fecha_orden']),
                 'sala' => 'MODULO '.$patient->modulo,
                 'sede_id' => $patient->sede_id,
                 'attention_type' => Fua::HEMODIALYSIS,
@@ -383,7 +384,7 @@ class OrderController extends Controller
                 // 2. Crear la Orden (Tabla: orders)
                 $order = Order::create([
                     'patient_id'     => $id,
-                    'codigo_unico'   => $this->generateCode(),
+                    'codigo_unico'   => $this->generateCode($request->fecha_orden),
                     // La sala pertenece al paciente, no a la selección global del lote.
                     'sala'           => 'MODULO '.$patient->modulo,
                     'turno'          => $patient->turno,
@@ -469,7 +470,7 @@ class OrderController extends Controller
 
                 $order = Order::create([
                     'patient_id' => $patient->id,
-                    'codigo_unico' => $this->generateCode(),
+                    'codigo_unico' => $this->generateCode($consultationDate),
                     'sala' => 'CONSULTA NEFROLÓGICA',
                     'turno' => $patient->turno ?? 'N/A',
                     'attention_type' => Fua::NEPHROLOGY,
@@ -733,9 +734,12 @@ class OrderController extends Controller
         ]);
     }
 
-    private function generateCode()
+    private function generateCode(string $attentionDate): string
     {
-        return 'ORD-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5));
+        // The identifier must describe the scheduled attention date. Orders can
+        // be prepared the day before, so using now() makes a valid order look as
+        // if it belonged to the previous day in the order-control screen.
+        return 'ORD-' . Carbon::parse($attentionDate)->format('Ymd') . '-' . strtoupper(Str::random(5));
     }
 
     private function dailyHemodialysisOrder(int $patientId, string $date): ?Order
@@ -751,7 +755,8 @@ class OrderController extends Controller
     private function duplicateOrderMessage(Order $order): string
     {
         return 'No se generó otra orden: el paciente ya tiene la orden '
-            .$order->codigo_unico.' para esa fecha. La orden existente y todos sus datos clínicos se conservaron.';
+            .$order->codigo_unico.' para el '.$order->fecha_orden->format('d/m/Y')
+            .' (turno '.$order->turno.'). La orden existente y todos sus datos clínicos se conservaron.';
     }
 
     private function addLaboratoryItems(LaboratoryOrder $laboratoryOrder, string $period): void
