@@ -49,6 +49,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'social_work.fua.view', 'social_work.fua.generate',
 
             'reports.export.pdf', 'reports.export.excel',
+            'database.backup.export',
 
             'warehouse.requests.view',
             'warehouse.requests.create',
@@ -91,6 +92,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'social_work.view', 'social_work.create', 'social_work.update', 'social_work.print',
                 'social_work.fua.view', 'social_work.fua.generate',
                 'reports.export.pdf', 'reports.export.excel',
+                'database.backup.export',
 
             'warehouse.requests.view',
             'warehouse.requests.create',
