@@ -23,7 +23,7 @@ class NurseModuleAssignment extends Model
 
     protected $casts = [
         'work_date' => 'date',
-        'module' => 'integer',
+        'module' => 'string',
     ];
 
     public static function allModulesEnabledToday(): bool
@@ -33,7 +33,7 @@ class NurseModuleAssignment extends Model
 
     public function includesAllModules(): bool
     {
-        return $this->module === self::ALL_MODULES;
+        return (int) $this->module === self::ALL_MODULES;
     }
 
     public function user(): BelongsTo

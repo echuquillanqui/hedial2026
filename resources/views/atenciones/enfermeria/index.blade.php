@@ -51,9 +51,9 @@
                             <select name="module" id="moduleAssignmentSelect" class="form-select" required autofocus>
                                 <option value="">Elegir módulo</option>
                                 @if(\App\Models\NurseModuleAssignment::allModulesEnabledToday())
-                                    <option value="{{ \App\Models\NurseModuleAssignment::ALL_MODULES }}" @selected(optional($moduleAssignment)->module === \App\Models\NurseModuleAssignment::ALL_MODULES)>TODOS</option>
+                                    <option value="{{ \App\Models\NurseModuleAssignment::ALL_MODULES }}" @selected((string) optional($moduleAssignment)->module === (string) \App\Models\NurseModuleAssignment::ALL_MODULES)>TODOS</option>
                                 @endif
-                                @foreach(range(1, 4) as $module)
+                                @foreach(\App\Models\Patient::MODULES as $module)
                                     <option value="{{ $module }}" @selected(optional($moduleAssignment)->module === $module)>MÓDULO {{ $module }}</option>
                                 @endforeach
                             </select>
@@ -93,6 +93,7 @@
                         <option value="2" @selected(request('modulo') === '2')>MÓDULO 2</option>
                         <option value="3" @selected(request('modulo') === '3')>MÓDULO 3</option>
                         <option value="4" @selected(request('modulo') === '4')>MÓDULO 4</option>
+                        <option value="AISLADO" @selected(request('modulo') === 'AISLADO')>MÓDULO AISLADO</option>
                         @endif
                     </select>
                 </div>

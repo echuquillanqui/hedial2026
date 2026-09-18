@@ -49,6 +49,7 @@
                         <option value="2" {{ request('modulo') == '2' ? 'selected' : '' }}>MÓDULO 2</option>
                         <option value="3" {{ request('modulo') == '3' ? 'selected' : '' }}>MÓDULO 3</option>
                         <option value="4" {{ request('modulo') == '4' ? 'selected' : '' }}>MÓDULO 4</option>
+                        <option value="AISLADO" {{ request('modulo') === 'AISLADO' ? 'selected' : '' }}>MÓDULO AISLADO</option>
                     </select>
                 </div>
                 <div class="col-md-2">

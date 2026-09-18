@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DisposableDiscard;
 use App\Models\DailyNursingAnnex;
 use App\Models\Order;
+use App\Models\Patient;
 use App\Services\DailyNursingAnnexService;
 use App\Services\PdfBrandingService;
 use App\Support\ClinicalService;
@@ -26,7 +27,7 @@ class NursingAnnexController extends Controller
     {
         $date = $request->date('date')?->format('Y-m-d') ?? today()->format('Y-m-d');
         $frequency = $this->frequency($request->input('frequency', $this->frequencyForDate($date)));
-        $module = in_array((string) $request->input('module', '1'), ['1', '2', '3', '4'], true) ? (string) $request->input('module', '1') : '1';
+        $module = in_array((string) $request->input('module', '1'), Patient::MODULES, true) ? (string) $request->input('module', '1') : '1';
         $orders = $this->orders($date);
         $annexOrders = $this->annexOrders($orders, $frequency, $module);
         $automaticValues = $service->calculate($annexOrders);
@@ -42,7 +43,7 @@ class NursingAnnexController extends Controller
     public function storeCare(Request $request, DailyNursingAnnexService $service)
     {
         $data = $request->validate([
-            'date' => ['required', 'date'], 'frequency' => ['required', 'in:LMV,MJS'], 'module' => ['required', 'in:1,2,3,4'],
+            'date' => ['required', 'date'], 'frequency' => ['required', 'in:LMV,MJS'], 'module' => ['required', 'in:'.implode(',', Patient::MODULES)],
             'values' => ['required', 'array'], 'values.*.quantity' => ['required', 'integer', 'min:0', 'max:9999'],
             'values.*.shifts' => ['nullable', 'array'], 'values.*.shifts.*' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'values.*.observations' => ['nullable', 'string', 'max:1000'],
@@ -92,7 +93,7 @@ class NursingAnnexController extends Controller
     {
         $date = $request->date('date')?->format('Y-m-d') ?? today()->format('Y-m-d');
         $frequency = $this->frequency($request->input('frequency', $this->frequencyForDate($date)));
-        $module = in_array((string) $request->input('module', '1'), ['1', '2', '3', '4'], true) ? (string) $request->input('module', '1') : '1';
+        $module = in_array((string) $request->input('module', '1'), Patient::MODULES, true) ? (string) $request->input('module', '1') : '1';
         $annex = DailyNursingAnnex::where(['sede_id' => CurrentSede::id(), 'work_date' => $date, 'frequency' => $frequency, 'module' => $module])->firstOrFail();
         return $this->renderCarePdf($annex, $branding);
     }

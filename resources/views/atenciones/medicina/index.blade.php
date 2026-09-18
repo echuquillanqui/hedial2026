@@ -28,7 +28,7 @@
                     <label class="small fw-bold text-muted text-uppercase" style="font-size: 0.65rem;">Módulo</label>
                     <select name="modulo" class="form-select border-success filter-input">
                         <option value="">TODOS</option>
-                        @foreach(['1','2','3','4'] as $m)
+                        @foreach(\App\Models\Patient::MODULES as $m)
                             <option value="{{ $m }}" {{ request('modulo') == $m ? 'selected' : '' }}>MÓDULO {{ $m }}</option>
                         @endforeach
                     </select>

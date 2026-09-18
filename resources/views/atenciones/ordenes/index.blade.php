@@ -75,6 +75,7 @@
                         <option value="MODULO 2" {{ request('sala') == 'MODULO 2' ? 'selected' : '' }}>MODULO 2</option>
                         <option value="MODULO 3" {{ request('sala') == 'MODULO 3' ? 'selected' : '' }}>MODULO 3</option>
                         <option value="MODULO 4" {{ request('sala') == 'MODULO 4' ? 'selected' : '' }}>MODULO 4</option>
+                        <option value="MODULO AISLADO" {{ request('sala') === 'MODULO AISLADO' ? 'selected' : '' }}>MODULO AISLADO</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -219,6 +220,7 @@
                                 <option value="MODULO 2">MODULO 2</option>
                                 <option value="MODULO 3">MODULO 3</option>
                                 <option value="MODULO 4">MODULO 4</option>
+                                <option value="MODULO AISLADO">MODULO AISLADO</option>
                             </select>
                         </div>
                         <div class="col-md-6">

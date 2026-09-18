@@ -6,6 +6,7 @@ use App\Models\Nurse;
 use App\Models\NurseModuleAssignment;
 use App\Models\User;
 use App\Models\Order;
+use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -83,7 +84,7 @@ class NurseController extends Controller
             });
         })
         ->when($dailySequence, function ($query, $sequence) {
-            $query->whereHas('order.patient', fn ($patient) => $patient->where('secuencia', $sequence));
+            $query->whereHas('order.patient', fn ($patient) => $patient->scheduledForSequence($sequence));
         })
         ->when($request->turno, function ($query, $turno) {
             $query->whereHas('order', function($q) use ($turno) {
@@ -106,12 +107,11 @@ class NurseController extends Controller
     {
         abort_unless($request->user()->isNursingProfessional(), 403);
 
-        $minimumModule = NurseModuleAssignment::allModulesEnabledToday()
-            ? NurseModuleAssignment::ALL_MODULES
-            : 1;
-
         $validated = $request->validate([
-            'module' => ['required', 'integer', 'between:'.$minimumModule.',4'],
+            'module' => ['required', Rule::in(array_merge(
+                Patient::MODULES,
+                NurseModuleAssignment::allModulesEnabledToday() ? [(string) NurseModuleAssignment::ALL_MODULES] : []
+            ))],
         ]);
 
         NurseModuleAssignment::updateOrCreate(

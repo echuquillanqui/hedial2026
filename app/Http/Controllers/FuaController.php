@@ -8,6 +8,7 @@ use App\Models\NephrologyConsultation;
 use App\Models\Test;
 use App\Models\User;
 use App\Models\Order;
+use App\Models\Patient;
 use App\Services\FuaNumberService;
 use App\Support\ClinicalService;
 use App\Support\CurrentSede;
@@ -52,7 +53,7 @@ class FuaController extends Controller
         $filters = $request->validate([
             'date' => ['nullable', 'date'],
             'patient' => ['nullable', 'string', 'max:100'],
-            'modulo' => ['nullable', 'integer', 'between:1,4'],
+            'modulo' => ['nullable', Rule::in(Patient::MODULES)],
             'turno' => ['nullable', 'integer', 'between:1,4'],
             'sequence' => ['nullable', Rule::in([
                 DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
@@ -229,7 +230,7 @@ class FuaController extends Controller
         string $type,
         ?string $date,
         ?string $patient,
-        ?int $module,
+        ?string $module,
         ?int $shift,
         ?string $sequence,
         ?int $professional,
@@ -264,8 +265,8 @@ class FuaController extends Controller
             ->when($date, fn (Builder $query) => $query->whereDate('orders.fecha_orden', $date))
             ->when($shift, fn (Builder $query) => $query->where('orders.turno', (string) $shift))
             ->when($sequence, fn (Builder $query) => $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery
-                ->where('secuencia', $sequence)))
-            ->when($module, function (Builder $query, int $module) use ($type) {
+                ->scheduledForSequence($sequence)))
+            ->when($module, function (Builder $query, string $module) use ($type) {
                 if ($type === Fua::NEPHROLOGY) {
                     $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery
                         ->where('modulo', (string) $module));

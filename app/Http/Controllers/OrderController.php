@@ -75,7 +75,7 @@ class OrderController extends Controller
                 $query->whereDate('fecha_orden', $date);
             })
             ->when($dailySequence, function ($query, $sequence) {
-                $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $sequence));
+                $query->whereHas('patient', fn ($patient) => $patient->scheduledForSequence($sequence));
             })
             ->when($request->turno, function ($query, $turno) {
                 $query->where('turno', $turno);
