@@ -339,6 +339,83 @@ class FissalLaboratoryTest extends TestCase
         ]);
     }
 
+    public function test_laboratory_results_page_offers_monthly_excel_export(): void
+    {
+        Carbon::setTestNow('2025-09-18 09:00:00');
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.results.index'));
+
+        $response->assertOk();
+        $response->assertSee('Exportar Excel');
+        $response->assertSee('name="month" value="2025-09"', false);
+        $response->assertSee(route('laboratory.results.export'), false);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_laboratory_results_can_be_exported_as_a_monthly_xlsx_file(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dni' => '12345678',
+            'surname' => 'MUÑOZ',
+            'last_name' => 'PÉREZ',
+            'first_name' => 'ANA',
+        ]);
+        $area = Area::create(['name' => 'Bioquímica']);
+        $test = Test::create([
+            'area_id' => $area->id,
+            'name' => 'Glucosa & control',
+            'unit' => 'mg/dL',
+            'reference_value' => '70 - 100',
+            'type' => 'number',
+            'frequency' => 'M',
+            'is_fissal' => true,
+        ]);
+        $septemberOrder = LaboratoryOrder::create([
+            'patient_id' => $patient->id,
+            'patient_name' => $patient->full_name,
+            'period' => 'M',
+            'sampled_at' => '2025-09-12',
+            'status' => 'completed',
+        ]);
+        $septemberOrder->items()->create([
+            'test_id' => $test->id,
+            'result_value' => '92',
+            'result_notes' => 'Resultado válido',
+            'completed_at' => now(),
+        ]);
+        LaboratoryOrder::create([
+            'patient_id' => $patient->id,
+            'patient_name' => 'PACIENTE DE OCTUBRE',
+            'period' => 'M',
+            'sampled_at' => '2025-10-01',
+        ]);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('laboratory.results.export', [
+            'month' => '2025-09',
+        ]));
+
+        $response->assertOk();
+        $response->assertDownload('SETIEMBRE_2025.xlsx');
+        $this->assertSame(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            $response->headers->get('Content-Type')
+        );
+
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($response->baseResponse->getFile()->getPathname()));
+        $worksheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+
+        $this->assertIsString($worksheet);
+        $this->assertStringContainsString('MUÑOZ', $worksheet);
+        $this->assertStringContainsString('Glucosa &amp; control', $worksheet);
+        $this->assertStringContainsString('Resultado válido', $worksheet);
+        $this->assertStringNotContainsString('PACIENTE DE OCTUBRE', $worksheet);
+    }
+
     public function test_individual_dialysis_order_keeps_laboratory_period_for_fua_without_generating_laboratory_records(): void
     {
         $this->seed(FissalLaboratorySeeder::class);
