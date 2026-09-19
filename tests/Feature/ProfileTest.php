@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -19,6 +20,18 @@ class ProfileTest extends TestCase
             ->get(route('profile.edit'))
             ->assertOk()
             ->assertSee('Mi perfil');
+    }
+
+    public function test_laboratory_report_is_available_from_the_reports_navigation_menu(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(Permission::create(['name' => 'laboratory.results.view']));
+
+        $this->actingAs($user)
+            ->get(route('profile.edit'))
+            ->assertOk()
+            ->assertSeeInOrder(['Reportes', 'Reporte Lab'])
+            ->assertSee(route('laboratory.results.index'), false);
     }
 
     public function test_user_can_update_their_personal_data(): void

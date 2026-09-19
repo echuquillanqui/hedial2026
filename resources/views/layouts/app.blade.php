@@ -89,7 +89,8 @@
                         $canViewCatalog = auth()->user()->can('laboratory.catalog.manage');
                         $canViewLaboratoryResults = auth()->user()->can('laboratory.results.view');
                         $canCreateLaboratoryOrders = auth()->user()->can('laboratory.orders.create');
-                        $canSeeLaboratory = $canViewCatalog || $canViewLaboratoryResults || $canCreateLaboratoryOrders;
+                        $canSeeLaboratory = $canViewCatalog || $canCreateLaboratoryOrders;
+                        $canSeeReports = $canViewLaboratoryResults;
                         $canViewAudit = auth()->user()->can('audit.view');
                         $canViewInitialHistory = auth()->user()->can('initial_history.view');
                         $canViewConsents = auth()->user()->can('consents.view');
@@ -153,7 +154,7 @@
 
     @if($canSeeLaboratory)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('catalog.*', 'laboratory.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('catalog.*', 'laboratory.orders.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-journal-medical me-1"></i> Laboratorio
         </button>
@@ -172,13 +173,22 @@
                 </a>
             </li>
             @endif
-            @if($canViewLaboratoryResults)
+        </ul>
+    </li>
+    @endif
+
+    @if($canSeeReports)
+    <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('laboratory.results.*') ? 'active fw-bold' : '' }}"
+                type="button" @click="open = !open" :aria-expanded="open.toString()">
+            <i class="bi bi-bar-chart-line-fill me-1"></i> Reportes
+        </button>
+        <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
             <li>
                 <a class="dropdown-item {{ request()->routeIs('laboratory.results.*') ? 'active' : '' }}" href="{{ route('laboratory.results.index') }}">
-                    <i class="bi bi-clipboard2-pulse me-2"></i> Resultados
+                    <i class="bi bi-file-earmark-medical me-2"></i> Reporte Lab
                 </a>
             </li>
-            @endif
         </ul>
     </li>
     @endif
