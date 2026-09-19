@@ -8,7 +8,9 @@ use App\Models\Patient;
 use App\Models\Profile;
 use App\Models\Test;
 use App\Models\User;
+use App\Services\LaboratoryResultsXlsxExporter;
 use App\Support\CurrentSede;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +24,7 @@ class LaboratoryOrderController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:laboratory.results.view')->only(['results', 'show', 'pdf', 'bulkPdf']);
+        $this->middleware('permission:laboratory.results.view')->only(['results', 'export', 'show', 'pdf', 'bulkPdf']);
         $this->middleware('permission:laboratory.orders.create')->only(['create', 'store', 'import']);
         $this->middleware('permission:laboratory.results.update')->only(['updateResults']);
     }
@@ -214,6 +216,39 @@ class LaboratoryOrderController extends Controller
             ->paginate(15)->withQueryString();
 
         return view('laboratory.results.index', compact('orders'));
+    }
+
+    public function export(Request $request, LaboratoryResultsXlsxExporter $exporter)
+    {
+        $data = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+        ]);
+        $month = CarbonImmutable::createFromFormat('!Y-m', $data['month']);
+        $from = $month->startOfMonth();
+        $to = $month->endOfMonth();
+
+        $orders = LaboratoryOrder::with(['patient', 'items.test.area'])
+            ->where(function ($query) use ($from, $to) {
+                $query->whereBetween('sampled_at', [$from, $to])
+                    ->orWhere(function ($query) use ($from, $to) {
+                        $query->whereNull('sampled_at')->whereBetween('created_at', [$from, $to]);
+                    });
+            })
+            ->orderBy('sampled_at')
+            ->orderBy('id')
+            ->get();
+
+        $monthNames = [
+            1 => 'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+            'JULIO', 'AGOSTO', 'SETIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE',
+        ];
+        $filename = $monthNames[$month->month].'_'.$month->year.'.xlsx';
+
+        return response()->download(
+            $exporter->export($orders),
+            $filename,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        )->deleteFileAfterSend();
     }
 
     public function show(LaboratoryOrder $laboratoryOrder)
