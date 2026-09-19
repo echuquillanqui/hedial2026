@@ -412,7 +412,17 @@ class FissalLaboratoryTest extends TestCase
         $this->assertIsString($worksheet);
         $this->assertStringContainsString('MUÑOZ', $worksheet);
         $this->assertStringContainsString('Glucosa &amp; control', $worksheet);
-        $this->assertStringContainsString('Resultado válido', $worksheet);
+        $this->assertStringContainsString('NOMBRES Y APELLIDOS', $worksheet);
+        $this->assertStringContainsString('DNI', $worksheet);
+        $this->assertStringContainsString('FECHA', $worksheet);
+        $this->assertStringContainsString('92', $worksheet);
+        $this->assertStringContainsString('<autoFilter ref="A1:D2"/>', $worksheet);
+        $this->assertStringContainsString('<c r="D1" t="inlineStr" s="1"><is><t xml:space="preserve">Glucosa &amp; control</t></is></c>', $worksheet);
+        $this->assertStringContainsString('<c r="D2" t="inlineStr"><is><t xml:space="preserve">92</t></is></c>', $worksheet);
+        $this->assertStringNotContainsString('<c r="E1"', $worksheet);
+        $this->assertStringNotContainsString('Resultado válido', $worksheet);
+        $this->assertStringNotContainsString('Historia clínica', $worksheet);
+        $this->assertStringNotContainsString('Observaciones', $worksheet);
         $this->assertStringNotContainsString('PACIENTE DE OCTUBRE', $worksheet);
     }
 

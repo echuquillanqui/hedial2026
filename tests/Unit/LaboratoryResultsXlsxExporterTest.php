@@ -19,7 +19,7 @@ class LaboratoryResultsXlsxExporterTest extends TestCase
             $this->assertSame(6, substr_count($contents, "PK\x03\x04"));
             $this->assertStringContainsString('[Content_Types].xml', $contents);
             $this->assertStringContainsString('xl/worksheets/sheet1.xml', $contents);
-            $this->assertStringContainsString('<autoFilter ref="A1:M1"/>', $contents);
+            $this->assertStringContainsString('<autoFilter ref="A1:C1"/>', $contents);
         } finally {
             @unlink($path);
         }
