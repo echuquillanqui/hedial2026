@@ -4,7 +4,6 @@ namespace App\Services;
 
 use Illuminate\Support\Collection;
 use RuntimeException;
-use ZipArchive;
 
 class LaboratoryResultsXlsxExporter
 {
@@ -16,21 +15,107 @@ class LaboratoryResultsXlsxExporter
             throw new RuntimeException('No se pudo crear el archivo temporal para la exportación.');
         }
 
-        $zip = new ZipArchive();
-        if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        $archive = $this->createZipArchive([
+            '[Content_Types].xml' => $this->contentTypes(),
+            '_rels/.rels' => $this->rootRelationships(),
+            'xl/workbook.xml' => $this->workbook(),
+            'xl/_rels/workbook.xml.rels' => $this->workbookRelationships(),
+            'xl/styles.xml' => $this->styles(),
+            'xl/worksheets/sheet1.xml' => $this->worksheet($orders),
+        ]);
+
+        if (file_put_contents($path, $archive) === false) {
             @unlink($path);
-            throw new RuntimeException('No se pudo crear el archivo Excel.');
+            throw new RuntimeException('No se pudo escribir el archivo Excel.');
         }
 
-        $zip->addFromString('[Content_Types].xml', $this->contentTypes());
-        $zip->addFromString('_rels/.rels', $this->rootRelationships());
-        $zip->addFromString('xl/workbook.xml', $this->workbook());
-        $zip->addFromString('xl/_rels/workbook.xml.rels', $this->workbookRelationships());
-        $zip->addFromString('xl/styles.xml', $this->styles());
-        $zip->addFromString('xl/worksheets/sheet1.xml', $this->worksheet($orders));
-        $zip->close();
-
         return $path;
+    }
+
+    /**
+     * Build the small ZIP container required by XLSX without relying on ext-zip.
+     *
+     * The entries are stored without compression. This keeps the export available
+     * on Windows installations where the optional ZipArchive extension is disabled.
+     *
+     * @param  array<string, string>  $files
+     */
+    private function createZipArchive(array $files): string
+    {
+        $contents = '';
+        $directory = '';
+        $offset = 0;
+        [$dosTime, $dosDate] = $this->dosTimestamp();
+
+        foreach ($files as $name => $data) {
+            $nameLength = strlen($name);
+            $dataLength = strlen($data);
+            $checksum = crc32($data);
+
+            $localHeader = pack(
+                'VvvvvvVVVvv',
+                0x04034b50,
+                20,
+                0,
+                0,
+                $dosTime,
+                $dosDate,
+                $checksum,
+                $dataLength,
+                $dataLength,
+                $nameLength,
+                0
+            );
+            $contents .= $localHeader.$name.$data;
+
+            $directory .= pack(
+                'VvvvvvvVVVvvvvvVV',
+                0x02014b50,
+                20,
+                20,
+                0,
+                0,
+                $dosTime,
+                $dosDate,
+                $checksum,
+                $dataLength,
+                $dataLength,
+                $nameLength,
+                0,
+                0,
+                0,
+                0,
+                0,
+                $offset
+            ).$name;
+
+            $offset = strlen($contents);
+        }
+
+        $fileCount = count($files);
+        $endRecord = pack(
+            'VvvvvVVv',
+            0x06054b50,
+            0,
+            0,
+            $fileCount,
+            $fileCount,
+            strlen($directory),
+            strlen($contents),
+            0
+        );
+
+        return $contents.$directory.$endRecord;
+    }
+
+    /** @return array{int, int} */
+    private function dosTimestamp(): array
+    {
+        $year = max((int) date('Y'), 1980);
+        $time = ((int) date('H') << 11) | ((int) date('i') << 5) | (int) (date('s') / 2);
+        $date = (($year - 1980) << 9) | ((int) date('n') << 5) | (int) date('j');
+
+        return [$time, $date];
     }
 
     private function worksheet(Collection $orders): string
