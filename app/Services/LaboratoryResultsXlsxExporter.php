@@ -120,31 +120,30 @@ class LaboratoryResultsXlsxExporter
 
     private function worksheet(Collection $orders): string
     {
+        $testNames = $orders
+            ->flatMap(fn ($order) => $order->items->pluck('test.name'))
+            ->filter()
+            ->unique()
+            ->values();
+
         $rows = [[
-            'Orden', 'Paciente', 'DNI', 'Historia clínica', 'Periodo', 'Fecha de registro',
-            'Área', 'Examen', 'Resultado', 'Unidad', 'Valor de referencia', 'Observaciones', 'Estado',
+            'NOMBRES Y APELLIDOS',
+            'DNI',
+            'FECHA',
+            ...$testNames->all(),
         ]];
 
         foreach ($orders as $order) {
-            $items = $order->items->isEmpty() ? collect([null]) : $order->items;
+            $resultsByTest = $order->items
+                ->filter(fn ($item) => $item->test?->name)
+                ->keyBy(fn ($item) => $item->test->name);
 
-            foreach ($items as $item) {
-                $rows[] = [
-                    $order->id,
-                    $order->patient_name,
-                    $order->patient?->dni,
-                    $order->patient?->medical_history_number,
-                    ['M' => 'Mensual', 'B' => 'Bimestral', 'T' => 'Trimestral', 'S' => 'Semestral'][$order->period] ?? $order->period,
-                    ($order->sampled_at ?? $order->created_at)->format('d/m/Y'),
-                    $item?->test?->area?->name,
-                    $item?->test?->name,
-                    $item?->result_value,
-                    $item?->test?->unit,
-                    $item?->test?->reference_value,
-                    $item?->result_notes,
-                    $order->status === 'completed' ? 'Completado' : 'Pendiente',
-                ];
-            }
+            $rows[] = [
+                $order->patient_name,
+                $order->patient?->dni,
+                ($order->sampled_at ?? $order->created_at)->format('d/m/Y'),
+                ...$testNames->map(fn ($name) => $resultsByTest->get($name)?->result_value)->all(),
+            ];
         }
 
         $xmlRows = '';
@@ -159,13 +158,14 @@ class LaboratoryResultsXlsxExporter
             $xmlRows .= '<row r="'.($rowIndex + 1).'">'.$cells.'</row>';
         }
 
+        $lastColumn = $this->columnName(count($rows[0]));
+
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
             .'<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
-            .'<cols><col min="1" max="1" width="10" customWidth="1"/><col min="2" max="2" width="34" customWidth="1"/>'
-            .'<col min="3" max="6" width="18" customWidth="1"/><col min="7" max="8" width="30" customWidth="1"/>'
-            .'<col min="9" max="13" width="22" customWidth="1"/></cols>'
-            .'<sheetData>'.$xmlRows.'</sheetData><autoFilter ref="A1:M'.count($rows).'"/></worksheet>';
+            .'<cols><col min="1" max="1" width="34" customWidth="1"/><col min="2" max="3" width="18" customWidth="1"/>'
+            .(count($rows[0]) > 3 ? '<col min="4" max="'.count($rows[0]).'" width="22" customWidth="1"/>' : '')
+            .'</cols><sheetData>'.$xmlRows.'</sheetData><autoFilter ref="A1:'.$lastColumn.count($rows).'"/></worksheet>';
     }
 
     private function columnName(int $index): string
