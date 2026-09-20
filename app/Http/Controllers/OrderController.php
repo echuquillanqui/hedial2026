@@ -87,7 +87,15 @@ class OrderController extends Controller
                     ->whereColumn('duplicate_orders.fecha_orden', 'orders.fecha_orden')
                     ->whereColumn('duplicate_orders.attention_type', 'orders.attention_type')
                     ->whereColumn('duplicate_orders.id', '!=', 'orders.id');
-            }));
+            }))
+            ->when($request->boolean('out_of_sequence_only') && $dailySequence, fn ($query) => $query
+                ->whereHas('patient', fn (Builder $patient) => $patient
+                    ->where(fn (Builder $module) => $module
+                        ->whereNull('modulo')
+                        ->orWhere('modulo', '!=', Patient::ISOLATED_MODULE))
+                    ->where(fn (Builder $sequence) => $sequence
+                        ->whereNull('secuencia')
+                        ->orWhere('secuencia', '!=', $dailySequence))));
 
         $recordCount = (clone $ordersQuery)->count();
         $patientCount = (clone $ordersQuery)->distinct()->count('orders.patient_id');
@@ -741,8 +749,11 @@ class OrderController extends Controller
                     ->where('attention_type', $order->attention_type)
                     ->count();
 
-                // Never remove clinical information or the last order in a group.
-                if ($duplicates < 2 || $order->hasRecordedClinicalData()) {
+                // An empty duplicate or an empty order generated outside the
+                // patient's sequence is safe to remove. Clinical data is never
+                // removed, and ordinary unique orders remain protected.
+                if ($order->hasRecordedClinicalData()
+                    || ($duplicates < 2 && $order->loadMissing('patient')->isOnPatientSequence())) {
                     $protected++;
                     continue;
                 }
@@ -754,9 +765,9 @@ class OrderController extends Controller
             return [$deleted, $protected];
         });
 
-        $message = $deleted.' duplicado(s) vacío(s) eliminado(s).';
+        $message = $deleted.' orden(es) vacía(s) eliminada(s).';
         if ($protected > 0) {
-            $message .= ' Se conservaron '.$protected.' orden(es) por contener datos clínicos o ser la única ficha restante.';
+            $message .= ' Se conservaron '.$protected.' orden(es) por contener datos clínicos o no ser duplicadas/fuera de secuencia.';
         }
 
         return back()->with('toastr', [

@@ -181,6 +181,32 @@ class OrderDuplicatePreventionTest extends TestCase
             ->assertSee('2</strong> registros', false);
     }
 
+    public function test_out_of_sequence_filter_is_detected_from_the_selected_date_and_shows_data_status(): void
+    {
+        $user = User::factory()->create();
+        $scheduledPatient = Patient::factory()->create(['secuencia' => 'L-M-V']);
+        $emptyPatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+        $recordedPatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+        $scheduled = $this->dailyOrder($scheduledPatient, '2026-09-16', 'ORD-EN-SECUENCIA');
+        $empty = $this->dailyOrder($emptyPatient, '2026-09-16', 'ORD-FUERA-VACIA');
+        $recorded = $this->dailyOrder($recordedPatient, '2026-09-16', 'ORD-FUERA-CON-DATOS');
+        Medical::create(['order_id' => $recorded->id, 'evaluacion' => 'Atención registrada']);
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'date' => '2026-09-16',
+            'out_of_sequence_only' => 1,
+        ]));
+
+        $response->assertOk()
+            ->assertDontSee($scheduled->codigo_unico)
+            ->assertSee($empty->codigo_unico)
+            ->assertSee($recorded->codigo_unico)
+            ->assertSee('2</strong> fuera de secuencia (día L-M-V)', false)
+            ->assertSee('VACÍA: PUEDE ELIMINARSE')
+            ->assertSee('CON DATOS: CONSERVAR')
+            ->assertSee('deletable-order-checkbox', false);
+    }
+
     public function test_an_order_with_clinical_data_cannot_be_deleted(): void
     {
         $user = User::factory()->create();
@@ -215,7 +241,7 @@ class OrderDuplicatePreventionTest extends TestCase
 
         $response->assertSessionHas('toastr', function (array $message) {
             return $message['type'] === 'success'
-                && str_contains($message['message'], '1 duplicado(s) vacío(s) eliminado(s)')
+                && str_contains($message['message'], '1 orden(es) vacía(s) eliminada(s)')
                 && str_contains($message['message'], 'Se conservaron 1 orden(es)');
         });
         $this->assertDatabaseHas('orders', ['id' => $recordedOrder->id]);
@@ -239,6 +265,26 @@ class OrderDuplicatePreventionTest extends TestCase
 
         $this->assertSame(1, Order::query()->where('patient_id', $patient->id)->count());
         $this->assertDatabaseHas('orders', ['id' => $first->id]);
+    }
+
+    public function test_bulk_deletion_removes_an_empty_out_of_sequence_order_but_protects_one_with_data(): void
+    {
+        $user = User::factory()->create();
+        $emptyPatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+        $recordedPatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+        $empty = $this->dailyOrder($emptyPatient, '2026-09-16', 'ORD-FUERA-VACIA');
+        $recorded = $this->dailyOrder($recordedPatient, '2026-09-16', 'ORD-FUERA-CON-DATOS');
+        Medical::create(['order_id' => $recorded->id, 'evaluacion' => 'No eliminar']);
+
+        $this->actingAs($user)->withoutMiddleware()->delete(route('orders.destroy-bulk'), [
+            'order_ids' => [$empty->id, $recorded->id],
+        ])->assertSessionHas('toastr', fn (array $message) => $message['type'] === 'success'
+            && str_contains($message['message'], '1 orden(es) vacía(s) eliminada(s)')
+            && str_contains($message['message'], 'Se conservaron 1 orden(es)'));
+
+        $this->assertDatabaseMissing('orders', ['id' => $empty->id]);
+        $this->assertDatabaseHas('orders', ['id' => $recorded->id]);
+        $this->assertDatabaseHas('medicals', ['order_id' => $recorded->id, 'evaluacion' => 'No eliminar']);
     }
 
     private function dailyOrder(Patient $patient, string $date, string $code): Order
