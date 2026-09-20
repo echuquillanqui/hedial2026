@@ -19,6 +19,7 @@ use App\Models\FuaConfiguration;
 use App\Services\FuaNumberService;
 use App\Services\MultisectorialOrderService;
 use App\Support\ClinicalService;
+use App\Support\DailyHemodialysisSequence;
 use App\Models\User;
 use App\Models\HemodialysisConsent;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,6 +48,7 @@ class OrderController extends Controller
             ? null
             : $request->input('date', now()->toDateString());
         $currentSedeId = CurrentSede::id();
+        $dailySequence = $dateFilter ? DailyHemodialysisSequence::forDate($dateFilter) : null;
 
         $ordersQuery = Order::with(['patient', 'medical', 'nurse', 'treatments', 'sede', 'fua'])
             ->select('orders.*')
@@ -97,13 +99,30 @@ class OrderController extends Controller
                 $order->attention_type,
             ]))
             ->sum(fn ($group) => max(0, $group->count() - 1));
+        $outOfSequenceCount = $dailySequence
+            ? (clone $ordersQuery)->whereHas('patient', fn (Builder $patient) => $patient
+                ->where(fn (Builder $module) => $module
+                    ->whereNull('modulo')
+                    ->orWhere('modulo', '!=', Patient::ISOLATED_MODULE))
+                ->where(fn (Builder $sequence) => $sequence
+                    ->whereNull('secuencia')
+                    ->orWhere('secuencia', '!=', $dailySequence)))
+                ->count()
+            : null;
 
         $orders = $ordersQuery
             ->latest()
             ->paginate(15)
             ->appends($request->all()); // Muy importante para mantener filtros en la paginación
 
-        return view('atenciones.ordenes.index', compact('orders', 'recordCount', 'patientCount', 'duplicateCount'));
+        return view('atenciones.ordenes.index', compact(
+            'orders',
+            'recordCount',
+            'patientCount',
+            'duplicateCount',
+            'dailySequence',
+            'outOfSequenceCount'
+        ));
     }
 
     public function multisectorialIndex(Request $request)
