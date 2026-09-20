@@ -91,8 +91,14 @@ class FuaController extends Controller
             $filters['prescription_status'] ?? null,
             $sedeId,
         )
+            ->orderBy('orders.turno')
+            ->orderBy('patients.modulo')
+            ->orderBy('patients.surname')
+            ->orderBy('patients.last_name')
+            ->orderBy('patients.first_name')
+            ->orderBy('patients.other_names')
             ->orderByDesc('orders.fecha_orden')
-            ->orderByDesc('fuas.id')
+            ->orderBy('fuas.id')
             ->select('fuas.*')
             ->paginate(30)
             ->withQueryString();
@@ -198,13 +204,22 @@ class FuaController extends Controller
         ]);
 
         $fuas = Fua::query()
-            ->where('type', $type)
-            ->whereIn('id', $data['fuas'])
+            ->join('orders', 'orders.id', '=', 'fuas.order_id')
+            ->join('patients', 'patients.id', '=', 'orders.patient_id')
+            ->where('fuas.type', $type)
+            ->whereIn('fuas.id', $data['fuas'])
             ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query
                 ->whereHas('order', fn (Builder $order) => $order->where('sede_id', $sede)))
             ->with($this->pdfRelations())
+            ->orderBy('orders.turno')
+            ->orderBy('patients.modulo')
+            ->orderBy('patients.surname')
+            ->orderBy('patients.last_name')
+            ->orderBy('patients.first_name')
+            ->orderBy('patients.other_names')
+            ->orderBy('fuas.id')
+            ->select('fuas.*')
             ->get()
-            ->sortBy(fn (Fua $fua) => array_search($fua->id, $data['fuas']))
             ->values();
 
         abort_if($fuas->isEmpty(), 404);
@@ -246,6 +261,7 @@ class FuaController extends Controller
                 'order.nephrologyConsultation' => fn ($query) => $query->withExists('medications'),
             ])
             ->join('orders', 'orders.id', '=', 'fuas.order_id')
+            ->join('patients', 'patients.id', '=', 'orders.patient_id')
             ->where('fuas.type', $type)
             ->when($sede, fn (Builder $query) => $query->where('orders.sede_id', $sede))
             ->when($professional, function (Builder $query, int $professional) use ($type) {
