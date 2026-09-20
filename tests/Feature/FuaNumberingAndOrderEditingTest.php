@@ -205,15 +205,15 @@ class FuaNumberingAndOrderEditingTest extends TestCase
         }
     }
 
-    public function test_hemodialysis_fuas_are_listed_and_printed_by_shift_module_and_last_names(): void
+    public function test_hemodialysis_fuas_are_listed_and_printed_alphabetically_by_last_names(): void
     {
         $user = User::factory()->create();
         $date = '2026-09-20';
         $cases = [
-            ['number' => 'ORDER-4', 'turno' => '2', 'modulo' => '1', 'surname' => 'Alvarez', 'last_name' => 'Rojas'],
+            ['number' => 'ORDER-4', 'turno' => '2', 'modulo' => '1', 'surname' => 'Mendoza', 'last_name' => 'Rojas'],
             ['number' => 'ORDER-3', 'turno' => '1', 'modulo' => '2', 'surname' => 'Alvarez', 'last_name' => 'Rojas'],
             ['number' => 'ORDER-2', 'turno' => '1', 'modulo' => '1', 'surname' => 'Zuluaga', 'last_name' => 'Rojas'],
-            ['number' => 'ORDER-1', 'turno' => '1', 'modulo' => '1', 'surname' => 'Alvarez', 'last_name' => 'Rojas'],
+            ['number' => 'ORDER-1', 'turno' => '1', 'modulo' => '1', 'surname' => 'Bravo', 'last_name' => 'Rojas'],
         ];
         $fuas = collect($cases)->map(function (array $case) use ($date) {
             $patient = Patient::factory()->create([
@@ -230,7 +230,7 @@ class FuaNumberingAndOrderEditingTest extends TestCase
 
             return app(FuaNumberService::class)->createForOrder($order);
         });
-        $expectedNumbers = [$fuas[3]->number, $fuas[2]->number, $fuas[1]->number, $fuas[0]->number];
+        $expectedNumbers = [$fuas[1]->number, $fuas[3]->number, $fuas[0]->number, $fuas[2]->number];
 
         $this->actingAs($user)->withoutMiddleware()->get(route('fuas.hemodialysis.index', ['date' => $date]))
             ->assertOk()
