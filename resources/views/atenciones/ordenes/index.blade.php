@@ -90,6 +90,11 @@
                                class="form-check-input filter-input" @checked(request()->boolean('duplicates_only'))>
                         <label for="duplicatesOnlyFilter" class="form-check-label small fw-semibold text-danger">Solo duplicados</label>
                     </div>
+                    <div class="form-check mb-2">
+                        <input id="outOfSequenceOnlyFilter" type="checkbox" name="out_of_sequence_only" value="1"
+                               class="form-check-input filter-input" @checked(request()->boolean('out_of_sequence_only')) @disabled(! $dailySequence)>
+                        <label for="outOfSequenceOnlyFilter" class="form-check-label small fw-semibold text-danger">Solo fuera de secuencia</label>
+                    </div>
                     <a href="{{ route('orders.index') }}" class="btn btn-sm btn-outline-secondary w-100 fw-bold">
                         <i class="bi bi-arrow-clockwise me-1"></i> LIMPIAR
                     </a>
@@ -121,12 +126,12 @@
             </button>
             @endcan
             <form id="bulkDeleteForm" method="POST" action="{{ route('orders.destroy-bulk') }}"
-                  onsubmit="return confirm('¿Eliminar los duplicados vacíos seleccionados? Las órdenes con datos serán protegidas automáticamente.')">
+                  onsubmit="return confirm('¿Eliminar las órdenes vacías seleccionadas? Las órdenes con datos serán protegidas automáticamente.')">
                 @csrf
                 @method('DELETE')
                 <div id="bulkDeleteOrderIds"></div>
                 <button id="bulkDeleteButton" type="submit" class="btn btn-sm btn-outline-danger fw-bold" disabled>
-                    <i class="bi bi-trash3 me-1"></i> ELIMINAR DUPLICADOS SELECCIONADOS
+                    <i class="bi bi-trash3 me-1"></i> ELIMINAR VACÍAS SELECCIONADAS
                 </button>
             </form>
         </div>
@@ -136,7 +141,7 @@
                     <thead class="table-light">
                         <tr>
                             <th class="px-3 text-center">
-                                <input id="selectPageDuplicates" class="form-check-input" type="checkbox" aria-label="Seleccionar todos los duplicados vacíos de esta página">
+                                <input id="selectPageDuplicates" class="form-check-input" type="checkbox" aria-label="Seleccionar todas las órdenes de esta página">
                             </th>
                             <th class="px-3 data-title text-left">Código</th>
                             <th class="data-title text-left">Paciente</th>
@@ -154,7 +159,7 @@
                         <tr>
                             <td class="px-3 text-center">
                                 @if($order->attention_type === 'HEMODIALYSIS')
-                                    <input class="form-check-input bulk-order-checkbox {{ $order->daily_duplicate_count > 1 && ! $order->hasRecordedClinicalData() ? 'duplicate-order-checkbox' : '' }}" type="checkbox"
+                                    <input class="form-check-input bulk-order-checkbox {{ ! $order->hasRecordedClinicalData() && ($order->daily_duplicate_count > 1 || ! $order->isOnPatientSequence()) ? 'deletable-order-checkbox' : '' }}" type="checkbox"
                                            value="{{ $order->id }}"
                                            aria-label="Seleccionar orden {{ $order->codigo_unico }}">
                                 @endif
@@ -178,6 +183,13 @@
                                     <div class="mt-1">
                                         <span class="badge bg-danger">FUERA DE SECUENCIA</span>
                                         <span class="small text-danger fw-semibold">Paciente {{ $order->patient->secuencia ?: 'sin secuencia' }} / día {{ \App\Support\DailyHemodialysisSequence::forDate($order->fecha_orden) }}</span>
+                                    </div>
+                                    <div class="mt-1">
+                                        @if($order->hasRecordedClinicalData())
+                                            <span class="badge bg-danger">CON DATOS: CONSERVAR</span>
+                                        @else
+                                            <span class="badge bg-secondary">VACÍA: PUEDE ELIMINARSE</span>
+                                        @endif
                                     </div>
                                 @endif
                             </td>
@@ -334,13 +346,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const bulkEditButton = document.getElementById('bulkEditButton');
     const selectPageDuplicates = document.getElementById('selectPageDuplicates');
     const orderCheckboxes = [...document.querySelectorAll('.bulk-order-checkbox')];
-    const duplicateCheckboxes = [...document.querySelectorAll('.duplicate-order-checkbox')];
+    const deletableCheckboxes = [...document.querySelectorAll('.deletable-order-checkbox')];
     const updateBulkSelection = () => {
         const selectedOrders = orderCheckboxes.filter(checkbox => checkbox.checked);
-        const selectedDuplicates = duplicateCheckboxes.filter(checkbox => checkbox.checked).length;
-        bulkDeleteButton.disabled = selectedDuplicates === 0;
-        bulkDeleteButton.innerHTML = `<i class="bi bi-trash3 me-1"></i> ELIMINAR ${selectedDuplicates || ''} DUPLICADOS SELECCIONADOS`;
-        document.getElementById('bulkDeleteOrderIds').innerHTML = duplicateCheckboxes.filter(checkbox => checkbox.checked).map(checkbox => `<input type="hidden" name="order_ids[]" value="${checkbox.value}">`).join('');
+        const selectedDeletable = deletableCheckboxes.filter(checkbox => checkbox.checked).length;
+        bulkDeleteButton.disabled = selectedDeletable === 0;
+        bulkDeleteButton.innerHTML = `<i class="bi bi-trash3 me-1"></i> ELIMINAR ${selectedDeletable || ''} VACÍAS SELECCIONADAS`;
+        document.getElementById('bulkDeleteOrderIds').innerHTML = deletableCheckboxes.filter(checkbox => checkbox.checked).map(checkbox => `<input type="hidden" name="order_ids[]" value="${checkbox.value}">`).join('');
         if (bulkEditButton) bulkEditButton.disabled = selectedOrders.length === 0;
         selectPageDuplicates.checked = orderCheckboxes.length > 0 && selectedOrders.length === orderCheckboxes.length;
         selectPageDuplicates.indeterminate = selectedOrders.length > 0 && selectedOrders.length < orderCheckboxes.length;
