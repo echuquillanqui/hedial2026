@@ -221,7 +221,7 @@
                 <div class="mb-3" id="bulkDateGroup"><label for="bulkOrderDate" class="modal-label">Nueva fecha</label><input id="bulkOrderDate" type="date" name="fecha_orden" class="form-control border-primary" value="{{ old('fecha_orden', now()->toDateString()) }}"></div>
                 <div id="bulkLaboratoryGroup"><label for="bulkLaboratoryPeriod" class="modal-label">Bloque de exámenes</label><select id="bulkLaboratoryPeriod" name="laboratory_period" class="form-select border-primary"><option value="M">M - Mensual</option><option value="B">B - Bimestral (incluye M)</option><option value="T">T - Trimestral (incluye M + B)</option><option value="S">S - Semestral (incluye M + B + T)</option><option value="NONE">Sin laboratorio</option></select><div class="form-text">Esta opción asigna el bloque M-B-T-S a la orden/FUA. No crea una ficha de resultados nueva.</div></div>
             </div>
-            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary fw-bold" onclick="return confirm('¿Aplicar estos cambios a todas las órdenes seleccionadas?')">APLICAR CAMBIOS</button></div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary fw-bold" onclick="return confirm('¿Aplicar el cambio solamente a las órdenes seleccionadas? Al terminar también verá las órdenes que ya existían en la fecha de destino; no se crearán fichas nuevas.')">APLICAR CAMBIOS</button></div>
         </form>
     </div></div>
 </div>

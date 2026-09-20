@@ -609,6 +609,12 @@ class OrderController extends Controller
         if (in_array($data['action'], ['date', 'both'], true)) {
             $selectedIds = $orders->pluck('id');
             $patientIds = $orders->pluck('patient_id');
+            $ordersAlreadyOnTargetDate = Order::query()
+                ->whereNotIn('id', $selectedIds)
+                ->where('attention_type', Fua::HEMODIALYSIS)
+                ->when(CurrentSede::id(), fn (Builder $query, int $sedeId) => $query->where('sede_id', $sedeId))
+                ->whereDate('fecha_orden', $data['fecha_orden'])
+                ->count();
             $conflictingPatientIds = Order::query()
                 ->whereNotIn('id', $selectedIds)
                 ->whereIn('patient_id', $patientIds)
@@ -656,7 +662,14 @@ class OrderController extends Controller
             ? redirect()->route('orders.index', ['date' => $data['fecha_orden']])
             : back();
 
-        return $redirect->with('success', $orders->count().' órdenes actualizadas en bloque.');
+        $message = $orders->count().' órdenes seleccionadas actualizadas en bloque.';
+        if (in_array($data['action'], ['date', 'both'], true)) {
+            $message .= ' En la fecha de destino ya había '.$ordersAlreadyOnTargetDate
+                .' órdenes; ahora se muestran '.($ordersAlreadyOnTargetDate + $orders->count())
+                .' en total. No se crearon órdenes nuevas.';
+        }
+
+        return $redirect->with('success', $message);
     }
 
     /**
