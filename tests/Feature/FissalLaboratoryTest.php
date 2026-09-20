@@ -390,6 +390,45 @@ class FissalLaboratoryTest extends TestCase
         $this->assertSame(2, Order::whereDate('fecha_orden', '2026-09-20')->where('laboratory_period', 'T')->count());
     }
 
+    public function test_bulk_date_change_reports_preexisting_target_orders_without_creating_more(): void
+    {
+        $user = User::factory()->create();
+        $patients = Patient::factory()->count(3)->create();
+        $selected = $patients->take(2)->map(fn (Patient $patient) => Order::create([
+            'sede_id' => $patient->sede_id,
+            'patient_id' => $patient->id,
+            'codigo_unico' => 'ORD-MOVER-'.$patient->id,
+            'sala' => 'MODULO 1',
+            'turno' => '1',
+            'horas_dialisis' => 3.5,
+            'attention_type' => Fua::HEMODIALYSIS,
+            'fecha_orden' => '2026-09-19',
+        ]));
+        Order::create([
+            'sede_id' => $patients->last()->sede_id,
+            'patient_id' => $patients->last()->id,
+            'codigo_unico' => 'ORD-YA-EXISTIA',
+            'sala' => 'MODULO 1',
+            'turno' => '1',
+            'horas_dialisis' => 3.5,
+            'attention_type' => Fua::HEMODIALYSIS,
+            'fecha_orden' => '2026-09-20',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->patch(route('orders.bulk-update'), [
+            'order_ids' => $selected->pluck('id')->all(),
+            'action' => 'date',
+            'fecha_orden' => '2026-09-20',
+        ])->assertRedirect(route('orders.index', ['date' => '2026-09-20']))
+            ->assertSessionHas('success', fn (string $message) => str_contains($message, '2 órdenes seleccionadas')
+                && str_contains($message, 'ya había 1 órdenes')
+                && str_contains($message, '3 en total')
+                && str_contains($message, 'No se crearon órdenes nuevas'));
+
+        $this->assertSame(3, Order::query()->count());
+        $this->assertSame(3, Order::query()->whereDate('fecha_orden', '2026-09-20')->count());
+    }
+
     public function test_order_list_shows_rescheduled_patients_even_when_the_date_has_another_sequence(): void
     {
         $user = User::factory()->create();
