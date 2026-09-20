@@ -23,7 +23,6 @@ use App\Models\User;
 use App\Models\HemodialysisConsent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
-use App\Support\DailyHemodialysisSequence;
 use Carbon\Carbon;
 
 class OrderController extends Controller
@@ -47,8 +46,6 @@ class OrderController extends Controller
         $dateFilter = $request->boolean('all_dates')
             ? null
             : $request->input('date', now()->toDateString());
-        $dailySequence = $dateFilter ? DailyHemodialysisSequence::forDate($dateFilter) : null;
-
         $currentSedeId = CurrentSede::id();
 
         $ordersQuery = Order::with(['patient', 'medical', 'nurse', 'treatments', 'sede', 'fua'])
@@ -74,9 +71,6 @@ class OrderController extends Controller
             })
             ->when($dateFilter, function ($query, $date) {
                 $query->whereDate('fecha_orden', $date);
-            })
-            ->when($dailySequence, function ($query, $sequence) {
-                $query->whereHas('patient', fn ($patient) => $patient->scheduledForSequence($sequence));
             })
             ->when($request->turno, function ($query, $turno) {
                 $query->where('turno', $turno);
@@ -658,7 +652,11 @@ class OrderController extends Controller
             }
         });
 
-        return back()->with('success', $orders->count().' órdenes actualizadas en bloque.');
+        $redirect = in_array($data['action'], ['date', 'both'], true)
+            ? redirect()->route('orders.index', ['date' => $data['fecha_orden']])
+            : back();
+
+        return $redirect->with('success', $orders->count().' órdenes actualizadas en bloque.');
     }
 
     /**

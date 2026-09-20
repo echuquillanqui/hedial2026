@@ -384,9 +384,30 @@ class FissalLaboratoryTest extends TestCase
             'action' => 'both',
             'fecha_orden' => '2026-09-20',
             'laboratory_period' => 'T',
-        ])->assertSessionHas('success');
+        ])->assertRedirect(route('orders.index', ['date' => '2026-09-20']))
+            ->assertSessionHas('success');
 
         $this->assertSame(2, Order::whereDate('fecha_orden', '2026-09-20')->where('laboratory_period', 'T')->count());
+    }
+
+    public function test_order_list_shows_rescheduled_patients_even_when_the_date_has_another_sequence(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create(['secuencia' => 'L-M-V']);
+        $order = Order::create([
+            'sede_id' => $patient->sede_id,
+            'patient_id' => $patient->id,
+            'codigo_unico' => 'ORD-REPROGRAMADA',
+            'sala' => 'MODULO 1',
+            'turno' => '1',
+            'horas_dialisis' => 3.5,
+            'attention_type' => Fua::HEMODIALYSIS,
+            'fecha_orden' => '2026-09-19',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'date' => '2026-09-19',
+        ]))->assertOk()->assertSee($order->codigo_unico);
     }
 
     public function test_bulk_order_date_change_is_rejected_when_a_patient_already_has_an_order_that_day(): void
