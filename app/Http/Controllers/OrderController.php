@@ -32,7 +32,7 @@ class OrderController extends Controller
     {
         $this->middleware('permission:orders.view')->only(['index']);
         $this->middleware('permission:orders.create')->only(['create', 'store', 'storeBulk', 'createNephrology', 'storeNephrology']);
-        $this->middleware('permission:orders.edit')->only(['edit', 'update']);
+        $this->middleware('permission:orders.edit')->only(['edit', 'update', 'bulkUpdate']);
         $this->middleware('permission:orders.delete')->only(['destroy', 'destroyBulk']);
     }
 
@@ -585,6 +585,80 @@ class OrderController extends Controller
             DB::rollBack();
             return back()->with('error', 'Error al actualizar: ' . $e->getMessage());
         }
+    }
+
+    public function bulkUpdate(Request $request)
+    {
+        $data = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['integer', 'distinct', 'exists:orders,id'],
+            'action' => ['required', Rule::in(['date', 'laboratory', 'both'])],
+            'fecha_orden' => ['nullable', 'required_if:action,date,both', 'date'],
+            'laboratory_period' => ['nullable', 'required_if:action,laboratory,both', Rule::in(['M', 'B', 'T', 'S', 'NONE'])],
+        ]);
+
+        $orders = Order::query()
+            ->with(['patient', 'laboratoryOrder'])
+            ->whereIn('id', $data['order_ids'])
+            ->where('attention_type', Fua::HEMODIALYSIS)
+            ->orderBy('id')
+            ->get();
+
+        if ($orders->count() !== count($data['order_ids'])) {
+            return back()->withErrors(['order_ids' => 'Solo se pueden modificar en bloque órdenes de hemodiálisis.']);
+        }
+
+        if (CurrentSede::id() && $orders->contains(fn (Order $order) => (int) $order->sede_id !== (int) CurrentSede::id())) {
+            abort(403, 'Una de las órdenes está fuera de la sede activa.');
+        }
+
+        if (in_array($data['action'], ['date', 'both'], true)) {
+            $selectedIds = $orders->pluck('id');
+            $patientIds = $orders->pluck('patient_id');
+            $conflictingPatientIds = Order::query()
+                ->whereNotIn('id', $selectedIds)
+                ->whereIn('patient_id', $patientIds)
+                ->where('attention_type', Fua::HEMODIALYSIS)
+                ->whereDate('fecha_orden', $data['fecha_orden'])
+                ->pluck('patient_id');
+
+            $duplicatedSelections = $orders->groupBy('patient_id')->filter(fn ($group) => $group->count() > 1)->keys();
+            $conflicts = $conflictingPatientIds->merge($duplicatedSelections)->unique();
+            if ($conflicts->isNotEmpty()) {
+                $names = $orders->whereIn('patient_id', $conflicts)->pluck('patient.full_name')->unique()->implode(', ');
+
+                return back()->withErrors([
+                    'fecha_orden' => 'No se cambió ninguna orden. Ya existe otra atención en esa fecha para: '.$names.'.',
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($orders, $data) {
+            foreach ($orders as $order) {
+                if (in_array($data['action'], ['date', 'both'], true)) {
+                    $order->fecha_orden = $data['fecha_orden'];
+                }
+
+                if (in_array($data['action'], ['laboratory', 'both'], true)) {
+                    $order->laboratory_period = $data['laboratory_period'] === 'NONE' ? null : $data['laboratory_period'];
+                }
+
+                $order->save();
+
+                if ($order->laboratoryOrder && in_array($data['action'], ['date', 'both'], true)) {
+                    $order->laboratoryOrder->update(['sampled_at' => $data['fecha_orden']]);
+                }
+
+                if ($order->laboratoryOrder && in_array($data['action'], ['laboratory', 'both'], true)
+                    && $order->laboratory_period && $order->laboratoryOrder->period !== $order->laboratory_period) {
+                    $order->laboratoryOrder->update(['period' => $order->laboratory_period]);
+                    $order->laboratoryOrder->items()->delete();
+                    $this->addLaboratoryItems($order->laboratoryOrder, $order->laboratory_period);
+                }
+            }
+        });
+
+        return back()->with('success', $orders->count().' órdenes actualizadas en bloque.');
     }
 
     /**
