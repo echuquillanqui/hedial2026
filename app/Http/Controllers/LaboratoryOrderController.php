@@ -26,7 +26,7 @@ class LaboratoryOrderController extends Controller
     {
         $this->middleware('permission:laboratory.results.view')->only(['results', 'export', 'show', 'pdf', 'bulkPdf']);
         $this->middleware('permission:laboratory.orders.create')->only(['create', 'store', 'import']);
-        $this->middleware('permission:laboratory.results.update')->only(['updateResults']);
+        $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'bulkUpdate']);
     }
 
     public function create(Request $request)
@@ -269,6 +269,30 @@ class LaboratoryOrderController extends Controller
         $data = $request->validate(['order_ids' => 'required|array|min:1', 'order_ids.*' => 'exists:laboratory_orders,id']);
         $orders = LaboratoryOrder::with(['patient', 'items.test.area', 'validator'])->whereIn('id', $data['order_ids'])->get();
         return Pdf::loadView('laboratory.results.pdf', compact('orders'))->setPaper('a4')->stream('laboratorios-fissal.pdf');
+    }
+
+    public function bulkUpdate(Request $request)
+    {
+        $data = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['integer', 'distinct', 'exists:laboratory_orders,id'],
+            'sampled_at' => ['required', 'date'],
+        ]);
+
+        $orders = LaboratoryOrder::query()
+            ->with('patient:id,sede_id')
+            ->whereIn('id', $data['order_ids'])
+            ->get();
+
+        abort_if(CurrentSede::id() && $orders->contains(
+            fn (LaboratoryOrder $order) => $order->patient && (int) $order->patient->sede_id !== (int) CurrentSede::id()
+        ), 403, 'Una de las órdenes de laboratorio está fuera de la sede activa.');
+
+        LaboratoryOrder::query()
+            ->whereIn('id', $orders->pluck('id'))
+            ->update(['sampled_at' => $data['sampled_at']]);
+
+        return back()->with('success', $orders->count().' órdenes de laboratorio cambiadas a la nueva fecha.');
     }
 
     public function updateResults(Request $request, LaboratoryOrder $laboratoryOrder)

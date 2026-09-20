@@ -110,6 +110,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'show'])->name('laboratory.results.show');
     Route::get('laboratory/results/{laboratoryOrder}/pdf', [LaboratoryOrderController::class, 'pdf'])->name('laboratory.results.pdf');
     Route::post('laboratory/results/pdf/bulk', [LaboratoryOrderController::class, 'bulkPdf'])->name('laboratory.results.bulk-pdf');
+    Route::patch('laboratory/results/bulk', [LaboratoryOrderController::class, 'bulkUpdate'])->name('laboratory.results.bulk-update');
     Route::put('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'updateResults'])->name('laboratory.results.update');
     Route::put('laboratory/profile/digital-seal', [LaboratoryOrderController::class, 'updateDigitalSeal'])
         ->middleware('permission:laboratory.results.update')->name('laboratory.profile.digital-seal.update');
@@ -188,6 +189,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('orders/multisectorial', [OrderController::class, 'storeMultisectorial'])->name('orders.multisectorial.store');
     Route::post('orders/multisectorial/bulk', [OrderController::class, 'storeMultisectorialBulk'])->name('orders.multisectorial.store-bulk');
     Route::delete('orders/bulk/duplicates', [OrderController::class, 'destroyBulk'])->name('orders.destroy-bulk');
+    Route::patch('orders/bulk', [OrderController::class, 'bulkUpdate'])->name('orders.bulk-update');
     Route::resource('orders', App\Http\Controllers\OrderController::class);
     Route::post('orders/store-bulk', [App\Http\Controllers\OrderController::class, 'storeBulk'])
         ->name('orders.store_bulk');

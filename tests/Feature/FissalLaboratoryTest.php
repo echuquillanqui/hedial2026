@@ -339,6 +339,80 @@ class FissalLaboratoryTest extends TestCase
         ]);
     }
 
+    public function test_selected_laboratory_dates_can_be_changed_in_bulk(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $selected = LaboratoryOrder::create([
+            'patient_id' => $patient->id,
+            'patient_name' => $patient->full_name,
+            'period' => 'M',
+            'sampled_at' => '2026-08-01',
+        ]);
+        $unselected = LaboratoryOrder::create([
+            'patient_id' => $patient->id,
+            'patient_name' => $patient->full_name,
+            'period' => 'B',
+            'sampled_at' => '2026-08-02',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->patch(route('laboratory.results.bulk-update'), [
+            'order_ids' => [$selected->id],
+            'sampled_at' => '2026-09-20',
+        ])->assertSessionHas('success');
+
+        $this->assertSame('2026-09-20', $selected->fresh()->sampled_at->toDateString());
+        $this->assertSame('2026-08-02', $unselected->fresh()->sampled_at->toDateString());
+    }
+
+    public function test_dialysis_order_date_and_laboratory_block_can_be_changed_in_bulk(): void
+    {
+        $user = User::factory()->create();
+        $orders = Patient::factory()->count(2)->create()->map(fn (Patient $patient) => Order::create([
+            'sede_id' => $patient->sede_id,
+            'patient_id' => $patient->id,
+            'codigo_unico' => 'ORD-'.$patient->id,
+            'sala' => 'MODULO 1',
+            'turno' => '1',
+            'horas_dialisis' => 3.5,
+            'attention_type' => Fua::HEMODIALYSIS,
+            'fecha_orden' => '2026-09-19',
+        ]));
+
+        $this->actingAs($user)->withoutMiddleware()->patch(route('orders.bulk-update'), [
+            'order_ids' => $orders->pluck('id')->all(),
+            'action' => 'both',
+            'fecha_orden' => '2026-09-20',
+            'laboratory_period' => 'T',
+        ])->assertSessionHas('success');
+
+        $this->assertSame(2, Order::whereDate('fecha_orden', '2026-09-20')->where('laboratory_period', 'T')->count());
+    }
+
+    public function test_bulk_order_date_change_is_rejected_when_a_patient_already_has_an_order_that_day(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $selected = Order::create([
+            'sede_id' => $patient->sede_id, 'patient_id' => $patient->id, 'codigo_unico' => 'ORD-OLD',
+            'sala' => 'MODULO 1', 'turno' => '1', 'horas_dialisis' => 3.5,
+            'attention_type' => Fua::HEMODIALYSIS, 'fecha_orden' => '2026-09-19',
+        ]);
+        Order::create([
+            'sede_id' => $patient->sede_id, 'patient_id' => $patient->id, 'codigo_unico' => 'ORD-EXISTS',
+            'sala' => 'MODULO 1', 'turno' => '1', 'horas_dialisis' => 3.5,
+            'attention_type' => Fua::HEMODIALYSIS, 'fecha_orden' => '2026-09-20',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->from(route('orders.index'))->patch(route('orders.bulk-update'), [
+            'order_ids' => [$selected->id],
+            'action' => 'date',
+            'fecha_orden' => '2026-09-20',
+        ])->assertRedirect(route('orders.index'))->assertSessionHasErrors('fecha_orden');
+
+        $this->assertSame('2026-09-19', $selected->fresh()->fecha_orden->toDateString());
+    }
+
     public function test_laboratory_results_page_offers_monthly_excel_export(): void
     {
         Carbon::setTestNow('2025-09-18 09:00:00');

@@ -3,6 +3,7 @@
 <div class="container-fluid fissal-index" x-data="{selected:[], applyFilters() { this.$refs.filters.requestSubmit() }}">
  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4"><div><span class="overline">GESTIÓN CLÍNICA</span><h2>Laboratorio FISSAL</h2><p class="text-muted mb-0">Resultados, seguimiento e impresión por paciente.</p></div><div class="d-flex gap-2 flex-wrap"><form method="GET" action="{{ route('laboratory.results.export') }}" class="d-flex gap-2"><label for="export-month" class="visually-hidden">Mes a exportar</label><input id="export-month" type="month" name="month" value="{{ request('date') ? substr(request('date'), 0, 7) : now()->format('Y-m') }}" class="form-control" required><button class="btn btn-outline-success rounded-pill px-4 text-nowrap"><i class="bi bi-file-earmark-excel me-2"></i>Exportar Excel</button></form>@can('laboratory.results.update')<button type="button" class="btn btn-outline-success rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#digitalSealModal"><i class="bi bi-patch-check me-2"></i>Mi sello digital</button>@endcan @can('laboratory.orders.create')<a href="{{ route('laboratory.orders.create') }}" class="btn btn-success rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Nueva orden</a>@endcan</div></div>
  @if(session('success'))<div class="alert alert-success border-0">{{ session('success') }}</div>@endif
+ @if($errors->any())<div class="alert alert-danger border-0"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
  <div class="card filter-card mb-4">
   <div class="card-body">
    <form class="row g-2 align-items-end" x-ref="filters">
@@ -34,8 +35,18 @@
    </form>
   </div>
  </div>
- <form method="POST" action="{{ route('laboratory.results.bulk-pdf') }}" target="_blank">@csrf
- <div class="bulkbar mb-3" x-show="selected.length" x-cloak><strong x-text="`${selected.length} órdenes seleccionadas`"></strong><button class="btn btn-light btn-sm"><i class="bi bi-printer me-2"></i>Imprimir en bloque</button></div>
+ <form method="POST" action="{{ route('laboratory.results.bulk-pdf') }}">@csrf
+ <div class="bulkbar mb-3 flex-wrap gap-2" x-show="selected.length" x-cloak>
+  <strong x-text="`${selected.length} órdenes seleccionadas`"></strong>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+   @can('laboratory.results.update')
+   <label for="bulkLaboratoryDate" class="small fw-bold mb-0">Nueva fecha</label>
+   <input id="bulkLaboratoryDate" type="date" name="sampled_at" class="form-control form-control-sm" style="width:155px" value="{{ old('sampled_at', now()->toDateString()) }}">
+   <button class="btn btn-warning btn-sm fw-semibold" type="submit" formaction="{{ route('laboratory.results.bulk-update') }}" name="_method" value="PATCH" formtarget="_self" onclick="return confirm('¿Cambiar la fecha de todos los laboratorios seleccionados?')"><i class="bi bi-calendar-event me-1"></i>Cambiar fecha</button>
+   @endcan
+   <button class="btn btn-light btn-sm" type="submit" formtarget="_blank"><i class="bi bi-printer me-2"></i>Imprimir en bloque</button>
+  </div>
+ </div>
  <div class="card table-card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th><input type="checkbox" @change="selected=$event.target.checked?@js($orders->pluck('id')->map(fn($id)=>(string)$id)):[]"></th><th>Paciente</th><th>Control</th><th>Fecha</th><th>Avance</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
  @forelse($orders as $order) @php($done=$order->items->whereNotNull('completed_at')->count())
  <tr><td><input name="order_ids[]" value="{{ $order->id }}" type="checkbox" x-model="selected"></td><td><div class="patient-name">{{ $order->patient_name }}</div><small>DNI {{ $order->patient?->dni ?: '—' }} · H.C. {{ $order->patient?->medical_history_number ?: '—' }}</small></td><td><span class="period period-{{ strtolower($order->period) }}">{{ $order->period }}</span> {{ ['M'=>'Mensual','B'=>'Bimensual','T'=>'Trimestral','S'=>'Semestral'][$order->period] }}</td><td>{{ $order->sampled_at?->format('d/m/Y') ?: $order->created_at->format('d/m/Y') }}</td><td><strong>{{ $done }}/{{ $order->items->count() }}</strong><div class="progress"><div class="progress-bar" style="width:{{ $order->items->count() ? $done/$order->items->count()*100 : 0 }}%"></div></div></td><td><span class="status {{ $order->status }}">{{ $order->status==='completed'?'Completado':'Pendiente' }}</span></td><td class="text-end"><a href="{{ route('laboratory.results.show',$order) }}" class="btn btn-sm btn-outline-success" title="Ver y actualizar"><i class="bi bi-pencil-square"></i></a> <a target="_blank" href="{{ route('laboratory.results.pdf',$order) }}" class="btn btn-sm btn-outline-dark" title="PDF"><i class="bi bi-file-earmark-pdf"></i></a></td></tr>

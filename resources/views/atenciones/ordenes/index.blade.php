@@ -23,6 +23,12 @@
             <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
         </div>
     @endif
+    @if($errors->any())
+        <div class="alert alert-danger border-0 shadow-sm" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>
+            <ul class="mb-0 d-inline-block">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+        </div>
+    @endif
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold text-uppercase m-0 text-success"><i class="bi bi-file-earmark-medical me-2"></i> Control de Órdenes</h4>
@@ -102,11 +108,17 @@
     </div>
 
     <div class="card shadow-sm border-0">
-        <div class="card-header bg-white border-0 d-flex justify-content-end">
+        <div class="card-header bg-white border-0 d-flex justify-content-between gap-2 flex-wrap">
+            @can('orders.edit')
+            <button id="bulkEditButton" type="button" class="btn btn-sm btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#bulkEditOrderModal" disabled>
+                <i class="bi bi-pencil-square me-1"></i> CAMBIAR SELECCIONADAS EN BLOQUE
+            </button>
+            @endcan
             <form id="bulkDeleteForm" method="POST" action="{{ route('orders.destroy-bulk') }}"
                   onsubmit="return confirm('¿Eliminar los duplicados vacíos seleccionados? Las órdenes con datos serán protegidas automáticamente.')">
                 @csrf
                 @method('DELETE')
+                <div id="bulkDeleteOrderIds"></div>
                 <button id="bulkDeleteButton" type="submit" class="btn btn-sm btn-outline-danger fw-bold" disabled>
                     <i class="bi bi-trash3 me-1"></i> ELIMINAR DUPLICADOS SELECCIONADOS
                 </button>
@@ -135,10 +147,10 @@
                         @forelse($orders as $order)
                         <tr>
                             <td class="px-3 text-center">
-                                @if($order->daily_duplicate_count > 1 && ! $order->hasRecordedClinicalData())
-                                    <input class="form-check-input duplicate-order-checkbox" type="checkbox"
-                                           name="order_ids[]" value="{{ $order->id }}" form="bulkDeleteForm"
-                                           aria-label="Seleccionar duplicado vacío {{ $order->codigo_unico }}">
+                                @if($order->attention_type === 'HEMODIALYSIS')
+                                    <input class="form-check-input bulk-order-checkbox {{ $order->daily_duplicate_count > 1 && ! $order->hasRecordedClinicalData() ? 'duplicate-order-checkbox' : '' }}" type="checkbox"
+                                           value="{{ $order->id }}"
+                                           aria-label="Seleccionar orden {{ $order->codigo_unico }}">
                                 @endif
                             </td>
                             <td class="px-3 fw-bold text-success small text-left">
@@ -196,6 +208,24 @@
         <div class="card-footer bg-white border-0">{{ $orders->links() }}</div>
     </div>
 </div>
+
+@can('orders.edit')
+<div class="modal fade" id="bulkEditOrderModal" tabindex="-1" aria-labelledby="bulkEditOrderTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-primary text-white"><h6 id="bulkEditOrderTitle" class="modal-title fw-bold"><i class="bi bi-layers me-2"></i>CAMBIOS EN BLOQUE</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+        <form id="bulkEditOrderForm" method="POST" action="{{ route('orders.bulk-update') }}">@csrf @method('PATCH')
+            <div id="bulkEditOrderIds"></div>
+            <div class="modal-body p-4">
+                <div class="alert alert-info py-2"><strong id="bulkSelectedCount">0</strong> órdenes seleccionadas. Puede cambiar solo la fecha, solo el bloque de laboratorio, o ambos.</div>
+                <div class="mb-3"><label for="bulkAction" class="modal-label">Qué desea cambiar</label><select id="bulkAction" name="action" class="form-select border-primary" required><option value="both">Fecha y laboratorio</option><option value="date">Solo fecha</option><option value="laboratory">Solo laboratorio</option></select></div>
+                <div class="mb-3" id="bulkDateGroup"><label for="bulkOrderDate" class="modal-label">Nueva fecha</label><input id="bulkOrderDate" type="date" name="fecha_orden" class="form-control border-primary" value="{{ old('fecha_orden', now()->toDateString()) }}"></div>
+                <div id="bulkLaboratoryGroup"><label for="bulkLaboratoryPeriod" class="modal-label">Bloque de exámenes</label><select id="bulkLaboratoryPeriod" name="laboratory_period" class="form-select border-primary"><option value="M">M - Mensual</option><option value="B">B - Bimestral (incluye M)</option><option value="T">T - Trimestral (incluye M + B)</option><option value="S">S - Semestral (incluye M + B + T)</option><option value="NONE">Sin laboratorio</option></select><div class="form-text">Esta opción asigna el bloque M-B-T-S a la orden/FUA. No crea una ficha de resultados nueva.</div></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary fw-bold" onclick="return confirm('¿Aplicar estos cambios a todas las órdenes seleccionadas?')">APLICAR CAMBIOS</button></div>
+        </form>
+    </div></div>
+</div>
+@endcan
 
 <div class="modal fade" id="editOrderModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -289,20 +319,37 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const bulkDeleteButton = document.getElementById('bulkDeleteButton');
+    const bulkEditButton = document.getElementById('bulkEditButton');
     const selectPageDuplicates = document.getElementById('selectPageDuplicates');
+    const orderCheckboxes = [...document.querySelectorAll('.bulk-order-checkbox')];
     const duplicateCheckboxes = [...document.querySelectorAll('.duplicate-order-checkbox')];
     const updateBulkSelection = () => {
-        const selected = duplicateCheckboxes.filter(checkbox => checkbox.checked).length;
-        bulkDeleteButton.disabled = selected === 0;
-        bulkDeleteButton.innerHTML = `<i class="bi bi-trash3 me-1"></i> ELIMINAR ${selected || ''} DUPLICADOS SELECCIONADOS`;
-        selectPageDuplicates.checked = duplicateCheckboxes.length > 0 && selected === duplicateCheckboxes.length;
-        selectPageDuplicates.indeterminate = selected > 0 && selected < duplicateCheckboxes.length;
+        const selectedOrders = orderCheckboxes.filter(checkbox => checkbox.checked);
+        const selectedDuplicates = duplicateCheckboxes.filter(checkbox => checkbox.checked).length;
+        bulkDeleteButton.disabled = selectedDuplicates === 0;
+        bulkDeleteButton.innerHTML = `<i class="bi bi-trash3 me-1"></i> ELIMINAR ${selectedDuplicates || ''} DUPLICADOS SELECCIONADOS`;
+        document.getElementById('bulkDeleteOrderIds').innerHTML = duplicateCheckboxes.filter(checkbox => checkbox.checked).map(checkbox => `<input type="hidden" name="order_ids[]" value="${checkbox.value}">`).join('');
+        if (bulkEditButton) bulkEditButton.disabled = selectedOrders.length === 0;
+        selectPageDuplicates.checked = orderCheckboxes.length > 0 && selectedOrders.length === orderCheckboxes.length;
+        selectPageDuplicates.indeterminate = selectedOrders.length > 0 && selectedOrders.length < orderCheckboxes.length;
     };
-    duplicateCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateBulkSelection));
-    selectPageDuplicates.disabled = duplicateCheckboxes.length === 0;
+    orderCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateBulkSelection));
+    selectPageDuplicates.disabled = orderCheckboxes.length === 0;
     selectPageDuplicates.addEventListener('change', () => {
-        duplicateCheckboxes.forEach(checkbox => checkbox.checked = selectPageDuplicates.checked);
+        orderCheckboxes.forEach(checkbox => checkbox.checked = selectPageDuplicates.checked);
         updateBulkSelection();
+    });
+
+    const bulkEditModal = document.getElementById('bulkEditOrderModal');
+    if (bulkEditModal) bulkEditModal.addEventListener('show.bs.modal', () => {
+        const selected = orderCheckboxes.filter(checkbox => checkbox.checked);
+        document.getElementById('bulkSelectedCount').textContent = selected.length;
+        document.getElementById('bulkEditOrderIds').innerHTML = selected.map(checkbox => `<input type="hidden" name="order_ids[]" value="${checkbox.value}">`).join('');
+    });
+    const bulkAction = document.getElementById('bulkAction');
+    if (bulkAction) bulkAction.addEventListener('change', () => {
+        document.getElementById('bulkDateGroup').classList.toggle('d-none', bulkAction.value === 'laboratory');
+        document.getElementById('bulkLaboratoryGroup').classList.toggle('d-none', bulkAction.value === 'date');
     });
 
     // Lógica Filtros Reactivos
