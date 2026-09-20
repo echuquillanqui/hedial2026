@@ -160,6 +160,27 @@ class OrderDuplicatePreventionTest extends TestCase
             ->assertSee('1</strong> pacientes', false);
     }
 
+    public function test_order_control_marks_dialysis_orders_outside_the_patients_daily_sequence(): void
+    {
+        $user = User::factory()->create();
+        $scheduledPatient = Patient::factory()->create(['secuencia' => 'L-M-V']);
+        $offSequencePatient = Patient::factory()->create(['secuencia' => 'M-J-S']);
+        $scheduledOrder = $this->dailyOrder($scheduledPatient, '2026-09-16', 'ORD-EN-SECUENCIA');
+        $offSequenceOrder = $this->dailyOrder($offSequencePatient, '2026-09-16', 'ORD-FUERA-SECUENCIA');
+
+        $response = $this->actingAs($user)->withoutMiddleware()->get(route('orders.index', [
+            'date' => '2026-09-16',
+        ]));
+
+        $response->assertOk()
+            ->assertSee($scheduledOrder->codigo_unico)
+            ->assertSee($offSequenceOrder->codigo_unico)
+            ->assertSee('1</strong> fuera de secuencia (día L-M-V)', false)
+            ->assertSee('FUERA DE SECUENCIA')
+            ->assertSee('Paciente M-J-S / día L-M-V')
+            ->assertSee('2</strong> registros', false);
+    }
+
     public function test_an_order_with_clinical_data_cannot_be_deleted(): void
     {
         $user = User::factory()->create();

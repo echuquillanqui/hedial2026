@@ -11,6 +11,7 @@ use App\Models\Treatment;
 use App\Models\ExtraMaterial;
 use App\Models\HemodialysisMaterialConsumption;
 use App\Services\MultisectorialOrderService;
+use App\Support\DailyHemodialysisSequence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -176,5 +177,22 @@ class Order extends Model
             || collect($nurseFields)->contains(fn ($field) => filled($this->nurse?->$field))
             || $this->treatments->contains(fn (Treatment $treatment) => collect($treatmentFields)
                 ->contains(fn ($field) => filled($treatment->$field)));
+    }
+
+    /**
+     * Determine whether this dialysis order falls on the patient's assigned
+     * weekly sequence. Isolated patients may be attended on either sequence.
+     */
+    public function isOnPatientSequence(): bool
+    {
+        if (! $this->fecha_orden || ! $this->patient) {
+            return true;
+        }
+
+        $expectedSequence = DailyHemodialysisSequence::forDate($this->fecha_orden);
+
+        return ! $expectedSequence
+            || $this->patient->modulo === Patient::ISOLATED_MODULE
+            || $this->patient->secuencia === $expectedSequence;
     }
 }

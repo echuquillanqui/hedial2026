@@ -102,8 +102,14 @@
         <span><strong>{{ $patientCount }}</strong> pacientes</span>
         <span><strong>{{ $recordCount }}</strong> registros</span>
         <span><strong>{{ $duplicateCount }}</strong> duplicados adicionales</span>
+        @if($dailySequence)
+            <span><strong>{{ $outOfSequenceCount }}</strong> fuera de secuencia (día {{ $dailySequence }})</span>
+        @endif
         @if($duplicateCount)
             <span class="small">Se marcan las fichas repetidas; las que contienen datos clínicos se conservan.</span>
+        @endif
+        @if($outOfSequenceCount)
+            <span class="small">Estas son órdenes de hemodiálisis de pacientes asignados a otra secuencia; por eso no aparecen en Enfermería para este día.</span>
         @endif
     </div>
 
@@ -168,6 +174,12 @@
                             </td>
                             <td class="text-start">
                                 <div class="fw-bold text-uppercase small">{{ $order->patient->surname }} {{ $order->patient->last_name }}, {{ $order->patient->first_name }} {{ $order->patient->other_names }}</div>
+                                @if(! $order->isOnPatientSequence())
+                                    <div class="mt-1">
+                                        <span class="badge bg-danger">FUERA DE SECUENCIA</span>
+                                        <span class="small text-danger fw-semibold">Paciente {{ $order->patient->secuencia ?: 'sin secuencia' }} / día {{ \App\Support\DailyHemodialysisSequence::forDate($order->fecha_orden) }}</span>
+                                    </div>
+                                @endif
                             </td>
                             <td class="text-center"><span class="badge bg-light text-success border border-success">MÓDULO {{ $order->patient->modulo ?: '—' }}</span></td>
                             <td class="text-center"><span class="badge bg-light text-success border border-success">{{ $order->sala }}</span></td>
