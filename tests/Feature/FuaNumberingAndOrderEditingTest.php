@@ -10,8 +10,10 @@ use App\Models\Order;
 use App\Models\Patient;
 use App\Models\User;
 use App\Services\FuaNumberService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use Tests\TestCase;
 
 class FuaNumberingAndOrderEditingTest extends TestCase
@@ -201,6 +203,54 @@ class FuaNumberingAndOrderEditingTest extends TestCase
                 ->assertSee('Módulo 2')
                 ->assertSee('Turno 3');
         }
+    }
+
+    public function test_hemodialysis_fuas_are_listed_and_printed_by_shift_module_and_last_names(): void
+    {
+        $user = User::factory()->create();
+        $date = '2026-09-20';
+        $cases = [
+            ['number' => 'ORDER-4', 'turno' => '2', 'modulo' => '1', 'surname' => 'Alvarez', 'last_name' => 'Rojas'],
+            ['number' => 'ORDER-3', 'turno' => '1', 'modulo' => '2', 'surname' => 'Alvarez', 'last_name' => 'Rojas'],
+            ['number' => 'ORDER-2', 'turno' => '1', 'modulo' => '1', 'surname' => 'Zuluaga', 'last_name' => 'Rojas'],
+            ['number' => 'ORDER-1', 'turno' => '1', 'modulo' => '1', 'surname' => 'Alvarez', 'last_name' => 'Rojas'],
+        ];
+        $fuas = collect($cases)->map(function (array $case) use ($date) {
+            $patient = Patient::factory()->create([
+                'modulo' => $case['modulo'],
+                'surname' => $case['surname'],
+                'last_name' => $case['last_name'],
+            ]);
+            $order = $this->order($patient, Fua::HEMODIALYSIS, $case['number']);
+            $order->update([
+                'fecha_orden' => $date,
+                'sala' => 'MODULO '.$case['modulo'],
+                'turno' => $case['turno'],
+            ]);
+
+            return app(FuaNumberService::class)->createForOrder($order);
+        });
+        $expectedNumbers = [$fuas[3]->number, $fuas[2]->number, $fuas[1]->number, $fuas[0]->number];
+
+        $this->actingAs($user)->withoutMiddleware()->get(route('fuas.hemodialysis.index', ['date' => $date]))
+            ->assertOk()
+            ->assertSeeInOrder($expectedNumbers);
+
+        $printedNumbers = [];
+        $pdf = Mockery::mock();
+        Pdf::shouldReceive('loadView')->once()->withArgs(function (string $view, array $data) use (&$printedNumbers) {
+            $printedNumbers = $data['documents']->pluck('fua.number')->all();
+
+            return $view === 'fuas.pdf';
+        })->andReturn($pdf);
+        $pdf->shouldReceive('setPaper')->once()->with('a4')->andReturnSelf();
+        $pdf->shouldReceive('stream')->once()->andReturn(response('pdf'));
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('fuas.hemodialysis.bulk-pdf'), [
+            'fuas' => $fuas->reverse()->pluck('id')->all(),
+        ])->assertOk();
+
+        $this->assertSame($expectedNumbers, $printedNumbers);
     }
 
     public function test_nephrology_fua_print_view_shows_and_filters_prescription_status(): void
