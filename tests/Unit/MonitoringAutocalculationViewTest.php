@@ -14,4 +14,13 @@ class MonitoringAutocalculationViewTest extends TestCase
         $this->assertStringContainsString('let fila = tbody.rows[index];', $view);
         $this->assertStringContainsString("fila.querySelector('.hora-input').value = hora;", $view);
     }
+
+    public function test_nursing_form_refreshes_an_expired_csrf_token_and_retries_once(): void
+    {
+        $view = file_get_contents(resource_path('views/atenciones/enfermeria/edit.blade.php'));
+
+        $this->assertStringContainsString('response.status === 419 && reintentar', $view);
+        $this->assertStringContainsString("route('nurses.csrf-token')", $view);
+        $this->assertStringContainsString('return guardarAtencion(form, false);', $view);
+    }
 }

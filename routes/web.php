@@ -207,6 +207,8 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
         ->parameters(['consultas' => 'consultation'])
         ->names('consultations');
     Route::resource('nurses', NurseController::class);
+    Route::get('enfermeria/csrf-token', [NurseController::class, 'csrfToken'])
+        ->name('nurses.csrf-token');
     Route::post('enfermeria/modulo-diario', [NurseController::class, 'storeModuleAssignment'])
         ->name('nurses.module-assignment.store');
     Route::get('/enfermeria/imprimir-bloque/verificar', [NurseController::class, 'checkBulkPrint'])->name('enfermeria.print.bulk.check');

@@ -69,6 +69,21 @@ class NurseModuleAssignmentTest extends TestCase
             ->assertDontSee('<option value="'.$user->id.'" selected', false);
     }
 
+    public function test_authenticated_user_can_refresh_the_nursing_form_csrf_token(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+
+        $response = $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->getJson(route('nurses.csrf-token'));
+
+        $response->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+            ->assertJsonStructure(['token']);
+
+        $this->assertSame(session()->token(), $response->json('token'));
+    }
+
     public function test_opening_a_nursing_attention_does_not_assign_a_session_number(): void
     {
         [$user, $sede] = $this->nursingUserAndSede();

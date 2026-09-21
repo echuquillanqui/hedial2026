@@ -380,12 +380,7 @@
 
         Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
-        fetch("{{ route('nurses.update', $nurse->id) }}", {
-            method: 'POST',
-            body: new FormData(this),
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(res => res.json())
+        guardarAtencion(this)
         .then(data => {
             if(data.status === 'success') Swal.fire({ icon: 'success', title: '¡Éxito!', text: data.message, timer: 1500, showConfirmButton: false });
             else {
@@ -393,7 +388,63 @@
                 const text = serverErrors || data.message || 'No se pudo guardar el registro.';
                 Swal.fire({ icon: 'error', title: 'Error', text });
             }
+        })
+        .catch(() => {
+            Swal.fire({
+                icon: 'error',
+                title: 'No se pudo guardar',
+                text: 'No fue posible comunicarse con el servidor. Verifique su conexión e inténtelo nuevamente.'
+            });
         });
     });
+
+    async function guardarAtencion(form, reintentar = true) {
+        const token = form.querySelector('input[name="_token"]')?.value
+            || document.querySelector('meta[name="csrf-token"]')?.content;
+        const response = await fetch("{{ route('nurses.update', $nurse->id) }}", {
+            method: 'POST',
+            body: new FormData(form),
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': token
+            }
+        });
+
+        // Una ficha puede permanecer abierta durante horas. Si Laravel rotó
+        // el token de la sesión, obtenemos el vigente y reenviamos sin perder
+        // ninguno de los datos que el profesional ya ingresó.
+        if (response.status === 419 && reintentar) {
+            const tokenResponse = await fetch("{{ route('nurses.csrf-token') }}", {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (tokenResponse.ok) {
+                const { token: refreshedToken } = await tokenResponse.json();
+                if (refreshedToken) {
+                    form.querySelector('input[name="_token"]').value = refreshedToken;
+                    const metaToken = document.querySelector('meta[name="csrf-token"]');
+                    if (metaToken) metaToken.content = refreshedToken;
+                    return guardarAtencion(form, false);
+                }
+            }
+        }
+
+        if (response.status === 419) {
+            return {
+                status: 'error',
+                message: 'La sesión de seguridad venció. Recargue la página e ingrese nuevamente si se le solicita.'
+            };
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            throw new Error('La respuesta del servidor no es JSON.');
+        }
+
+        return response.json();
+    }
 </script>
 @endsection

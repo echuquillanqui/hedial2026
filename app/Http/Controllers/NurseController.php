@@ -25,6 +25,17 @@ class NurseController extends Controller
         $this->middleware('permission:nurses.edit')->only(['edit', 'update', 'storeModuleAssignment']);
     }
 
+    /**
+     * Return the token from the current session so an open nursing form can
+     * recover after Laravel rotates the session token.
+     */
+    public function csrfToken()
+    {
+        return response()
+            ->json(['token' => csrf_token()])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
