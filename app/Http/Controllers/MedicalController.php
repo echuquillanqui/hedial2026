@@ -97,7 +97,7 @@ class MedicalController extends Controller
 
         $validated = $request->validate([
             // Signos Vitales e Iniciales (Migración)
-            'hora_inicial'        => 'nullable',
+            'hora_inicial'        => 'nullable|date_format:H:i',
             'peso_inicial'        => 'nullable|numeric',
             'pa_inicial'          => 'nullable|string',
             'frecuencia_cardiaca' => 'nullable|integer',
@@ -136,11 +136,66 @@ class MedicalController extends Controller
 
             // Cierre y Responsables
             'evaluacion_final'    => 'nullable|string',
-            'hora_final'          => 'nullable',
+            'hora_final'          => 'nullable|date_format:H:i',
             'usuario_que_inicia_hd'   => 'nullable|exists:users,id',
             'usuario_que_finaliza_hd' => 'nullable|exists:users,id',
         ]);
-        
+
+        $timeValidator = validator($validated);
+        $timeValidator->after(function ($validator) use ($medical, $validated) {
+            $initialTime = $validated['hora_inicial'] ?? null;
+            $finalTime = $validated['hora_final'] ?? null;
+
+            // Las evaluaciones de una misma fecha, turno y sede deben tener
+            // marcas de tiempo distintas, incluso entre inicio y cierre.
+            foreach (['hora_inicial' => $initialTime, 'hora_final' => $finalTime] as $field => $time) {
+                if (! $time) {
+                    continue;
+                }
+
+                $timeAlreadyUsed = Medical::query()
+                    ->whereKeyNot($medical->id)
+                    ->where(function ($query) use ($time) {
+                        $query->where('hora_inicial', $time)
+                            ->orWhere('hora_final', $time);
+                    })
+                    ->whereHas('order', function ($query) use ($medical) {
+                        $query->whereDate('fecha_orden', $medical->order->fecha_orden)
+                            ->where('turno', $medical->order->turno)
+                            ->where('sede_id', $medical->order->sede_id);
+                    })
+                    ->exists();
+
+                if ($timeAlreadyUsed) {
+                    $validator->errors()->add(
+                        $field,
+                        'La hora seleccionada ya fue registrada en este turno.'
+                    );
+                }
+            }
+
+            if ($initialTime && $finalTime && $initialTime === $finalTime) {
+                $validator->errors()->add(
+                    'hora_final',
+                    'La hora final debe ser distinta de la hora inicial.'
+                );
+            }
+
+            if ($finalTime) {
+                $lastTreatmentTime = $medical->order->treatments()
+                    ->whereNotNull('hora')
+                    ->max('hora');
+
+                if ($lastTreatmentTime && $finalTime <= substr($lastTreatmentTime, 0, 5)) {
+                    $validator->errors()->add(
+                        'hora_final',
+                        'La hora final médica debe ser mayor que la última hora registrada en el tratamiento (' . substr($lastTreatmentTime, 0, 5) . ').'
+                    );
+                }
+            }
+        });
+
+        $timeValidator->validate();
 
         // Si no se selecciona un médico de inicio, se asigna el usuario actual por defecto
         if (!$request->filled('usuario_que_inicia_hd') && !$medical->usuario_que_inicia_hd) {
