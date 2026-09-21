@@ -26,7 +26,7 @@ class FuaController extends Controller
     {
         $this->middleware('permission:fua.view')->only(['index', 'hemodialysisIndex', 'nephrologyIndex']);
         $this->middleware('permission:fua.generate')->only(['bulkPdf', 'nephrologyBulkPdf']);
-        $this->middleware('permission:fua.responsible.update')->only('updateResponsible');
+        $this->middleware('permission:fua.responsible.update')->only(['updateResponsible', 'bulkUpdateResponsible']);
         $this->middleware('permission:fua.correction.create')->only('storeCorrection');
     }
 
@@ -79,7 +79,7 @@ class FuaController extends Controller
         if ($sedeId) {
             abort_unless($request->user()->sedes()->whereKey($sedeId)->exists(), 403);
         }
-        $fuas = $this->printQuery(
+        $query = $this->printQuery(
             $type,
             $date,
             $filters['patient'] ?? null,
@@ -90,7 +90,11 @@ class FuaController extends Controller
             $filters['status'] ?? null,
             $filters['prescription_status'] ?? null,
             $sedeId,
-        )
+        );
+        $dailyFuaIds = $type === Fua::HEMODIALYSIS && $date
+            ? (clone $query)->pluck('fuas.id')->map(fn ($id) => (int) $id)->values()
+            : collect();
+        $fuas = $query
             ->orderBy('patients.surname')
             ->orderBy('patients.last_name')
             ->orderBy('patients.first_name')
@@ -122,6 +126,10 @@ class FuaController extends Controller
             'sequence' => $sequence,
             'type' => $type,
             'professionals' => User::query()->whereIn('id', $professionalIds)->orderBy('name')->get(),
+            'doctors' => $type === Fua::HEMODIALYSIS
+                ? User::query()->medicalProfessionals()->orderBy('name')->get()
+                : collect(),
+            'dailyFuaIds' => $dailyFuaIds,
             'sedes' => $request->user()->sedes()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -358,6 +366,29 @@ class FuaController extends Controller
         $fua->update($data);
 
         return back()->with('success', 'Médico responsable actualizado en la FUA.');
+    }
+
+    public function bulkUpdateResponsible(Request $request)
+    {
+        $data = $request->validate([
+            'fuas' => ['required', 'array', 'min:1'],
+            'fuas.*' => ['integer', 'distinct', 'exists:fuas,id'],
+            'responsible_user_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        $doctor = User::findOrFail($data['responsible_user_id']);
+        abort_unless($doctor->isMedicalProfessional(), 422, 'El responsable seleccionado debe ser un médico.');
+
+        $query = Fua::query()
+            ->where('type', Fua::HEMODIALYSIS)
+            ->whereIn('id', $data['fuas'])
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query
+                ->whereHas('order', fn (Builder $order) => $order->where('sede_id', $sede)));
+
+        abort_unless($query->count() === count($data['fuas']), 403, 'Una o más FUA no pertenecen a la sede activa o no son de hemodiálisis.');
+        $updated = $query->update(['responsible_user_id' => $doctor->id]);
+
+        return back()->with('success', "Médico firmante actualizado en {$updated} FUA de hemodiálisis.");
     }
 
     public function pdf(Request $request, Fua $fua)

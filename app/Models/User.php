@@ -83,6 +83,7 @@ class User extends Authenticatable
 
         return $this->hasRole('medico')
             || str_contains($profession, 'medic')
+            || str_contains($profession, 'médic')
             || str_contains($profession, 'nefro');
     }
 
@@ -90,6 +91,7 @@ class User extends Authenticatable
     {
         return $query->where(function (Builder $query) {
             $query->where('profession', 'like', '%MEDIC%')
+                ->orWhere('profession', 'like', '%MÉDIC%')
                 ->orWhere('profession', 'like', '%NEFRO%')
                 ->orWhereHas('roles', fn (Builder $roles) => $roles->where('name', 'medico'));
         });

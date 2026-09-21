@@ -115,6 +115,50 @@
         </form>
     </div></div>
 
+    @if($type === \App\Models\Fua::HEMODIALYSIS && $date)
+    <div class="card border-primary shadow-sm mb-4" x-data="{ selected: [], saving: false }">
+        <div class="card-header bg-primary text-white">
+            <strong><i class="bi bi-person-badge me-2"></i>Cambiar médico firmante en bloque</strong>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">Selecciona las FUA del bloque del {{ \Carbon\Carbon::parse($date)->format('d/m/Y') }} y asigna el médico que las firmará.</p>
+            <form method="POST" action="{{ route('fuas.hemodialysis.responsible.bulk-update') }}" @submit="saving = true">
+                @csrf
+                @method('PUT')
+                <template x-for="fuaId in selected" :key="fuaId"><input type="hidden" name="fuas[]" :value="fuaId"></template>
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-5">
+                        <label for="bulkResponsible" class="form-label fw-semibold">Médico que firmará</label>
+                        <select id="bulkResponsible" name="responsible_user_id" class="form-select" required>
+                            <option value="">Selecciona un médico</option>
+                            @foreach($doctors as $doctor)<option value="{{ $doctor->id }}">{{ $doctor->name }}</option>@endforeach
+                        </select>
+                    </div>
+                    <div class="col-lg-4">
+                        <button type="button" class="btn btn-outline-primary w-100" @click="selected = {{ $dailyFuaIds->toJson() }}">
+                            <i class="bi bi-check2-square me-1"></i>Seleccionar todo el bloque del día ({{ $dailyFuaIds->count() }})
+                        </button>
+                    </div>
+                    <div class="col-lg-3">
+                        <button type="submit" class="btn btn-primary w-100" :disabled="selected.length === 0 || saving">
+                            <i class="bi bi-save me-1"></i>Guardar en <span x-text="selected.length">0</span> FUA
+                        </button>
+                    </div>
+                </div>
+                <div class="form-text mt-2">También puedes marcar únicamente las FUA deseadas en la tabla inferior.</div>
+
+                <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th class="text-center" style="width: 55px">Elegir</th><th>FUA</th><th>Paciente</th><th>Turno</th></tr></thead>
+                    <tbody>@foreach($fuas as $fua)<tr>
+                        <td class="text-center"><input type="checkbox" class="form-check-input" value="{{ $fua->id }}" x-model.number="selected" aria-label="Seleccionar FUA {{ $fua->number }}"></td>
+                        <td>{{ $fua->number }}</td><td>{{ $fua->order?->patient?->full_name ?: 'Sin paciente' }}</td><td>{{ $fua->order?->turno ? 'Turno '.$fua->order->turno : '—' }}</td>
+                    </tr>@endforeach</tbody>
+                </table></div>
+            </form>
+        </div>
+    </div>
+    @endif
+
     <form method="POST" action="{{ $bulkRoute }}" @submit.prevent="openBulkPdf($event.currentTarget)">
         @csrf
         @if($isMultisectorial)<input type="hidden" name="type" value="{{ $type }}">@endif
