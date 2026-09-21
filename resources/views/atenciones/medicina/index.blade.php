@@ -67,6 +67,8 @@
                         <th class="ps-3">PACIENTE</th>
                         <th class="text-center">MOD</th>
                         <th class="text-center">T</th>
+                        <th class="text-center">HORA DE INICIO</th>
+                        <th class="text-center">HORA FINAL</th>
                         <th class="text-center">ESTADO</th>
                         <th class="text-center">VITALES INICIO</th>
                         <th class="text-center">Responsable de rellenado</th>
@@ -84,6 +86,12 @@
                             <span class="badge bg-light text-success border border-success">MÓDULO {{ $medical->order->patient->modulo ?: '—' }}</span>
                         </td>
                         <td class="text-center small fw-bold">T-{{ $medical->order->turno }}</td>
+                        <td class="text-center fw-bold">
+                            {{ $medical->hora_inicial ? substr($medical->hora_inicial, 0, 5) : '—' }}
+                        </td>
+                        <td class="text-center fw-bold">
+                            {{ $medical->hora_final ? substr($medical->hora_final, 0, 5) : '—' }}
+                        </td>
                         <td class="text-center">
                             @if($medical->hora_final)
                                 <span class="badge bg-success-subtle text-success border border-success px-2">FINALIZADO</span>
@@ -113,7 +121,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">No se encontraron registros.</td>
+                        <td colspan="9" class="text-center py-5 text-muted">No se encontraron registros.</td>
                     </tr>
                     @endforelse
                 </tbody>
