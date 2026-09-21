@@ -22,6 +22,32 @@
     .fua-filter-check { padding-top: 2rem; }
     .fua-filter-action { padding-top: 1.75rem; }
 
+    .fua-workspace-tabs {
+        display: flex;
+        gap: .75rem;
+        padding: .6rem;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 1rem;
+        box-shadow: 0 .25rem .75rem rgba(33, 37, 41, .08);
+    }
+
+    .fua-workspace-tab {
+        flex: 1 1 0;
+        padding: .85rem 1rem;
+        border: 2px solid transparent;
+        border-radius: .75rem;
+        font-weight: 700;
+        letter-spacing: .02em;
+        transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+
+    .fua-workspace-tab:hover { transform: translateY(-1px); }
+    .fua-workspace-tab-print { color: #842029; background: #f8d7da; }
+    .fua-workspace-tab-print.is-active { color: #fff; background: #dc3545; box-shadow: 0 .3rem .7rem rgba(220, 53, 69, .25); }
+    .fua-workspace-tab-doctor { color: #084298; background: #cfe2ff; }
+    .fua-workspace-tab-doctor.is-active { color: #fff; background: #0d6efd; box-shadow: 0 .3rem .7rem rgba(13, 110, 253, .25); }
+
     @media (max-width: 1199.98px) {
         .fua-filter-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
         .fua-filter-date,
@@ -39,6 +65,7 @@
         .fua-filter-action { grid-column: 1 / -1; }
         .fua-filter-check,
         .fua-filter-action { padding-top: 0; }
+        .fua-workspace-tabs { flex-direction: column; }
     }
 </style>
 <div class="container-fluid fua-print-page px-3 px-xl-4 py-3" x-data="fuaPdfViewer()">
@@ -116,6 +143,17 @@
     </div></div>
 
     @if($type === \App\Models\Fua::HEMODIALYSIS && $date)
+    <div x-data="{ activeFuaTab: 'print' }">
+    <div class="fua-workspace-tabs mb-4" role="tablist" aria-label="Opciones de gestión de FUA">
+        <button type="button" class="fua-workspace-tab fua-workspace-tab-print" :class="{ 'is-active': activeFuaTab === 'print' }" @click="activeFuaTab = 'print'" role="tab" :aria-selected="activeFuaTab === 'print'" aria-controls="fua-print-panel">
+            <i class="bi bi-printer-fill me-2"></i>FUAS A IMPRIMIR
+        </button>
+        <button type="button" class="fua-workspace-tab fua-workspace-tab-doctor" :class="{ 'is-active': activeFuaTab === 'doctor' }" @click="activeFuaTab = 'doctor'" role="tab" :aria-selected="activeFuaTab === 'doctor'" aria-controls="fua-doctor-panel">
+            <i class="bi bi-person-badge-fill me-2"></i>CAMBIO DE MÉDICO FUA
+        </button>
+    </div>
+
+    <div id="fua-doctor-panel" x-show="activeFuaTab === 'doctor'" x-cloak role="tabpanel">
     <div class="card border-primary shadow-sm mb-4" x-data="{ selected: [], saving: false }">
         <div class="card-header bg-primary text-white">
             <strong><i class="bi bi-person-badge me-2"></i>Cambiar médico firmante en bloque</strong>
@@ -157,6 +195,8 @@
             </form>
         </div>
     </div>
+    </div>
+    <div id="fua-print-panel" x-show="activeFuaTab === 'print'" role="tabpanel">
     @endif
 
     <form method="POST" action="{{ $bulkRoute }}" @submit.prevent="openBulkPdf($event.currentTarget)">
@@ -198,6 +238,10 @@
             @if($fuas->hasPages())<div class="card-footer bg-white">{{ $fuas->links() }}</div>@endif
         </div>
     </form>
+    @if($type === \App\Models\Fua::HEMODIALYSIS && $date)
+    </div>
+    </div>
+    @endif
     @include('fuas.partials.pdf-modal')
 </div>
 
