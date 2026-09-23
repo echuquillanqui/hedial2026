@@ -70,6 +70,21 @@ class NutritionAndMisTest extends TestCase
         $this->actingAs($this->user)->withSession($this->session())->put(route('laboratory.results.update',$lab),[])->assertForbidden();
     }
 
+    public function test_nutrition_stores_cie10_diagnoses_for_the_fua(): void
+    {
+        $payload = $this->payload() + ['diagnoses' => [[
+            'codigo' => 'E44.1',
+            'descripcion' => 'Desnutrición proteicocalórica leve',
+            'type' => 'D',
+        ]]];
+
+        $this->actingAs($this->user)->withSession($this->session())
+            ->post(route('nutrition.store', $this->order), $payload)
+            ->assertRedirect();
+
+        $this->assertSame('E44.1', NutritionAssessment::firstOrFail()->diagnoses[0]['codigo']);
+    }
+
     private function payload(): array { return ['assessment_date'=>'2026-08-15','nutritional_diagnosis'=>'Riesgo nutricional','intervention_plan'=>'Seguimiento']; }
     private function test(string $name,string $unit,string $frequency): Test { $area=Area::firstOrCreate(['name'=>'Bioquímica']); return Test::create(['area_id'=>$area->id,'name'=>$name,'unit'=>$unit,'type'=>'number','frequency'=>$frequency]); }
     private function result(Test $test,string $date,string $value) { $order=LaboratoryOrder::create(['patient_id'=>$this->patient->id,'patient_name'=>'Paciente','sampled_at'=>$date,'period'=>$test->frequency,'status'=>'completed']); return $order->items()->create(['test_id'=>$test->id,'result_value'=>$value,'completed_at'=>$date.' 12:00:00']); }

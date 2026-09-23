@@ -39,6 +39,9 @@
                                 <option value="">Seleccionar...</option>
                                 <option value="MEDICO">MEDICO</option>
                                 <option value="ENFERMERA">ENFERMERA</option>
+                                <option value="NUTRICIONISTA">NUTRICIONISTA</option>
+                                <option value="PSICOLOGO">PSICOLOGO</option>
+                                <option value="TRABAJADOR SOCIAL">TRABAJADOR SOCIAL</option>
                                 <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
                                 <option value="LABORATORIO">LABORATORIO</option>
                                 <option value="SUPERADMIN">SUPERADMIN</option>
