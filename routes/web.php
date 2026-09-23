@@ -195,6 +195,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('orders/store-bulk', [App\Http\Controllers\OrderController::class, 'storeBulk'])
         ->name('orders.store_bulk');
         
+    Route::patch('medicals/{medical}/medications', [App\Http\Controllers\MedicalController::class, 'updateMedications'])
+        ->middleware('permission:medicals.edit')
+        ->name('medicals.medications.update');
     Route::resource('medicals', App\Http\Controllers\MedicalController::class);
     Route::get('consultas/{consultation}/consulta.pdf', [NephrologyConsultationController::class, 'consultationPdf'])->name('consultations.pdf');
     Route::get('consultas/{consultation}/receta.pdf', [NephrologyConsultationController::class, 'prescriptionPdf'])->name('consultations.prescription.pdf');

@@ -210,6 +210,30 @@ class MedicalController extends Controller
             ->with('success', 'Ficha médica actualizada correctamente.');
     }
 
+    /**
+     * Actualiza únicamente la medicación desde el listado de atenciones.
+     */
+    public function updateMedications(Request $request, Medical $medical)
+    {
+        if (CurrentSede::id() && (int) optional($medical->order)->sede_id !== (int) CurrentSede::id()) {
+            abort(403, 'Atención fuera de la sede activa.');
+        }
+
+        $medications = $request->validate([
+            'epo2000'      => 'nullable|string|max:50',
+            'epo4000'      => 'nullable|string|max:50',
+            'hierro'       => 'nullable|string|max:50',
+            'vitamina_b12' => 'nullable|string|max:50',
+            'calcitriol'   => 'nullable|string|max:50',
+            'heparina'     => 'nullable|string|max:50',
+        ]);
+
+        $medical->update($medications);
+        $this->syncMedicationToNurseWhenDefault($medical);
+
+        return back()->with('success', 'Medicamentos de la atención actualizados correctamente.');
+    }
+
     public function show(Medical $medical)
     {
         // Cargamos la orden y el paciente para obtener sala, turno y fecha
