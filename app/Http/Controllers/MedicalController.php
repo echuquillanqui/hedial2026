@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Medical;
 use App\Models\Nurse;
 use App\Models\User;
+use App\Services\WarehouseConsumptionService;
+use App\Support\CurrentSede;
+use App\Support\DailyHemodialysisSequence;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Support\CurrentSede;
-use App\Services\WarehouseConsumptionService;
-use App\Support\DailyHemodialysisSequence;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class MedicalController extends Controller
 {
@@ -232,6 +234,55 @@ class MedicalController extends Controller
         $this->syncMedicationToNurseWhenDefault($medical);
 
         return back()->with('success', 'Medicamentos de la atención actualizados correctamente.');
+    }
+
+    /**
+     * Actualiza en bloque la medicación de los pacientes seleccionados.
+     */
+    public function bulkUpdateMedications(Request $request)
+    {
+        $validated = $request->validate([
+            'medicals' => ['required', 'array', 'min:1'],
+            'medicals.*' => ['required', 'array'],
+            'medicals.*.epo2000' => ['nullable', 'string', 'max:50'],
+            'medicals.*.epo4000' => ['nullable', 'string', 'max:50'],
+            'medicals.*.hierro' => ['nullable', 'string', 'max:50'],
+            'medicals.*.vitamina_b12' => ['nullable', 'string', 'max:50'],
+            'medicals.*.calcitriol' => ['nullable', 'string', 'max:50'],
+            'medicals.*.heparina' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $medicalIds = array_keys($validated['medicals']);
+        if (collect($medicalIds)->contains(fn ($id) => ! ctype_digit((string) $id))) {
+            throw ValidationException::withMessages([
+                'medicals' => 'La selección de pacientes no es válida.',
+            ]);
+        }
+
+        $medicals = Medical::query()
+            ->with('order')
+            ->whereKey($medicalIds)
+            ->when(CurrentSede::id(), function ($query) {
+                $query->whereHas('order', fn ($order) => $order->where('sede_id', CurrentSede::id()));
+            })
+            ->get()
+            ->keyBy(fn (Medical $medical) => (string) $medical->getKey());
+
+        if ($medicals->count() !== count($medicalIds)) {
+            throw ValidationException::withMessages([
+                'medicals' => 'Uno o más pacientes seleccionados no pertenecen a la sede activa.',
+            ]);
+        }
+
+        DB::transaction(function () use ($validated, $medicals) {
+            foreach ($validated['medicals'] as $medicalId => $medications) {
+                $medical = $medicals->get((string) $medicalId);
+                $medical->update($medications);
+                $this->syncMedicationToNurseWhenDefault($medical);
+            }
+        });
+
+        return back()->with('success', 'Medicamentos guardados para '.count($medicalIds).' pacientes.');
     }
 
     public function show(Medical $medical)

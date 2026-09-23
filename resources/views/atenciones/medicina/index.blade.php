@@ -27,6 +27,12 @@
         <h4 class="fw-bold text-success text-uppercase">
             <i class="bi bi-clipboard2-pulse me-2"></i> Control Médico de Hemodiálisis
         </h4>
+        @can('medicals.edit')
+        <button type="button" id="openBulkMedications" class="btn btn-success" disabled>
+            <i class="bi bi-capsule-pill me-1"></i> Asignar medicamentos
+            <span class="badge bg-white text-success ms-1" id="selectedPatientsCount">0</span>
+        </button>
+        @endcan
     </div>
 
     <div class="card shadow-sm border-0 mb-4 bg-light">
@@ -80,6 +86,11 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
+                        @can('medicals.edit')
+                        <th class="text-center" style="width: 42px;">
+                            <input class="form-check-input" type="checkbox" id="selectAllMedicals" aria-label="Seleccionar todos los pacientes visibles">
+                        </th>
+                        @endcan
                         <th class="ps-3">PACIENTE</th>
                         <th class="text-center">MOD</th>
                         <th class="text-center">T</th>
@@ -94,6 +105,20 @@
                 <tbody>
                     @forelse($medicals as $medical)
                     <tr>
+                        @can('medicals.edit')
+                        <td class="text-center">
+                            <input class="form-check-input medical-selector" type="checkbox"
+                                   value="{{ $medical->id }}"
+                                   data-patient="{{ $medical->order->patient->surname }} {{ $medical->order->patient->first_name }}"
+                                   data-epo2000="{{ $medical->epo2000 }}"
+                                   data-epo4000="{{ $medical->epo4000 }}"
+                                   data-hierro="{{ $medical->hierro }}"
+                                   data-vitamina-b12="{{ $medical->vitamina_b12 }}"
+                                   data-calcitriol="{{ $medical->calcitriol }}"
+                                   data-heparina="{{ $medical->heparina }}"
+                                   aria-label="Seleccionar a {{ $medical->order->patient->surname }} {{ $medical->order->patient->first_name }}">
+                        </td>
+                        @endcan
                         <td class="ps-3">
                             <div class="fw-bold text-uppercase small text-dark">{{ $medical->order->patient->surname }} {{ $medical->order->patient->first_name }}</div>
                             <span class="text-muted fw-bold" style="font-size: 0.7rem;">{{ $medical->order->codigo_unico }}</span>
@@ -151,7 +176,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">No se encontraron registros.</td>
+                        <td colspan="{{ auth()->user()->can('medicals.edit') ? 10 : 9 }}" class="text-center py-5 text-muted">No se encontraron registros.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -162,6 +187,51 @@
         </div>
     </div>
 </div>
+
+@can('medicals.edit')
+<div class="modal fade" id="bulkMedicationsModal" tabindex="-1" aria-labelledby="bulkMedicationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <form method="POST" action="{{ route('medicals.medications.bulk-update') }}" id="bulkMedicationsForm" class="modal-content">
+            @csrf
+            @method('PATCH')
+            <div class="modal-header bg-success text-white">
+                <div>
+                    <h5 class="modal-title fw-bold" id="bulkMedicationsModalLabel"><i class="bi bi-people-fill me-2"></i>Medicamentos por paciente</h5>
+                    <small class="text-white-50">Complete las cantidades de cada paciente seleccionado.</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-light border d-flex align-items-center py-2" role="status">
+                    <i class="bi bi-info-circle text-success me-2"></i>
+                    Los valores se guardarán individualmente en la ficha médica de cada paciente.
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="position-sticky start-0 bg-light" style="min-width: 220px;">Paciente</th>
+                                <th style="min-width: 120px;">EPO 2000</th>
+                                <th style="min-width: 120px;">EPO 4000</th>
+                                <th style="min-width: 120px;">Hierro</th>
+                                <th style="min-width: 130px;">Vitamina B12</th>
+                                <th style="min-width: 120px;">Calcitriol</th>
+                                <th style="min-width: 120px;">Heparina</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkMedicationsRows"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span class="text-muted small me-auto" id="bulkPatientSummary"></span>
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> Guardar para todos</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endcan
 
 <div class="modal fade" id="medicationsModal" tabindex="-1" aria-labelledby="medicationsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -270,6 +340,62 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 medicationsModal.show();
             });
+        });
+    }
+
+    const selectors = Array.from(document.querySelectorAll('.medical-selector'));
+    const bulkButton = document.getElementById('openBulkMedications');
+    const selectAll = document.getElementById('selectAllMedicals');
+    if (bulkButton && selectors.length) {
+        const countBadge = document.getElementById('selectedPatientsCount');
+        const fields = ['epo2000', 'epo4000', 'hierro', 'vitamina_b12', 'calcitriol', 'heparina'];
+        const updateSelection = () => {
+            const selectedCount = selectors.filter(selector => selector.checked).length;
+            countBadge.textContent = selectedCount;
+            bulkButton.disabled = selectedCount === 0;
+            selectAll.checked = selectedCount === selectors.length;
+            selectAll.indeterminate = selectedCount > 0 && selectedCount < selectors.length;
+        };
+
+        selectors.forEach(selector => selector.addEventListener('change', updateSelection));
+        selectAll.addEventListener('change', function() {
+            selectors.forEach(selector => { selector.checked = this.checked; });
+            updateSelection();
+        });
+
+        bulkButton.addEventListener('click', function() {
+            const selected = selectors.filter(selector => selector.checked);
+            const rows = document.getElementById('bulkMedicationsRows');
+            rows.replaceChildren();
+
+            selected.forEach(selector => {
+                const row = document.createElement('tr');
+                const patientCell = document.createElement('th');
+                patientCell.scope = 'row';
+                patientCell.className = 'position-sticky start-0 bg-white text-uppercase small';
+                patientCell.textContent = selector.dataset.patient;
+                row.appendChild(patientCell);
+
+                fields.forEach(field => {
+                    const cell = document.createElement('td');
+                    const input = document.createElement('input');
+                    const dataKey = field.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+                    input.type = 'text';
+                    input.inputMode = 'decimal';
+                    input.className = 'form-control form-control-sm';
+                    input.name = `medicals[${selector.value}][${field}]`;
+                    input.value = selector.dataset[dataKey] || '';
+                    input.maxLength = 50;
+                    input.placeholder = '0';
+                    input.setAttribute('aria-label', `${field} para ${selector.dataset.patient}`);
+                    cell.appendChild(input);
+                    row.appendChild(cell);
+                });
+                rows.appendChild(row);
+            });
+
+            document.getElementById('bulkPatientSummary').textContent = `${selected.length} paciente${selected.length === 1 ? '' : 's'} seleccionado${selected.length === 1 ? '' : 's'}`;
+            new bootstrap.Modal(document.getElementById('bulkMedicationsModal')).show();
         });
     }
 });
