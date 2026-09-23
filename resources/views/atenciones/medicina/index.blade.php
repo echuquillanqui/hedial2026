@@ -7,6 +7,22 @@
     .medical-list .form-control, .medical-list .form-select { font-size: 0.95rem; }
 </style>
 <div class="container px-0 py-0 medical-list">
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>{{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+    @endif
+    @if($errors->any())
+        <div class="alert alert-danger" role="alert">
+            <strong>No se pudieron guardar los medicamentos.</strong>
+            <ul class="mb-0 mt-1">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold text-success text-uppercase">
             <i class="bi bi-clipboard2-pulse me-2"></i> Control Médico de Hemodiálisis
@@ -113,6 +129,20 @@
                                         data-url="{{ route('medicals.show', $medical->id) }}" title="Ver Detalles">
                                     <i class="bi bi-eye"></i>
                                 </button>
+                                @can('medicals.edit')
+                                <button type="button" class="btn btn-sm btn-outline-success btn-medications-modal me-2"
+                                        data-action="{{ route('medicals.medications.update', $medical) }}"
+                                        data-patient="{{ $medical->order->patient->surname }} {{ $medical->order->patient->first_name }}"
+                                        data-epo2000="{{ $medical->epo2000 }}"
+                                        data-epo4000="{{ $medical->epo4000 }}"
+                                        data-hierro="{{ $medical->hierro }}"
+                                        data-vitamina-b12="{{ $medical->vitamina_b12 }}"
+                                        data-calcitriol="{{ $medical->calcitriol }}"
+                                        data-heparina="{{ $medical->heparina }}"
+                                        title="Rellenar medicamentos">
+                                    <i class="bi bi-capsule"></i>
+                                </button>
+                                @endcan
                                 <a href="{{ route('medicals.edit', $medical->id) }}" class="btn btn-sm btn-outline-primary" title="Editar">
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
@@ -130,6 +160,45 @@
         <div class="card-footer bg-white border-0 py-3">
             {{ $medicals->links() }}
         </div>
+    </div>
+</div>
+
+<div class="modal fade" id="medicationsModal" tabindex="-1" aria-labelledby="medicationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <form method="POST" id="medicationsForm" class="modal-content">
+            @csrf
+            @method('PATCH')
+            <div class="modal-header bg-success text-white">
+                <div>
+                    <h5 class="modal-title fw-bold" id="medicationsModalLabel"><i class="bi bi-capsule me-2"></i>Medicamentos</h5>
+                    <small id="medicationsPatient" class="text-white-50"></small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Registre la cantidad o dosis indicada para esta sesión de hemodiálisis.</p>
+                <div class="row g-3">
+                    @foreach([
+                        'epo2000' => 'EPO 2000',
+                        'epo4000' => 'EPO 4000',
+                        'hierro' => 'Hierro',
+                        'vitamina_b12' => 'Vitamina B12',
+                        'calcitriol' => 'Calcitriol',
+                        'heparina' => 'Heparina',
+                    ] as $field => $label)
+                    <div class="col-md-6">
+                        <label for="medication_{{ $field }}" class="form-label fw-bold">{{ $label }}</label>
+                        <input type="text" class="form-control" id="medication_{{ $field }}" name="{{ $field }}"
+                               maxlength="50" autocomplete="off" placeholder="Cantidad o dosis">
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> Guardar medicamentos</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -182,6 +251,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 .catch(error => { modalBody.innerHTML = '<div class="alert alert-danger">Error al cargar.</div>'; });
         });
     });
+
+    const medicationsModalElement = document.getElementById('medicationsModal');
+    if (medicationsModalElement) {
+        const medicationsModal = new bootstrap.Modal(medicationsModalElement);
+        const medicationsForm = document.getElementById('medicationsForm');
+        const medicationFields = ['epo2000', 'epo4000', 'hierro', 'vitamina_b12', 'calcitriol', 'heparina'];
+
+        document.querySelectorAll('.btn-medications-modal').forEach(button => {
+            button.addEventListener('click', function() {
+                medicationsForm.action = this.dataset.action;
+                document.getElementById('medicationsPatient').textContent = this.dataset.patient;
+
+                medicationFields.forEach(field => {
+                    const dataKey = field.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+                    document.getElementById(`medication_${field}`).value = this.dataset[dataKey] || '';
+                });
+
+                medicationsModal.show();
+            });
+        });
+    }
 });
 </script>
 @endsection
