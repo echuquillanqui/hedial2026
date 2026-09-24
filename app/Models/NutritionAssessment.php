@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class NutritionAssessment extends Model
 {
     protected $guarded = [];
-    protected $casts = ['assessment_date' => 'date'];
+    protected $casts = ['assessment_date' => 'date', 'diagnoses' => 'array'];
 
     public function order() { return $this->belongsTo(Order::class); }
     public function medical() { return $this->belongsTo(Medical::class); }

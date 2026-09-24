@@ -16,6 +16,11 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    private const PROFESSIONS = [
+        'MEDICO', 'ENFERMERA', 'NUTRICIONISTA', 'PSICOLOGO', 'TRABAJADOR SOCIAL',
+        'ADMINISTRATIVO', 'LABORATORIO', 'SUPERADMIN',
+    ];
+
     public function __construct()
     {
         $this->middleware('permission:users.view')->only(['index']);
@@ -99,7 +104,7 @@ class UserController extends Controller
             'email'            => 'required|string|email|max:255|unique:users,email',
             'dni'              => 'nullable|digits:8|unique:users,dni',
             'password'         => 'required|string|min:8',
-            'profession'       => ['nullable', Rule::in(['MEDICO', 'ENFERMERA', 'ADMINISTRATIVO', 'LABORATORIO', 'SUPERADMIN'])],
+            'profession'       => ['nullable', Rule::in(self::PROFESSIONS)],
             'license_number'   => 'nullable|string|unique:users,license_number',
             'specialty_number' => 'nullable|string|unique:users,specialty_number',
             'roles'            => 'nullable|array',
@@ -164,7 +169,7 @@ class UserController extends Controller
             'email'            => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'dni'              => ['nullable', 'digits:8', Rule::unique('users')->ignore($user->id)],
             'password'         => 'nullable|string|min:8',
-            'profession'       => ['nullable', Rule::in(['MEDICO', 'ENFERMERA', 'ADMINISTRATIVO', 'LABORATORIO', 'SUPERADMIN'])],
+            'profession'       => ['nullable', Rule::in(self::PROFESSIONS)],
             'license_number'   => ['nullable', 'string', Rule::unique('users')->ignore($user->id)],
             'specialty_number' => ['nullable', 'string', Rule::unique('users')->ignore($user->id)],
             'roles'            => 'nullable|array',

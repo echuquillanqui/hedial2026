@@ -6,6 +6,7 @@ use App\Http\Controllers\FuaController;
 use App\Models\Fua;
 use App\Models\FuaConfiguration;
 use App\Models\Order;
+use App\Models\NutritionAssessment;
 use App\Models\Patient;
 use App\Models\Sede;
 use App\Models\User;
@@ -163,6 +164,27 @@ class MultisectorialFuaTest extends TestCase
         $this->assertStringContainsString('99209', $html);
         $this->assertStringContainsString('NUTRICIONISTA', $html);
         $this->assertStringContainsString('COLEGIATURA', $html);
+    }
+
+    public function test_nutrition_fua_renders_diagnoses_recorded_during_attention(): void
+    {
+        $professional = User::query()->where('username', 'nutricionista')->firstOrFail();
+        $order = $this->order(ClinicalService::NUTRITION, 'PDF-DX', $professional);
+        NutritionAssessment::query()->create([
+            'order_id' => $order->id,
+            'assessment_date' => today(),
+            'nutritional_diagnosis' => 'Riesgo nutricional',
+            'diagnoses' => [['codigo' => 'E44.1', 'descripcion' => 'Desnutrición proteicocalórica leve', 'type' => 'D']],
+        ]);
+        $fua = app(FuaNumberService::class)->createForOrder($order);
+
+        $fua->load(['order.nutritionAssessment']);
+        $method = new \ReflectionMethod(FuaController::class, 'diagnoses');
+        $method->setAccessible(true);
+        $diagnoses = $method->invoke(app(FuaController::class), $fua);
+
+        $this->assertSame('E44.1', $diagnoses[0]['codigo']);
+        $this->assertSame('Desnutrición proteicocalórica leve', $diagnoses[0]['descripcion']);
     }
 
     private function order(string $type, string $code, ?User $professional = null): Order

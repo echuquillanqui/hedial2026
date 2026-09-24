@@ -238,6 +238,7 @@ class FuaController extends Controller
             'responsible' => $this->responsible($fua),
             'medications' => $this->medications($fua),
             'procedures' => $this->procedures($fua),
+            'diagnoses' => $this->diagnoses($fua),
         ]);
 
         $view = $type === Fua::NEPHROLOGY ? 'fuas.pdf_nephrology' : 'fuas.pdf';
@@ -408,6 +409,7 @@ class FuaController extends Controller
             'medications' => $medications,
             'responsible' => $responsible,
             'procedures' => $procedures,
+            'diagnoses' => $this->diagnoses($fua),
         ])->setPaper('a4');
         $filename = 'fua-'.str_replace(['/', '\\'], '-', $fua->number).'.pdf';
 
@@ -422,6 +424,7 @@ class FuaController extends Controller
             'order.patient', 'order.sede', 'order.medical.usuarioInicia',
             'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.doctor',
             'order.nephrologyConsultation.medications',
+            'order.nutritionAssessment',
             'responsibleUser', 'generatedBy', 'correctedFua.order.assignedProfessional',
         ];
     }
@@ -449,6 +452,19 @@ class FuaController extends Controller
         ])->filter(fn (array $medication) => is_numeric($medication['quantity']) && (float) $medication['quantity'] > 0)
             ->values()
             ->all();
+    }
+
+    private function diagnoses(Fua $fua): array
+    {
+        if ($fua->effectiveType() === Fua::NUTRITION) {
+            return collect($fua->order?->nutritionAssessment?->diagnoses ?? [])
+                ->filter(fn ($diagnosis) => ! empty($diagnosis['codigo']) && ! empty($diagnosis['descripcion']))
+                ->take(6)
+                ->values()
+                ->all();
+        }
+
+        return [];
     }
 
     private function fuaLogoData(): ?string

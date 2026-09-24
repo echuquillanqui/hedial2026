@@ -73,7 +73,18 @@ class NutritionAssessmentController extends Controller
         return $request->validate(['assessment_date' => ['required','date'], 'clinical_history'=>['nullable','string'], 'nutritional_history'=>['nullable','string'], 'general_recommendations'=>['nullable','string'], 'dietary_recommendations'=>['nullable','string'], 'reason' => ['nullable','string'], 'appetite' => ['nullable','string'],
             'dietary_intake' => ['nullable','string'], 'gastrointestinal_symptoms' => ['nullable','string'], 'functional_capacity' => ['nullable','string'],
             'physical_findings' => ['nullable','string'], 'nutritional_diagnosis' => ['required','string'], 'intervention_plan' => ['nullable','string'],
-            'recommendations' => ['nullable','string'], 'observations' => ['nullable','string']]);
+            'recommendations' => ['nullable','string'], 'observations' => ['nullable','string'],
+            'diagnoses' => ['nullable','array','max:6'],
+            'diagnoses.*.cie10_id' => ['nullable','exists:cie10s,id'],
+            'diagnoses.*.codigo' => ['required_with:diagnoses.*.descripcion','nullable','string','max:20'],
+            'diagnoses.*.descripcion' => ['required_with:diagnoses.*.codigo','nullable','string','max:255'],
+            'diagnoses.*.type' => ['required_with:diagnoses.*.codigo','nullable','in:P,D,R'],
+        ], [], [
+            'diagnoses' => 'diagnósticos CIE-10',
+            'diagnoses.*.codigo' => 'código CIE-10',
+            'diagnoses.*.descripcion' => 'descripción del diagnóstico',
+            'diagnoses.*.type' => 'tipo de diagnóstico',
+        ]);
     }
 
     private function authorizeOrder(Order $order): void
