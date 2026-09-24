@@ -148,18 +148,14 @@ class MedicalController extends Controller
             $initialTime = $validated['hora_inicial'] ?? null;
             $finalTime = $validated['hora_final'] ?? null;
 
-            // Las evaluaciones de una misma fecha, turno y sede deben tener
-            // marcas de tiempo distintas, incluso entre inicio y cierre.
-            foreach (['hora_inicial' => $initialTime, 'hora_final' => $finalTime] as $field => $time) {
-                if (! $time) {
-                    continue;
-                }
-
+            // La hora de inicio puede coincidir entre pacientes del mismo turno.
+            // Solo se conserva el control de duplicados para la hora de cierre.
+            if ($finalTime) {
                 $timeAlreadyUsed = Medical::query()
                     ->whereKeyNot($medical->id)
-                    ->where(function ($query) use ($time) {
-                        $query->where('hora_inicial', $time)
-                            ->orWhere('hora_final', $time);
+                    ->where(function ($query) use ($finalTime) {
+                        $query->where('hora_inicial', $finalTime)
+                            ->orWhere('hora_final', $finalTime);
                     })
                     ->whereHas('order', function ($query) use ($medical) {
                         $query->whereDate('fecha_orden', $medical->order->fecha_orden)
@@ -170,7 +166,7 @@ class MedicalController extends Controller
 
                 if ($timeAlreadyUsed) {
                     $validator->errors()->add(
-                        $field,
+                        'hora_final',
                         'La hora seleccionada ya fue registrada en este turno.'
                     );
                 }
