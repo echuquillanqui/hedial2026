@@ -15,7 +15,7 @@ class MedicalTimeValidationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_initial_and_final_medical_times_must_be_unique_within_a_shift(): void
+    public function test_initial_medical_time_can_be_shared_within_a_shift(): void
     {
         $sede = Sede::create(['name' => 'Sede de prueba', 'code' => 'TIME', 'is_active' => true]);
         $existing = $this->medicalForShift($sede, 'TIME-EXISTING');
@@ -27,10 +27,30 @@ class MedicalTimeValidationTest extends TestCase
             ->from(route('medicals.edit', $medical))
             ->put(route('medicals.update', $medical), $this->payload([
                 'hora_inicial' => '07:15',
+                'hora_final' => '11:30',
+            ]))
+            ->assertRedirect(route('medicals.index'))
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertSame('07:15', $medical->fresh()->hora_inicial);
+    }
+
+    public function test_final_medical_time_must_be_unique_within_a_shift(): void
+    {
+        $sede = Sede::create(['name' => 'Sede de prueba', 'code' => 'FINAL-TIME', 'is_active' => true]);
+        $existing = $this->medicalForShift($sede, 'FINAL-EXISTING');
+        $medical = $this->medicalForShift($sede, 'FINAL-CANDIDATE');
+        $existing->update(['hora_inicial' => '07:15', 'hora_final' => '11:15']);
+
+        $this->actingAs(User::factory()->create())
+            ->withoutMiddleware()
+            ->from(route('medicals.edit', $medical))
+            ->put(route('medicals.update', $medical), $this->payload([
+                'hora_inicial' => '07:30',
                 'hora_final' => '11:15',
             ]))
             ->assertRedirect(route('medicals.edit', $medical))
-            ->assertSessionHasErrors(['hora_inicial', 'hora_final']);
+            ->assertSessionHasErrors(['hora_final']);
     }
 
     public function test_medical_final_time_must_be_after_the_last_treatment_time(): void
