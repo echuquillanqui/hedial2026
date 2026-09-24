@@ -97,6 +97,14 @@ class MedicalController extends Controller
             abort(403, 'Atención fuera de la sede activa.');
         }
 
+        // MySQL TIME columns are returned as HH:MM:SS. Some browsers submit that
+        // complete value again even though the time control only shows HH:MM.
+        // Keep the value in the format used by this form before validating it.
+        $request->merge([
+            'hora_inicial' => $this->withoutSeconds($request->input('hora_inicial')),
+            'hora_final' => $this->withoutSeconds($request->input('hora_final')),
+        ]);
+
         $validated = $request->validate([
             // Signos Vitales e Iniciales (Migración)
             'hora_inicial'        => 'nullable|date_format:H:i',
@@ -206,6 +214,15 @@ class MedicalController extends Controller
 
         return redirect()->route('medicals.index')
             ->with('success', 'Ficha médica actualizada correctamente.');
+    }
+
+    private function withoutSeconds(mixed $time): mixed
+    {
+        if (is_string($time) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $time)) {
+            return substr($time, 0, 5);
+        }
+
+        return $time;
     }
 
     /**
