@@ -45,7 +45,7 @@
                 <div class="row g-2 row-compact">
                     <div class="col-md-2">
                         <label>Hora Inicial</label>
-                        <input type="time" name="hora_inicial" id="hora_inicial" class="form-control form-control-sm @error('hora_inicial') is-invalid @enderror" value="{{ old('hora_inicial', $medical->hora_inicial) }}">
+                        <input type="time" name="hora_inicial" id="hora_inicial" class="form-control form-control-sm @error('hora_inicial') is-invalid @enderror" value="{{ old('hora_inicial', $medical->hora_inicial ? substr($medical->hora_inicial, 0, 5) : null) }}">
                         @error('hora_inicial')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-md-2">
@@ -173,7 +173,7 @@
                     </div>
                     <div class="col-md-3">
                         <label class="fw-bold">HORA FINAL (Terminar sesión)</label>
-                        <input type="time" name="hora_final" id="hora_final" class="form-control form-control-sm @error('hora_final') is-invalid @enderror" value="{{ old('hora_final', $medical->hora_final) }}">
+                        <input type="time" name="hora_final" id="hora_final" class="form-control form-control-sm @error('hora_final') is-invalid @enderror" value="{{ old('hora_final', $medical->hora_final ? substr($medical->hora_final, 0, 5) : null) }}">
                         @error('hora_final')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                 </div>

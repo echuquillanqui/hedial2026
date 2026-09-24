@@ -35,6 +35,26 @@ class MedicalTimeValidationTest extends TestCase
         $this->assertSame('07:15', $medical->fresh()->hora_inicial);
     }
 
+    public function test_database_time_values_with_seconds_are_normalized_before_validation(): void
+    {
+        $sede = Sede::create(['name' => 'Sede de prueba', 'code' => 'SECONDS', 'is_active' => true]);
+        $medical = $this->medicalForShift($sede, 'TIME-WITH-SECONDS');
+
+        $this->actingAs(User::factory()->create())
+            ->withoutMiddleware()
+            ->put(route('medicals.update', $medical), $this->payload([
+                'hora_inicial' => '08:40:00',
+                'hora_final' => '12:40:00',
+            ]))
+            ->assertRedirect(route('medicals.index'))
+            ->assertSessionDoesntHaveErrors();
+
+        $medical->refresh();
+
+        $this->assertSame('08:40', $medical->hora_inicial);
+        $this->assertSame('12:40', $medical->hora_final);
+    }
+
     public function test_final_medical_time_must_be_unique_within_a_shift(): void
     {
         $sede = Sede::create(['name' => 'Sede de prueba', 'code' => 'FINAL-TIME', 'is_active' => true]);
