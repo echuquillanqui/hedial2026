@@ -90,8 +90,8 @@
                         $canViewLaboratoryResults = auth()->user()->can('laboratory.results.view');
                         $canCreateLaboratoryOrders = auth()->user()->can('laboratory.orders.create');
                         $canSeeLaboratory = $canViewCatalog || $canCreateLaboratoryOrders;
-                        $canSeeReports = $canViewLaboratoryResults;
                         $canViewAudit = auth()->user()->can('audit.view');
+                        $canSeeReports = $canViewLaboratoryResults || $canViewAudit;
                         $canViewInitialHistory = auth()->user()->can('initial_history.view');
                         $canViewConsents = auth()->user()->can('consents.view');
                         $multisectorialMenus = collect([
@@ -179,16 +179,21 @@
 
     @if($canSeeReports)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('laboratory.results.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('laboratory.results.*', 'reports.*') ? 'active fw-bold' : '' }}"
                 type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-bar-chart-line-fill me-1"></i> Reportes
         </button>
         <ul class="dropdown-menu shadow border-0" :class="{ 'show': open }" x-transition x-cloak>
-            <li>
+            @if($canViewLaboratoryResults)<li>
                 <a class="dropdown-item {{ request()->routeIs('laboratory.results.*') ? 'active' : '' }}" href="{{ route('laboratory.results.index') }}">
                     <i class="bi bi-file-earmark-medical me-2"></i> Reporte Lab
                 </a>
-            </li>
+            </li>@endif
+            @if($canViewAudit)<li>
+                <a class="dropdown-item {{ request()->routeIs('reports.attendances.*') ? 'active' : '' }}" href="{{ route('reports.attendances.index') }}">
+                    <i class="bi bi-calendar2-check me-2"></i> Atenciones
+                </a>
+            </li>@endif
         </ul>
     </li>
     @endif
