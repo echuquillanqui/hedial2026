@@ -550,6 +550,50 @@ class AuditTest extends TestCase
             ->assertDontSee('SIN MEDICO OCULTO');
     }
 
+    public function test_attendance_report_filters_periods_and_exports_fissal_data_to_excel(): void
+    {
+        [$user, $sede, $order] = $this->auditScenario();
+        $order->update(['fecha_orden' => '2026-09-23']);
+
+        $outsidePatient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'first_name' => 'FUERA DEL PERIODO',
+        ]);
+        $outsideOrder = Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $outsidePatient->id,
+            'codigo_unico' => 'ORD-REPORT-OUTSIDE',
+            'sala' => 'MODULO 1',
+            'turno' => '2',
+            'fecha_orden' => '2026-08-31',
+            'attention_type' => Fua::HEMODIALYSIS,
+        ]);
+        Nurse::create(['order_id' => $outsideOrder->id, 'enfermero_que_finaliza_id' => $user->id]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('reports.attendances.index', ['period' => 'week', 'week' => '2026-W39']));
+
+        $response->assertOk()
+            ->assertSee('Atenciones')
+            ->assertSee('23/09/2026')
+            ->assertSee('PACIENTE AUDITADO')
+            ->assertSee('Exportar a Excel')
+            ->assertDontSee('FUERA DEL PERIODO');
+
+        $export = $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('reports.attendances.export', ['period' => 'month', 'month' => '2026-09']));
+
+        $export->assertOk()
+            ->assertHeader('content-type', 'application/vnd.ms-excel; charset=UTF-8')
+            ->assertDownload('atenciones-month-2026-09-01-2026-09-30.xls');
+        $spreadsheet = $export->streamedContent();
+        $this->assertStringContainsString('Reporte de atenciones FISSAL', $spreadsheet);
+        $this->assertStringContainsString('PACIENTE AUDITADO', $spreadsheet);
+        $this->assertStringNotContainsString('FUERA DEL PERIODO', $spreadsheet);
+    }
+
     private function auditScenario(): array
     {
         $user = User::factory()->create();
