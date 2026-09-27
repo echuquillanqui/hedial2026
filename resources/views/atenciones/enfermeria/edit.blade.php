@@ -328,7 +328,7 @@
 
     actualizarHorasFormateadas();
 
-    function seleccionarHoraSugerida(button) {
+    async function seleccionarHoraSugerida(button) {
         if (button.disabled) return;
 
         const primeraHora = document.querySelector('#tableTreatments tbody .hora-input');
@@ -338,6 +338,25 @@
         actualizarHoraFormateada(primeraHora);
         document.querySelectorAll('.hora-sugerida').forEach(opcion => opcion.classList.remove('active'));
         button.classList.add('active');
+        button.disabled = true;
+
+        try {
+            const response = await fetch("{{ route('nurses.start-time.reserve', $nurse) }}", {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value },
+                body: JSON.stringify({ hora: button.dataset.hora })
+            });
+            if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || 'No se pudo reservar la hora.');
+            button.classList.remove('btn-outline-success');
+            button.classList.add('btn-success');
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Hora guardada y reservada', showConfirmButton: false, timer: 1800 });
+        } catch (error) {
+            primeraHora.value = '';
+            actualizarHoraFormateada(primeraHora);
+            button.disabled = false;
+            button.classList.remove('active');
+            Swal.fire({ icon: 'error', title: 'Hora no disponible', text: error.message });
+        }
     }
 
     // Lógica Autocalcular (avanza 1h y deja el sobrante solo al final)

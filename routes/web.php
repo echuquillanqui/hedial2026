@@ -227,6 +227,8 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
         ->name('nurses.schedules.edit');
     Route::put('enfermeria/configuracion-horarios', [NurseController::class, 'updateModuleSchedules'])
         ->name('nurses.schedules.update');
+    Route::put('enfermeria/{nurse}/reservar-hora', [NurseController::class, 'reserveStartTime'])
+        ->name('nurses.start-time.reserve');
     Route::get('/enfermeria/imprimir-bloque/verificar', [NurseController::class, 'checkBulkPrint'])->name('enfermeria.print.bulk.check');
     Route::get('/enfermeria/imprimir-bloque', [NurseController::class, 'printBulk'])->name('enfermeria.print.bulk');
     Route::get('/enfermeria/imprimir/{id}', [NurseController::class, 'printSingle'])->name('enfermeria.print.single');

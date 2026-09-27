@@ -75,7 +75,8 @@
                         $canManagePatients = auth()->user()->can('patients.view');
                         $canManageSedes = auth()->user()->can('users.view');
                         $canManageFuaConfiguration = auth()->user()->can('fua.configuration.manage');
-                        $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSedes || $canManageFuaConfiguration;
+                        $canManageNurseSchedules = auth()->user()->can('nurses.edit');
+                        $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSedes || $canManageFuaConfiguration || $canManageNurseSchedules;
 
                         $canViewReferrals = auth()->user()->can('referrals.view');
 
@@ -145,6 +146,13 @@
             <li>
                 <a class="dropdown-item {{ request()->routeIs('fuas.configuration.*') ? 'active' : '' }}" href="{{ route('fuas.configuration.edit') }}">
                     <i class="bi bi-file-earmark-medical me-2"></i> Configuración FUA
+                </a>
+            </li>
+            @endif
+            @if($canManageNurseSchedules)
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('nurses.schedules.*') ? 'active' : '' }}" href="{{ route('nurses.schedules.edit') }}">
+                    <i class="bi bi-clock-history me-2"></i> Horarios por módulo
                 </a>
             </li>
             @endif

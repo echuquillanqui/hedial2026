@@ -22,7 +22,7 @@ class NurseModuleScheduleTest extends TestCase
     {
         [$user, $sede] = $this->userAndSede();
         $payload = collect(Patient::MODULES)->mapWithKeys(fn ($module) => [
-            $module => ['06:55', '07:00', '07:05', '07:10', '07:15'],
+            $module => collect(range(1, 4))->mapWithKeys(fn ($shift) => [$shift => ['06:55', '07:00', '07:05', '07:10', '07:15']])->all(),
         ])->all();
 
         $this->actingAs($user)
@@ -31,10 +31,10 @@ class NurseModuleScheduleTest extends TestCase
             ->assertRedirect(route('nurses.schedules.edit'))
             ->assertSessionHas('success');
 
-        $this->assertDatabaseCount('nurse_module_schedules', count(Patient::MODULES));
+        $this->assertDatabaseCount('nurse_module_schedules', count(Patient::MODULES) * 4);
         $this->assertSame(
-            $payload['1'],
-            NurseModuleSchedule::where('sede_id', $sede->id)->where('module', '1')->firstOrFail()->start_times
+            $payload['1'][1],
+            NurseModuleSchedule::where('sede_id', $sede->id)->where('module', '1')->where('shift', 1)->firstOrFail()->start_times
         );
     }
 
@@ -42,16 +42,16 @@ class NurseModuleScheduleTest extends TestCase
     {
         [$user, $sede] = $this->userAndSede();
         $payload = collect(Patient::MODULES)->mapWithKeys(fn ($module) => [
-            $module => ['07:00', '07:05', '07:10', '07:15', '07:20'],
+            $module => collect(range(1, 4))->mapWithKeys(fn ($shift) => [$shift => ['07:00', '07:05', '07:10', '07:15', '07:20']])->all(),
         ])->all();
-        $payload['2'] = ['07:00', '07:00', 'not-a-time'];
+        $payload['2'][3] = ['07:00', '07:00', 'not-a-time'];
 
         $this->actingAs($user)
             ->withSession(['current_sede_id' => $sede->id])
             ->from(route('nurses.schedules.edit'))
             ->put(route('nurses.schedules.update'), ['schedules' => $payload])
             ->assertRedirect(route('nurses.schedules.edit'))
-            ->assertSessionHasErrors(['schedules.2', 'schedules.2.2']);
+            ->assertSessionHasErrors(['schedules.2.3', 'schedules.2.3.2']);
 
         $this->assertDatabaseCount('nurse_module_schedules', 0);
     }
@@ -62,6 +62,7 @@ class NurseModuleScheduleTest extends TestCase
         NurseModuleSchedule::create([
             'sede_id' => $sede->id,
             'module' => '2',
+            'shift' => 1,
             'start_times' => ['13:55', '14:00', '14:05', '14:10', '14:15'],
         ]);
         $nurse = $this->nurseForModule($sede, '2');
@@ -82,6 +83,7 @@ class NurseModuleScheduleTest extends TestCase
         NurseModuleSchedule::create([
             'sede_id' => $sede->id,
             'module' => '2',
+            'shift' => 1,
             'start_times' => ['08:00', '08:05', '08:10', '08:15', '08:20'],
         ]);
         $nurse = $this->nurseForModule($sede, '2');
@@ -95,6 +97,26 @@ class NurseModuleScheduleTest extends TestCase
         $response->assertOk()
             ->assertSee('data-hora="08:00"', false)
             ->assertDontSee('data-hora="08:00" disabled', false);
+    }
+
+    public function test_selecting_a_time_saves_it_immediately_and_blocks_it_for_the_same_module_and_shift(): void
+    {
+        [$user, $sede] = $this->userAndSede();
+        NurseModuleSchedule::create([
+            'sede_id' => $sede->id, 'module' => '2', 'shift' => 1,
+            'start_times' => ['08:00', '08:05', '08:10', '08:15', '08:20'],
+        ]);
+        $nurse = $this->nurseForModule($sede, '2');
+        $otherNurse = $this->nurseForModule($sede, '2');
+
+        $this->actingAs($user)->withSession(['current_sede_id' => $sede->id])
+            ->putJson(route('nurses.start-time.reserve', $nurse), ['hora' => '08:00'])
+            ->assertOk()->assertJsonPath('hora', '08:00');
+
+        $this->assertDatabaseHas('treatments', ['order_id' => $nurse->order_id, 'hora' => '08:00']);
+        $this->actingAs($user)->withSession(['current_sede_id' => $sede->id])
+            ->putJson(route('nurses.start-time.reserve', $otherNurse), ['hora' => '08:00'])
+            ->assertConflict();
     }
 
     private function userAndSede(): array
