@@ -12,6 +12,7 @@ use App\Support\ClinicalService;
 use App\Support\CurrentSede;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class NursingAnnexController extends Controller
@@ -28,7 +29,8 @@ class NursingAnnexController extends Controller
         $date = $request->date('date')?->format('Y-m-d') ?? today()->format('Y-m-d');
         $frequency = $this->frequency($request->input('frequency', $this->frequencyForDate($date)));
         $module = in_array((string) $request->input('module', '1'), Patient::MODULES, true) ? (string) $request->input('module', '1') : '1';
-        $orders = $this->orders($date);
+        $discardFilters = $this->discardFilters($request);
+        $orders = $this->orders($date, $discardFilters);
         $annexOrders = $this->annexOrders($orders, $frequency, $module);
         $automaticValues = $service->calculate($annexOrders);
         $annex = DailyNursingAnnex::where(['sede_id' => CurrentSede::id(), 'work_date' => $date, 'frequency' => $frequency, 'module' => $module])->first();
@@ -37,7 +39,7 @@ class NursingAnnexController extends Controller
             ->when($request->filled('history_date'), fn ($q) => $q->whereDate('work_date', $request->input('history_date')))
             ->when($request->filled('history_frequency'), fn ($q) => $q->where('frequency', $this->frequency($request->input('history_frequency'))))
             ->latest('work_date')->latest('id')->paginate(12)->withQueryString();
-        return view('nursing-annexes.index', compact('orders', 'annexOrders', 'date', 'frequency', 'module', 'automaticValues', 'values', 'annex', 'history'));
+        return view('nursing-annexes.index', compact('orders', 'annexOrders', 'date', 'frequency', 'module', 'automaticValues', 'values', 'annex', 'history', 'discardFilters'));
     }
 
     public function storeCare(Request $request, DailyNursingAnnexService $service)
@@ -84,8 +86,11 @@ class NursingAnnexController extends Controller
     {
         abort_unless(in_array($category, [DisposableDiscard::DIALYZER, DisposableDiscard::BLOOD_LINES], true), 404);
         $date = $request->date('date')?->format('Y-m-d') ?? today()->format('Y-m-d');
-        $orders = $this->orders($date);
-        return Pdf::loadView('nursing-annexes.discard-pdf', $branding->data() + compact('orders', 'date', 'category'))
+        $filters = $this->discardFilters($request);
+        $month = $request->date('month', 'Y-m')?->startOfMonth() ?? \Carbon\Carbon::parse($date)->startOfMonth();
+        $orders = $this->monthlyOrders($month, $filters);
+        [$codes, $rows] = $this->discardReport($orders, $category);
+        return Pdf::loadView('nursing-annexes.discard-pdf', $branding->data() + compact('orders', 'date', 'month', 'category', 'filters', 'codes', 'rows'))
             ->setPaper('a4', 'landscape')->stream('control-descarte-'.$date.'.pdf');
     }
 
@@ -110,12 +115,55 @@ class NursingAnnexController extends Controller
             ->setPaper('a4')->stream('anexo-12-'.$annex->code.'.pdf');
     }
 
-    private function orders(string $date)
+    private function orders(string $date, array $filters = [])
     {
         return Order::query()->with(['patient', 'medical', 'nurse.enfermeroInicia', 'nurse.enfermeroFinaliza', 'treatments',
             'hemodialysisMaterialConsumptions.material', 'disposableDiscards.recorder'])
             ->where('sede_id', CurrentSede::id())->where('attention_type', ClinicalService::HEMODIALYSIS)
-            ->whereDate('fecha_orden', $date)->orderBy('turno')->orderBy('sala')->get();
+            ->finalizedHemodialysis()
+            ->whereDate('fecha_orden', $date)
+            ->when($filters['shift'] ?? null, fn ($query, $shift) => $query->where('turno', $shift))
+            ->when($filters['module'] ?? null, fn ($query, $module) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $module)))
+            ->when($filters['sequence'] ?? null, fn ($query, $sequence) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $sequence)))
+            ->orderBy('turno')->orderBy('sala')->get();
+    }
+
+    private function monthlyOrders(\Carbon\Carbon $month, array $filters): Collection
+    {
+        return Order::query()->with(['patient', 'nurse', 'hemodialysisMaterialConsumptions.material', 'disposableDiscards.recorder'])
+            ->where('sede_id', CurrentSede::id())->where('attention_type', ClinicalService::HEMODIALYSIS)
+            ->finalizedHemodialysis()->whereBetween('fecha_orden', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
+            ->when($filters['shift'], fn ($query, $shift) => $query->where('turno', $shift))
+            ->when($filters['module'], fn ($query, $module) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $module)))
+            ->when($filters['sequence'], fn ($query, $sequence) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $sequence)))
+            ->orderBy('turno')->orderBy('fecha_orden')->get();
+    }
+
+    private function discardFilters(Request $request): array
+    {
+        return [
+            'shift' => in_array((string) $request->input('discard_shift'), ['1', '2', '3', '4'], true) ? (string) $request->input('discard_shift') : null,
+            'module' => in_array((string) $request->input('discard_module'), Patient::MODULES, true) ? (string) $request->input('discard_module') : null,
+            'sequence' => in_array((string) $request->input('discard_sequence'), ['L-M-V', 'M-J-S'], true) ? (string) $request->input('discard_sequence') : null,
+        ];
+    }
+
+    private function discardReport(Collection $orders, string $category): array
+    {
+        $dialyzer = $category === DisposableDiscard::DIALYZER;
+        $product = fn ($order) => $dialyzer
+            ? trim((string) $order->nurse?->filtro)
+            : trim((string) optional($order->hemodialysisMaterialConsumptions->first(
+                fn ($consumption) => str_contains(mb_strtolower($consumption->material?->name ?? ''), 'línea')
+            ))->material?->name);
+        $products = $orders->map($product)->filter()->unique()->values();
+        $codes = $products->mapWithKeys(fn ($name, $index) => [$name => $index + 1]);
+        $rows = $orders->groupBy('patient_id')->map(function ($patientOrders) use ($product, $codes) {
+            $days = $patientOrders->mapWithKeys(fn ($order) => [\Carbon\Carbon::parse($order->fecha_orden)->day => $codes[$product($order)] ?? null]);
+            return ['patient' => $patientOrders->first()->patient, 'sequence' => $patientOrders->first()->patient->secuencia, 'days' => $days,
+                'totals' => $days->filter()->countBy()];
+        })->values();
+        return [$codes, $rows];
     }
 
     private function annexOrders($orders, string $frequency, string $module)
@@ -137,5 +185,6 @@ class NursingAnnexController extends Controller
     private function authorizeOrder(Order $order): void
     {
         abort_unless((int) $order->sede_id === (int) CurrentSede::id() && $order->attention_type === ClinicalService::HEMODIALYSIS, 403);
+        abort_unless($order->nurse()->whereNotNull('enfermero_que_finaliza_id')->exists(), 422, 'La hemodiálisis debe estar finalizada antes de registrar consumos o descartes.');
     }
 }
