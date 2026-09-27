@@ -191,7 +191,12 @@
             </li>@endif
             @if($canViewAudit)<li>
                 <a class="dropdown-item {{ request()->routeIs('reports.attendances.*') ? 'active' : '' }}" href="{{ route('reports.attendances.index') }}">
-                    <i class="bi bi-calendar2-check me-2"></i> Control de atenciones
+                    <i class="bi bi-calendar2-check me-2"></i> Atenciones
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('reports.monthly-attendances.*') ? 'active' : '' }}" href="{{ route('reports.monthly-attendances.index') }}">
+                    <i class="bi bi-calendar3 me-2"></i> Control de atenciones
                 </a>
             </li>@endif
         </ul>

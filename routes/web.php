@@ -30,6 +30,7 @@ use App\Http\Controllers\NursingAnnexController;
 use App\Http\Controllers\RemainingAnnexController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AttendanceReportController;
+use App\Http\Controllers\MonthlyAttendanceReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,6 +52,8 @@ Auth::routes();
 Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('reportes/atenciones/exportar', [AttendanceReportController::class, 'export'])->name('reports.attendances.export');
     Route::get('reportes/atenciones', [AttendanceReportController::class, 'index'])->name('reports.attendances.index');
+    Route::get('reportes/control-atenciones/exportar', [MonthlyAttendanceReportController::class, 'export'])->name('reports.monthly-attendances.export');
+    Route::get('reportes/control-atenciones', [MonthlyAttendanceReportController::class, 'index'])->name('reports.monthly-attendances.index');
     Route::get('auditoria/historias', [AuditController::class, 'histories'])->name('audit.histories');
     Route::get('auditoria/fissal', [AuditController::class, 'fissal'])->name('audit.fissal');
     Route::get('auditoria/consultas', [AuditController::class, 'consultations'])->name('audit.consultations');
