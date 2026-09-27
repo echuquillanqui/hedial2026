@@ -56,6 +56,27 @@ class NurseModuleScheduleTest extends TestCase
         $this->assertDatabaseCount('nurse_module_schedules', 0);
     }
 
+    public function test_user_can_configure_one_module_without_completing_the_others(): void
+    {
+        [$user, $sede] = $this->userAndSede();
+        $times = collect(range(1, 4))->mapWithKeys(fn ($shift) => [
+            $shift => ['05:01', '05:06', '05:11', '05:16', '05:21'],
+        ])->all();
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->put(route('nurses.schedules.update'), ['schedules' => ['1' => $times]])
+            ->assertRedirect(route('nurses.schedules.edit'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseCount('nurse_module_schedules', 4);
+        $this->assertDatabaseMissing('nurse_module_schedules', [
+            'sede_id' => $sede->id,
+            'module' => '2',
+        ]);
+    }
+
     public function test_nursing_form_uses_fixed_times_for_the_patients_module(): void
     {
         [$user, $sede] = $this->userAndSede();
