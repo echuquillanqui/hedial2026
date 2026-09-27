@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
 use App\Models\WarehouseRequest;
+use App\Models\WarehouseStockEntry;
+use App\Models\WarehouseSupplier;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -108,6 +110,38 @@ class WarehouseRequestFlowTest extends TestCase
 
         $this->assertSame(1, Warehouse::query()->where('is_principal', true)->count());
         $this->assertTrue((bool) $south->warehouse->fresh()->is_principal);
+    }
+
+    public function test_stock_entry_records_and_validates_the_lot_validity_period(): void
+    {
+        [, , $principal] = $this->structure();
+        $material = WarehouseMaterial::create(['code' => 'MAT-VAL', 'name' => 'Dializador', 'unit' => 'unidad']);
+        $supplier = WarehouseSupplier::create(['business_name' => 'Proveedor de prueba', 'tax_id' => '20123456789']);
+        $user = User::factory()->create();
+        $user->givePermissionTo('warehouse.requests.create');
+        $user->sedes()->attach($principal->sede_id);
+
+        $payload = [
+            'warehouse_material_id' => $material->id,
+            'warehouse_supplier_id' => $supplier->id,
+            'quantity' => 10,
+            'batch_number' => 'LOTE-2026-01',
+            'valid_from' => '2026-10-01',
+            'expiration_date' => '2026-09-30',
+        ];
+
+        $this->actingAs($user)->withSession(['current_sede_id' => $principal->sede_id])
+            ->post(route('warehouse.entries.store'), $payload)
+            ->assertSessionHasErrors('expiration_date');
+
+        $payload['expiration_date'] = '2027-09-30';
+        $this->actingAs($user)->withSession(['current_sede_id' => $principal->sede_id])
+            ->post(route('warehouse.entries.store'), $payload)
+            ->assertRedirect();
+
+        $entry = WarehouseStockEntry::query()->where('batch_number', 'LOTE-2026-01')->firstOrFail();
+        $this->assertSame('2026-10-01', $entry->valid_from->toDateString());
+        $this->assertSame('2027-09-30', $entry->expiration_date->toDateString());
     }
 
     private function structure(): array
