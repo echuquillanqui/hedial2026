@@ -20,6 +20,7 @@
     .was-validated .form-control:invalid, .was-validated .form-select:invalid { border-color: var(--medical-red) !important; background-color: #fff8f8; }
     .final-weight-match { background-color: #d1e7dd !important; border-color: #75b798 !important; color: #0a3622; }
     .final-weight-warning { background-color: #ffe5d0 !important; border-color: #fd9843 !important; color: #652b19; }
+    .hora-sugerida { min-width: 72px; }
 </style>
 
 <div class="container-fluid py-3">
@@ -94,7 +95,20 @@
 
             <div class="tab-pane fade" id="t2">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div><h6 class="fw-bold mb-0 text-primary">Seguimiento Horario (formato 24 horas)</h6><small class="text-muted">Horas programadas: {{ $order->medical->hora_hd }} hrs. Después de las 11:59, una hora como 3:00 se convierte automáticamente en 15:00. Si el tratamiento cruza medianoche, las horas continúan en el día siguiente.</small></div>
+                    <div><h6 class="fw-bold mb-0 text-primary">Seguimiento Horario (formato 24 horas)</h6></div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap" aria-label="Horas de inicio disponibles">
+                        @foreach($horasSugeridas as $horaSugerida)
+                            @php $horaOcupada = $horasOcupadas->contains($horaSugerida); @endphp
+                            <button type="button"
+                                    class="btn btn-sm rounded-pill hora-sugerida {{ $horaOcupada ? 'btn-outline-secondary' : 'btn-outline-success' }}"
+                                    data-hora="{{ $horaSugerida }}"
+                                    onclick="seleccionarHoraSugerida(this)"
+                                    @disabled($horaOcupada)
+                                    title="{{ $horaOcupada ? 'Hora ya utilizada por otro paciente' : 'Seleccionar como hora de inicio' }}">
+                                <i class="bi {{ $horaOcupada ? 'bi-lock-fill' : 'bi-clock' }} me-1"></i>{{ Carbon\Carbon::createFromFormat('H:i', $horaSugerida)->format('g:i A') }}
+                            </button>
+                        @endforeach
+                    </div>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="autoCalcularHoras()"><i class="bi bi-magic me-1"></i> Autocalcular</button>
                         <button type="button" class="btn btn-dark btn-sm rounded-pill px-3" onclick="addRow()"><i class="bi bi-plus-lg me-1"></i> Fila Manual</button>
@@ -308,6 +322,18 @@
     }
 
     actualizarHorasFormateadas();
+
+    function seleccionarHoraSugerida(button) {
+        if (button.disabled) return;
+
+        const primeraHora = document.querySelector('#tableTreatments tbody .hora-input');
+        if (!primeraHora) return;
+
+        primeraHora.value = button.dataset.hora;
+        actualizarHoraFormateada(primeraHora);
+        document.querySelectorAll('.hora-sugerida').forEach(opcion => opcion.classList.remove('active'));
+        button.classList.add('active');
+    }
 
     // Lógica Autocalcular (avanza 1h y deja el sobrante solo al final)
     function autoCalcularHoras() {

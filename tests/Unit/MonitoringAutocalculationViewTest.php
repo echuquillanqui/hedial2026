@@ -65,4 +65,15 @@ class MonitoringAutocalculationViewTest extends TestCase
         $this->assertStringContainsString('if (avancePm <= avanceAm)', $view);
         $this->assertStringContainsString('data-start-time=', $view);
     }
+
+    public function test_five_available_start_times_replace_the_old_explanatory_text(): void
+    {
+        $view = file_get_contents(resource_path('views/atenciones/enfermeria/edit.blade.php'));
+
+        $this->assertStringNotContainsString('Horas programadas:', $view);
+        $this->assertStringContainsString('@foreach($horasSugeridas as $horaSugerida)', $view);
+        $this->assertStringContainsString('@disabled($horaOcupada)', $view);
+        $this->assertStringContainsString('function seleccionarHoraSugerida(button)', $view);
+        $this->assertStringContainsString('primeraHora.value = button.dataset.hora;', $view);
+    }
 }
