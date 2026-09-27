@@ -32,4 +32,15 @@ class MonitoringAutocalculationViewTest extends TestCase
         $this->assertStringContainsString('pesoInicial - (ufMililitros / 1000)', $view);
         $this->assertStringContainsString('-Math.abs(Number.parseInt(input.value, 10))', $view);
     }
+
+    public function test_closure_values_are_derived_and_final_weight_is_visually_compared_with_dry_weight(): void
+    {
+        $view = file_get_contents(resource_path('views/atenciones/enfermeria/edit.blade.php'));
+
+        $this->assertStringContainsString('function sincronizarPaFinal()', $view);
+        $this->assertStringContainsString("filter(isFilled).pop()", $view);
+        $this->assertStringContainsString('function actualizarEstadoPesoFinal()', $view);
+        $this->assertStringContainsString("'final-weight-match'", $view);
+        $this->assertStringContainsString("'final-weight-warning'", $view);
+    }
 }

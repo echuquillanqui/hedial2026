@@ -18,6 +18,8 @@
     .table-monitoreo thead th { background-color: #343a40; color: white; font-size: 0.7rem; text-transform: uppercase; text-align: center; padding: 10px; }
     .table-monitoreo input { border: none !important; width: 100%; text-align: center; background: transparent; font-size: 0.85rem; }
     .was-validated .form-control:invalid, .was-validated .form-select:invalid { border-color: var(--medical-red) !important; background-color: #fff8f8; }
+    .final-weight-match { background-color: #d1e7dd !important; border-color: #75b798 !important; color: #0a3622; }
+    .final-weight-warning { background-color: #ffe5d0 !important; border-color: #fd9843 !important; color: #652b19; }
 </style>
 
 <div class="container-fluid py-3">
@@ -76,7 +78,7 @@
                             @foreach(['CVCLP','FAV','INJ','CVCL','CVCT'] as $opt)<option value="{{ $opt }}" {{ ($nurse->acceso_arterial ?? $order->patient->acceso_arterial) == $opt ? 'selected' : '' }}>{{ $opt }}</option>@endforeach
                         </select>
                     </div>
-                    <div class="col-md-2"><label>Peso Seco (kg)</label><input type="number" step="0.01" name="peso_seco" class="form-control form-control-sm" value="{{ old('peso_seco', $order->patient->peso_seco ?? $order->medical->peso_seco) }}"></div>
+                    <div class="col-md-2"><label>Peso Seco (kg)</label><input type="number" step="0.01" name="peso_seco" id="pesoSecoInput" class="form-control form-control-sm" value="{{ old('peso_seco', $order->patient->peso_seco ?? $order->medical->peso_seco) }}"></div>
                     <div class="col-md-2"><label>PA Inicial</label><input type="text" name="pa_inicial" id="paInicialInput" class="form-control form-control-sm" value="{{ $nurse->pa_inicial ?? $order->medical->pa_inicial }}"></div>
                     <div class="col-md-2"><label>Peso Inicial (kg)</label><input type="number" step="0.01" name="peso_inicial" id="pesoInicialInput" class="form-control form-control-sm" value="{{ $nurse->peso_inicial ?? $order->medical->peso_inicial }}"></div>
                     <div class="col-md-2"><label>UF Prog (ml)</label><input type="number" step="1" min="0" name="uf" id="ufInput" class="form-control form-control-sm" value="{{ $nurse->uf ?? $order->medical->uf }}"></div>
@@ -151,7 +153,7 @@
                 </div>
 
                 <div class="row g-3 border-top pt-3 bg-light rounded">
-                    <div class="col-md-2"><label data-label="PA Final">PA Final</label><input type="text" name="pa_final" class="form-control form-control-sm closure-field" value="{{ $nurse->pa_final }}"></div>
+                    <div class="col-md-2"><label data-label="PA Final">PA Final</label><input type="text" name="pa_final" id="paFinalInput" class="form-control form-control-sm closure-field bg-light" value="{{ $nurse->pa_final }}" readonly></div>
                     <div class="col-md-2"><label data-label="Peso Final">Peso Final</label><input type="number" step="0.01" name="peso_final" id="pesoFinalInput" class="form-control form-control-sm closure-field bg-light" value="{{ $nurse->peso_final }}" readonly></div>
                     <div class="col-md-5"><label data-label="Obs. Final">Observación Final</label><input type="text" name="observacion_final" class="form-control form-control-sm closure-field" value="{{ $nurse->observacion_final }}"></div>
                     <div class="col-md-3">
@@ -198,11 +200,14 @@
     const paInicialInput = document.getElementById('paInicialInput');
     const pesoInicialInput = document.getElementById('pesoInicialInput');
     const ufInput = document.getElementById('ufInput');
+    const pesoSecoInput = document.getElementById('pesoSecoInput');
+    const paFinalInput = document.getElementById('paFinalInput');
     const pesoFinalInput = document.getElementById('pesoFinalInput');
 
     function sincronizarPaInicial() {
         const primeraPa = document.querySelector('#tableTreatments tbody tr:first-child input[name="t_pa[]"]');
         if (primeraPa) primeraPa.value = paInicialInput.value;
+        sincronizarPaFinal();
     }
 
     function calcularPesoFinal() {
@@ -212,6 +217,23 @@
         pesoFinalInput.value = Number.isFinite(pesoInicial) && Number.isFinite(ufMililitros)
             ? (pesoInicial - (ufMililitros / 1000)).toFixed(2)
             : '';
+
+        actualizarEstadoPesoFinal();
+    }
+
+    function actualizarEstadoPesoFinal() {
+        const pesoFinal = Number.parseFloat(pesoFinalInput.value);
+        const pesoSeco = Number.parseFloat(pesoSecoInput.value);
+        const tieneComparacion = Number.isFinite(pesoFinal) && Number.isFinite(pesoSeco);
+
+        pesoFinalInput.classList.toggle('final-weight-match', tieneComparacion && Math.abs(pesoFinal - pesoSeco) < 0.005);
+        pesoFinalInput.classList.toggle('final-weight-warning', tieneComparacion && Math.abs(pesoFinal - pesoSeco) >= 0.005);
+    }
+
+    function sincronizarPaFinal() {
+        const registrosPa = Array.from(document.querySelectorAll('#tableTreatments tbody input[name="t_pa[]"]'));
+        const ultimaPa = registrosPa.map(input => input.value.trim()).filter(isFilled).pop();
+        paFinalInput.value = ultimaPa || '';
     }
 
     function normalizarRa(input) {
@@ -223,8 +245,13 @@
     paInicialInput.addEventListener('input', sincronizarPaInicial);
     pesoInicialInput.addEventListener('input', calcularPesoFinal);
     ufInput.addEventListener('input', calcularPesoFinal);
+    pesoSecoInput.addEventListener('input', actualizarEstadoPesoFinal);
+    document.getElementById('tableTreatments').addEventListener('input', event => {
+        if (event.target.matches('input[name="t_pa[]"]')) sincronizarPaFinal();
+    });
     document.getElementById('tableTreatments').addEventListener('change', event => normalizarRa(event.target));
     calcularPesoFinal();
+    sincronizarPaFinal();
 
     // Lógica Autocalcular (avanza 1h y deja el sobrante solo al final)
     function autoCalcularHoras() {
@@ -292,6 +319,7 @@
     function addRow() {
         insertarFila('');
         sincronizarPaInicial();
+        sincronizarPaFinal();
     }
 
     function confirmDeleteRow(btn) {
@@ -303,7 +331,12 @@
             confirmButtonColor: '#dc3545',
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar'
-        }).then((result) => { if (result.isConfirmed) btn.closest('tr').remove(); });
+        }).then((result) => {
+            if (result.isConfirmed) {
+                btn.closest('tr').remove();
+                sincronizarPaFinal();
+            }
+        });
     }
 
     function isFilled(value) {
