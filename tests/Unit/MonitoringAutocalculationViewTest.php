@@ -43,4 +43,15 @@ class MonitoringAutocalculationViewTest extends TestCase
         $this->assertStringContainsString("'final-weight-match'", $view);
         $this->assertStringContainsString("'final-weight-warning'", $view);
     }
+
+    public function test_monitoring_times_show_the_correct_twelve_hour_period_across_noon(): void
+    {
+        $view = file_get_contents(resource_path('views/atenciones/enfermeria/edit.blade.php'));
+        $row = file_get_contents(resource_path('views/atenciones/enfermeria/partials/row.blade.php'));
+
+        $this->assertStringContainsString("const periodo = hora24 >= 12 ? 'PM' : 'AM';", $view);
+        $this->assertStringContainsString('const hora12 = hora24 % 12 || 12;', $view);
+        $this->assertStringContainsString('actualizarHoraFormateada(fila.querySelector', $view);
+        $this->assertStringContainsString('hora-formateada', $row);
+    }
 }

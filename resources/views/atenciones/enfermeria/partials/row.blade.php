@@ -2,6 +2,7 @@
     <td>
         <input type="time" name="t_hora[]" class="hora-input"
                value="{{ isset($t) ? substr($t->hora, 0, 5) : '' }}">
+        <small class="hora-formateada d-block text-muted mt-1" aria-live="polite"></small>
     </td>
     <td style="width: 85px;">
         <input type="text" name="t_pa[]" value="{{ ($isFirst ?? false) ? ($nurse->pa_inicial ?? $order->medical->pa_inicial ?? $t->pa ?? '') : ($t->pa ?? '') }}" placeholder="120/80">

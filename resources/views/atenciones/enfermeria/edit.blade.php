@@ -104,7 +104,7 @@
                     <table class="table table-bordered table-monitoreo" id="tableTreatments">
                         <thead>
                             <tr>
-                                <th style="width: 100px;">Hora</th><th style="width: 85px;">PA</th><th style="width: 65px;">FC</th><th style="width: 65px;">QB</th><th style="width: 65px;">CND</th>
+                                <th style="width: 120px;">Hora (AM/PM)</th><th style="width: 85px;">PA</th><th style="width: 65px;">FC</th><th style="width: 65px;">QB</th><th style="width: 65px;">CND</th>
                                 <th style="width: 65px;">RA</th><th style="width: 65px;">RV</th><th style="width: 65px;">PTM</th><th>Observaciones</th><th style="width: 45px;"></th>
                             </tr>
                         </thead>
@@ -243,10 +243,33 @@
     pesoSecoInput.addEventListener('input', actualizarEstadoPesoFinal);
     document.getElementById('tableTreatments').addEventListener('input', event => {
         if (event.target.matches('input[name="t_pa[]"]')) sincronizarPaFinal();
+        if (event.target.matches('.hora-input')) actualizarHoraFormateada(event.target);
     });
     document.getElementById('tableTreatments').addEventListener('change', event => normalizarRa(event.target));
     calcularPesoFinal();
     sincronizarPaFinal();
+
+    function formatearHora12(hora) {
+        if (!/^\d{2}:\d{2}$/.test(hora)) return '';
+
+        const [hora24, minutos] = hora.split(':').map(Number);
+        if (hora24 > 23 || minutos > 59) return '';
+
+        const periodo = hora24 >= 12 ? 'PM' : 'AM';
+        const hora12 = hora24 % 12 || 12;
+        return `${hora12}:${String(minutos).padStart(2, '0')} ${periodo}`;
+    }
+
+    function actualizarHoraFormateada(input) {
+        const indicador = input.closest('td')?.querySelector('.hora-formateada');
+        if (indicador) indicador.textContent = formatearHora12(input.value);
+    }
+
+    function actualizarHorasFormateadas() {
+        document.querySelectorAll('#tableTreatments .hora-input').forEach(actualizarHoraFormateada);
+    }
+
+    actualizarHorasFormateadas();
 
     // Lógica Autocalcular (avanza 1h y deja el sobrante solo al final)
     function autoCalcularHoras() {
@@ -292,7 +315,7 @@
             }
 
             fila.querySelector('.hora-input').value = hora;
-            fila.querySelector('.hora-input').dataset.nextDay = minutosAcumulados > 0 && (hBase * 60 + mBase + Math.min(index * 60, minutosTotales)) >= 1440 ? '1' : '0';
+            actualizarHoraFormateada(fila.querySelector('.hora-input'));
         });
 
         const cruzaMedianoche = hBase * 60 + mBase + minutosTotales >= 1440;
@@ -303,7 +326,7 @@
 
     function insertarFila(hora) {
         const row = `<tr>
-            <td><input type="time" name="t_hora[]" class="hora-input" value="${hora}"></td>
+            <td><input type="time" name="t_hora[]" class="hora-input" value="${hora}"><small class="hora-formateada d-block text-muted mt-1" aria-live="polite">${formatearHora12(hora)}</small></td>
             <td style="width: 85px;"><input type="text" name="t_pa[]" placeholder="---/---"></td>
             <td style="width: 65px;"><input type="number" name="t_fc[]"></td>
             <td style="width: 65px;"><input type="text" name="t_qb[]"></td>
