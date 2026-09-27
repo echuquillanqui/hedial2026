@@ -92,6 +92,25 @@ class NursingAnnexesTest extends TestCase
         ]))->assertOk()->assertSee('HD-001')->assertDontSee('HD-PENDING')->assertSee('1 finalizadas');
     }
 
+    public function test_annex_11_pdf_and_excel_apply_the_selected_month_and_sequence(): void
+    {
+        $this->order->patient->update(['secuencia' => 'M-J-S']);
+        $otherPatient = Patient::factory()->create(['sede_id' => $this->sede->id, 'modulo' => '1', 'secuencia' => 'L-M-V']);
+        $otherOrder = Order::create(['sede_id' => $this->sede->id, 'patient_id' => $otherPatient->id, 'codigo_unico' => 'HD-LMV', 'attention_type' => ClinicalService::HEMODIALYSIS, 'fecha_orden' => '2026-08-26', 'turno' => '1', 'sala' => '1']);
+        Nurse::create(['order_id' => $otherOrder->id, 'puesto' => '1', 'filtro' => 'LMV-FILTER', 'enfermero_que_inicia_id' => $this->nurse->id, 'enfermero_que_finaliza_id' => $this->nurse->id]);
+
+        $params = ['category' => DisposableDiscard::DIALYZER, 'month' => '2026-08', 'discard_sequence' => 'M-J-S'];
+        $pdf = $this->actingAs($this->nurse)->withSession($this->session())->get(route('nursing-annexes.discards.pdf', $params));
+        $pdf->assertOk()->assertHeader('content-type', 'application/pdf');
+
+        $xlsx = $this->get(route('nursing-annexes.discards.xlsx', $params));
+        $xlsx->assertOk()->assertDownload('anexo-11-A-2026-08.xlsx');
+        $content = $xlsx->streamedContent();
+        $this->assertStringContainsString($this->order->patient->full_name, $content);
+        $this->assertStringNotContainsString($otherPatient->full_name, $content);
+        $this->assertStringContainsString('Secuencia M-J-S', $content);
+    }
+
     public function test_an_unfinished_session_cannot_receive_a_discard(): void
     {
         $this->order->nurse->update(['enfermero_que_finaliza_id' => null]);
@@ -125,6 +144,10 @@ class NursingAnnexesTest extends TestCase
             ->assertSee('nav-link active text-nowrap" id="history-tab', false)
             ->assertSee($annex->code);
         $this->get(route('nursing-annexes.care.generated-pdf', $annex))->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->get(route('nursing-annexes.care.generated-xlsx', $annex))
+            ->assertOk()
+            ->assertDownload('anexo-12-'.$annex->code.'.xlsx')
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 
     private function session(): array { return ['current_sede_id'=>$this->sede->id,'current_sede_name'=>$this->sede->name]; }

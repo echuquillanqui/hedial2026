@@ -7,6 +7,7 @@ use App\Models\DailyNursingAnnex;
 use App\Models\Order;
 use App\Models\Patient;
 use App\Services\DailyNursingAnnexService;
+use App\Services\NursingAnnexXlsxExporter;
 use App\Services\PdfBrandingService;
 use App\Support\ClinicalService;
 use App\Support\CurrentSede;
@@ -21,7 +22,7 @@ class NursingAnnexController extends Controller
     {
         $this->middleware('permission:annexes.nursing.view')->only('index');
         $this->middleware('permission:annexes.nursing.record')->only(['storeDiscard', 'storeCare']);
-        $this->middleware('permission:annexes.nursing.print')->only(['discardPdf', 'carePdf', 'generatedCarePdf']);
+        $this->middleware('permission:annexes.nursing.print')->only(['discardPdf', 'discardXlsx', 'carePdf', 'generatedCarePdf', 'generatedCareXlsx']);
     }
 
     public function index(Request $request, DailyNursingAnnexService $service)
@@ -95,6 +96,24 @@ class NursingAnnexController extends Controller
             ->setPaper('a4', 'landscape')->stream('control-descarte-'.$date.'.pdf');
     }
 
+    public function discardXlsx(Request $request, string $category, NursingAnnexXlsxExporter $exporter)
+    {
+        abort_unless(in_array($category, [DisposableDiscard::DIALYZER, DisposableDiscard::BLOOD_LINES], true), 404);
+        $date = $request->date('date')?->format('Y-m-d') ?? today()->format('Y-m-d');
+        $filters = $this->discardFilters($request);
+        $month = $request->date('month', 'Y-m')?->startOfMonth() ?? \Carbon\Carbon::parse($date)->startOfMonth();
+        [$codes, $rows, $codeCounts] = $this->discardReport($this->monthlyOrders($month, $filters), $category);
+        $annex = $category === DisposableDiscard::DIALYZER ? '11-A' : '11-B';
+        $title = $category === DisposableDiscard::DIALYZER
+            ? 'ANEXO 11-A - CONTROL DIARIO DE DESCARTE DE DIALIZADORES'
+            : 'ANEXO 11-B - CONTROL DIARIO DE DESCARTE DE SET DE LÍNEAS ARTERIALES Y VENOSAS';
+        $path = $exporter->discard($rows, $codes, $codeCounts, $month, $title, $filters);
+
+        return response()->download($path, "anexo-{$annex}-{$month->format('Y-m')}.xlsx", [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
     public function carePdf(Request $request, PdfBrandingService $branding)
     {
         $date = $request->date('date')?->format('Y-m-d') ?? today()->format('Y-m-d');
@@ -108,6 +127,16 @@ class NursingAnnexController extends Controller
     {
         abort_unless((int) $annex->sede_id === (int) CurrentSede::id(), 403);
         return $this->renderCarePdf($annex, $branding);
+    }
+
+    public function generatedCareXlsx(DailyNursingAnnex $annex, NursingAnnexXlsxExporter $exporter)
+    {
+        abort_unless((int) $annex->sede_id === (int) CurrentSede::id(), 403);
+        $path = $exporter->care($annex);
+
+        return response()->download($path, 'anexo-12-'.$annex->code.'.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
 
     private function renderCarePdf(DailyNursingAnnex $annex, PdfBrandingService $branding)

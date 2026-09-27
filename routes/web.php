@@ -170,8 +170,10 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('anexos/enfermeria', [NursingAnnexController::class, 'index'])->name('nursing-annexes.index');
     Route::post('anexos/enfermeria/anexo-12', [NursingAnnexController::class, 'storeCare'])->name('nursing-annexes.care.store');
     Route::get('anexos/enfermeria/anexo-12/{annex}/pdf', [NursingAnnexController::class, 'generatedCarePdf'])->name('nursing-annexes.care.generated-pdf');
+    Route::get('anexos/enfermeria/anexo-12/{annex}/excel', [NursingAnnexController::class, 'generatedCareXlsx'])->name('nursing-annexes.care.generated-xlsx');
     Route::post('anexos/enfermeria/{order}/descarte', [NursingAnnexController::class, 'storeDiscard'])->name('nursing-annexes.discards.store');
     Route::get('anexos/enfermeria/descarte/{category}/pdf', [NursingAnnexController::class, 'discardPdf'])->name('nursing-annexes.discards.pdf');
+    Route::get('anexos/enfermeria/descarte/{category}/excel', [NursingAnnexController::class, 'discardXlsx'])->name('nursing-annexes.discards.xlsx');
     Route::get('anexos/enfermeria/atenciones/pdf', [NursingAnnexController::class, 'carePdf'])->name('nursing-annexes.care.pdf');
     Route::get('homologacion/pacientes', [RemainingAnnexController::class, 'patientReports'])->name('homologation.patients');
     Route::post('homologacion/pacientes/{patient}/evento', [RemainingAnnexController::class, 'storePatientEvent'])->name('homologation.patient-events.store');
