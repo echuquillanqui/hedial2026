@@ -94,14 +94,14 @@
 
             <div class="tab-pane fade" id="t2">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div><h6 class="fw-bold mb-0 text-primary">Seguimiento Horario (formato 24 horas)</h6><small class="text-muted">Horas programadas: {{ $order->medical->hora_hd }} hrs. Si el tratamiento cruza medianoche, las horas continúan en el día siguiente.</small></div>
+                    <div><h6 class="fw-bold mb-0 text-primary">Seguimiento Horario (formato 24 horas)</h6><small class="text-muted">Horas programadas: {{ $order->medical->hora_hd }} hrs. Después de las 11:59, una hora como 3:00 se convierte automáticamente en 15:00. Si el tratamiento cruza medianoche, las horas continúan en el día siguiente.</small></div>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="autoCalcularHoras()"><i class="bi bi-magic me-1"></i> Autocalcular</button>
                         <button type="button" class="btn btn-dark btn-sm rounded-pill px-3" onclick="addRow()"><i class="bi bi-plus-lg me-1"></i> Fila Manual</button>
                     </div>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-bordered table-monitoreo" id="tableTreatments">
+                    <table class="table table-bordered table-monitoreo" id="tableTreatments" data-start-time="{{ $order->medical?->hora_inicial ? substr($order->medical->hora_inicial, 0, 5) : '' }}">
                         <thead>
                             <tr>
                                 <th style="width: 120px;">Hora (AM/PM)</th><th style="width: 85px;">PA</th><th style="width: 65px;">FC</th><th style="width: 65px;">QB</th><th style="width: 65px;">CND</th>
@@ -245,7 +245,13 @@
         if (event.target.matches('input[name="t_pa[]"]')) sincronizarPaFinal();
         if (event.target.matches('.hora-input')) actualizarHoraFormateada(event.target);
     });
-    document.getElementById('tableTreatments').addEventListener('change', event => normalizarRa(event.target));
+    document.getElementById('tableTreatments').addEventListener('change', event => {
+        normalizarRa(event.target);
+        if (event.target.matches('.hora-input')) {
+            normalizarHoraPosterior(event.target);
+            actualizarHoraFormateada(event.target);
+        }
+    });
     calcularPesoFinal();
     sincronizarPaFinal();
 
@@ -267,6 +273,38 @@
 
     function actualizarHorasFormateadas() {
         document.querySelectorAll('#tableTreatments .hora-input').forEach(actualizarHoraFormateada);
+    }
+
+    function minutosDeHora(hora) {
+        if (!/^\d{2}:\d{2}$/.test(hora)) return null;
+
+        const [horas, minutos] = hora.split(':').map(Number);
+        return horas <= 23 && minutos <= 59 ? horas * 60 + minutos : null;
+    }
+
+    function normalizarHoraPosterior(input) {
+        const horaIngresada = minutosDeHora(input.value);
+        const hora = Math.floor((horaIngresada ?? 0) / 60);
+        if (horaIngresada === null || hora === 0 || hora >= 12) return;
+
+        const inputs = Array.from(document.querySelectorAll('#tableTreatments .hora-input'));
+        const posicion = inputs.indexOf(input);
+        const horaAnterior = inputs.slice(0, posicion).reverse().find(elemento => elemento.value)?.value
+            || document.getElementById('tableTreatments').dataset.startTime;
+        const referencia = minutosDeHora(horaAnterior);
+
+        // Entre las dos interpretaciones posibles (03:00 y 15:00), elegimos la
+        // siguiente más cercana. Así 3:00 después de 11:59 pasa a ser 15:00,
+        // pero 3:00 después de 23:00 se conserva como el día siguiente.
+        if (referencia === null || referencia < 11 * 60 + 59) return;
+
+        const alternativaPm = horaIngresada + 12 * 60;
+        const avanceAm = (horaIngresada - referencia + 24 * 60) % (24 * 60);
+        const avancePm = (alternativaPm - referencia + 24 * 60) % (24 * 60);
+
+        if (avancePm <= avanceAm) {
+            input.value = `${String(hora + 12).padStart(2, '0')}:${String(horaIngresada % 60).padStart(2, '0')}`;
+        }
     }
 
     actualizarHorasFormateadas();

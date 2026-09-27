@@ -54,4 +54,15 @@ class MonitoringAutocalculationViewTest extends TestCase
         $this->assertStringContainsString('actualizarHoraFormateada(fila.querySelector', $view);
         $this->assertStringContainsString('hora-formateada', $row);
     }
+
+    public function test_manual_monitoring_times_are_inferred_as_afternoon_hours_after_noon(): void
+    {
+        $view = file_get_contents(resource_path('views/atenciones/enfermeria/edit.blade.php'));
+
+        $this->assertStringContainsString('function normalizarHoraPosterior(input)', $view);
+        $this->assertStringContainsString('normalizarHoraPosterior(event.target);', $view);
+        $this->assertStringContainsString('const alternativaPm = horaIngresada + 12 * 60;', $view);
+        $this->assertStringContainsString('if (avancePm <= avanceAm)', $view);
+        $this->assertStringContainsString('data-start-time=', $view);
+    }
 }
