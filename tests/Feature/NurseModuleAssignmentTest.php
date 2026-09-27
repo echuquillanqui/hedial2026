@@ -152,6 +152,41 @@ class NurseModuleAssignmentTest extends TestCase
         ]);
     }
 
+    public function test_nursing_update_calculates_final_weight_and_normalizes_initial_pa_and_ra(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-CALCULOS');
+        Permission::findOrCreate('nurses.edit');
+        $user->givePermissionTo('nurses.edit');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->putJson(route('nurses.update', $nurse), [
+                'pa_inicial' => '120/80',
+                'peso_inicial' => 46.60,
+                'uf' => 600,
+                't_hora' => ['08:00', '09:00'],
+                't_pa' => ['110/70', '125/85'],
+                't_ra' => [140, -120],
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertEquals(46.00, $nurse->fresh()->peso_final);
+        $this->assertDatabaseHas('treatments', [
+            'order_id' => $nurse->order_id,
+            'hora' => '08:00:00',
+            'pa' => '120/80',
+            'ra' => -140,
+        ]);
+        $this->assertDatabaseHas('treatments', [
+            'order_id' => $nurse->order_id,
+            'hora' => '09:00:00',
+            'pa' => '125/85',
+            'ra' => -120,
+        ]);
+    }
+
     public function test_selecting_closing_nurse_requires_completion_fields(): void
     {
         [$user, $sede] = $this->nursingUserAndSede();

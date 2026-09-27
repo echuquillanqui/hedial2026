@@ -4,7 +4,7 @@
                value="{{ isset($t) ? substr($t->hora, 0, 5) : '' }}">
     </td>
     <td style="width: 85px;">
-        <input type="text" name="t_pa[]" value="{{ $t->pa ?? $nurse->pa_inicial ?? '' }}" placeholder="120/80">
+        <input type="text" name="t_pa[]" value="{{ ($isFirst ?? false) ? ($nurse->pa_inicial ?? $order->medical->pa_inicial ?? $t->pa ?? '') : ($t->pa ?? '') }}" placeholder="120/80">
     </td>
     <td style="width: 65px;">
         <input type="number" name="t_fc[]" value="{{ $t->fc ?? '' }}">
@@ -16,7 +16,7 @@
         <input type="number" step="0.1" name="t_cnd[]" value="{{ $t->cnd ?? '' }}">
     </td>
     <td style="width: 65px;">
-        <input type="number" name="t_ra[]" value="{{ $t->ra ?? '' }}">
+        <input type="number" name="t_ra[]" max="0" value="{{ isset($t) && filled($t->ra) ? -abs((int) $t->ra) : '' }}">
     </td>
     <td style="width: 65px;">
         <input type="number" name="t_rv[]" value="{{ $t->rv ?? '' }}">

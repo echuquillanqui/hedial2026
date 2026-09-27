@@ -23,4 +23,13 @@ class MonitoringAutocalculationViewTest extends TestCase
         $this->assertStringContainsString("route('nurses.csrf-token')", $view);
         $this->assertStringContainsString('return guardarAtencion(form, false);', $view);
     }
+
+    public function test_nursing_form_synchronizes_initial_values_and_negative_arterial_pressure(): void
+    {
+        $view = file_get_contents(resource_path('views/atenciones/enfermeria/edit.blade.php'));
+
+        $this->assertStringContainsString('function sincronizarPaInicial()', $view);
+        $this->assertStringContainsString('pesoInicial - (ufMililitros / 1000)', $view);
+        $this->assertStringContainsString('-Math.abs(Number.parseInt(input.value, 10))', $view);
+    }
 }
