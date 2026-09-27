@@ -12,10 +12,10 @@
  </td>
  <td class="text-center">
   @if($dialyzerDiscard)
-   <span class="badge text-bg-success d-block mb-1">Dializador: {{ $dialyzerDiscard->lot_number }}</span>
+   <span class="badge text-bg-success d-block mb-1">Dializador: {{ $dialyzerDiscard->lot_number }}</span><small class="text-muted d-block mb-1">Vigencia: {{ $dialyzerDiscard->valid_from?->format('d/m/Y') ?? '—' }} al {{ $dialyzerDiscard->valid_until?->format('d/m/Y') ?? '—' }}</small>
   @endif
   @if($linesDiscard)
-   <span class="badge text-bg-success d-block mb-1">Líneas: {{ $linesDiscard->lot_number }}</span>
+   <span class="badge text-bg-success d-block mb-1">Líneas: {{ $linesDiscard->lot_number }}</span><small class="text-muted d-block mb-1">Vigencia: {{ $linesDiscard->valid_from?->format('d/m/Y') ?? '—' }} al {{ $linesDiscard->valid_until?->format('d/m/Y') ?? '—' }}</small>
   @endif
   @can('annexes.nursing.record')
    @if(!$dialyzerDiscard || !$linesDiscard)

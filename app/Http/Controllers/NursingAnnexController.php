@@ -74,6 +74,7 @@ class NursingAnnexController extends Controller
         $data = $request->validate([
             'category' => ['required', 'in:'.DisposableDiscard::DIALYZER.','.DisposableDiscard::BLOOD_LINES],
             'discarded_at' => ['required', 'date'], 'lot_number' => ['required', 'string', 'max:80'],
+            'valid_from' => ['required', 'date'], 'valid_until' => ['required', 'date', 'after_or_equal:valid_from'],
             'discard_reason' => ['required', 'string', 'max:120'], 'final_condition' => ['nullable', 'string', 'max:120'],
             'observations' => ['nullable', 'string'],
         ]);
@@ -155,7 +156,10 @@ class NursingAnnexController extends Controller
             ->when($filters['shift'] ?? null, fn ($query, $shift) => $query->where('turno', $shift))
             ->when($filters['module'] ?? null, fn ($query, $module) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $module)))
             ->when($filters['sequence'] ?? null, fn ($query, $sequence) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $sequence)))
-            ->orderBy('turno')->orderBy('sala')->get();
+            ->orderByDesc('id')->get()->unique('patient_id')->sortBy([
+                ['turno', 'asc'],
+                ['sala', 'asc'],
+            ])->values();
     }
 
     private function monthlyOrders(\Carbon\Carbon $month, array $filters): Collection
@@ -166,7 +170,11 @@ class NursingAnnexController extends Controller
             ->when($filters['shift'], fn ($query, $shift) => $query->where('turno', $shift))
             ->when($filters['module'], fn ($query, $module) => $query->whereHas('patient', fn ($patient) => $patient->where('modulo', $module)))
             ->when($filters['sequence'], fn ($query, $sequence) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $sequence)))
-            ->orderBy('turno')->orderBy('fecha_orden')->get();
+            ->orderByDesc('id')->get()->unique(fn (Order $order) => $order->patient_id.'|'.$order->fecha_orden->format('Y-m-d'))
+            ->sortBy([
+                ['turno', 'asc'],
+                ['fecha_orden', 'asc'],
+            ])->values();
     }
 
     private function discardFilters(Request $request): array
@@ -198,9 +206,12 @@ class NursingAnnexController extends Controller
         $product = function ($order) use ($category, $dialyzer) {
             $discard = $order->disposableDiscards->firstWhere('category', $category);
             if ($discard?->lot_number) {
+                $validity = $discard->valid_from && $discard->valid_until
+                    ? ' (vig. '.$discard->valid_from->format('d/m/Y').' - '.$discard->valid_until->format('d/m/Y').')'
+                    : '';
                 return $dialyzer && filled($order->nurse?->filtro)
-                    ? trim($order->nurse->filtro).' / '.trim($discard->lot_number)
-                    : trim($discard->lot_number);
+                    ? trim($order->nurse->filtro).' / '.trim($discard->lot_number).$validity
+                    : trim($discard->lot_number).$validity;
             }
 
             return $dialyzer
