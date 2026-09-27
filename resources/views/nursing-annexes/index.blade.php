@@ -77,36 +77,12 @@
       <tr class="collapse bg-light" id="discard-{{ $order->id }}">
        <td colspan="6">
         <div class="row g-3 p-2">
-         @php
-          $discardForms = [
-              [
-                  'category' => \App\Models\DisposableDiscard::DIALYZER,
-                  'title' => 'Dializador',
-                  'lot_label' => 'Lote del dializador',
-                  'default_reason' => 'Coagulación',
-                  'existing' => $dialyzerDiscard,
-              ],
-              [
-                  'category' => \App\Models\DisposableDiscard::BLOOD_LINES,
-                  'title' => 'Set de líneas',
-                  'lot_label' => 'Lote del set de líneas',
-                  'default_reason' => 'Descarte posterior a sesión',
-                  'existing' => $linesDiscard,
-              ],
-          ];
-         @endphp
-         @foreach($discardForms as $discardForm)
-          @php
-           $category = $discardForm['category'];
-           $title = $discardForm['title'];
-           $lotLabel = $discardForm['lot_label'];
-           $defaultReason = $discardForm['default_reason'];
-           $already = $discardForm['existing'];
-          @endphp
-          @if(!$already)
-           <div class="col-lg-6"><form method="POST" action="{{ route('nursing-annexes.discards.store',$order) }}" class="border rounded bg-white p-3 h-100">@csrf<input type="hidden" name="category" value="{{ $category }}"><input type="hidden" name="discarded_at" value="{{ $order->fecha_orden->format('Y-m-d') }} 23:59"><input type="hidden" name="discard_reason" value="{{ $defaultReason }}"><h6>{{ $title }}</h6><label class="form-label fw-semibold" for="lot-{{ $category }}-{{ $order->id }}">{{ $lotLabel }}</label><input id="lot-{{ $category }}-{{ $order->id }}" name="lot_number" class="form-control mb-2" maxlength="80" required placeholder="Ej.: LOTE-2026-001"><label class="form-label" for="observations-{{ $category }}-{{ $order->id }}">Observaciones (opcional)</label><textarea id="observations-{{ $category }}-{{ $order->id }}" name="observations" class="form-control mb-2" rows="2" maxlength="1000"></textarea><button class="btn btn-success btn-sm"><i class="bi bi-floppy me-1"></i>Guardar {{ mb_strtolower($title) }}</button></form></div>
-          @endif
-         @endforeach
+         @if(!$dialyzerDiscard)
+          @include('nursing-annexes.partials.discard-form', ['category' => \App\Models\DisposableDiscard::DIALYZER, 'title' => 'Dializador', 'lotLabel' => 'Lote del dializador', 'defaultReason' => 'Coagulación'])
+         @endif
+         @if(!$linesDiscard)
+          @include('nursing-annexes.partials.discard-form', ['category' => \App\Models\DisposableDiscard::BLOOD_LINES, 'title' => 'Set de líneas', 'lotLabel' => 'Lote del set de líneas', 'defaultReason' => 'Descarte posterior a sesión'])
+         @endif
         </div>
        </td>
       </tr>
