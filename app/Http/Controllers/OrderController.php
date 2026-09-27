@@ -147,10 +147,16 @@ class OrderController extends Controller
                 ->where('assigned_professional_id', $request->integer('professional_id')))
             ->when($request->filled('date'), fn (Builder $query) => $query
                 ->whereDate('fecha_orden', $request->input('date')))
+            ->when($request->filled('date_from'), fn (Builder $query) => $query
+                ->whereDate('fecha_orden', '>=', $request->input('date_from')))
+            ->when($request->filled('date_to'), fn (Builder $query) => $query
+                ->whereDate('fecha_orden', '<=', $request->input('date_to')))
             ->when($request->filled('turno'), fn (Builder $query) => $query
                 ->where('turno', $request->input('turno')))
             ->when($request->filled('modulo'), fn (Builder $query) => $query
                 ->whereHas('patient', fn (Builder $patient) => $patient->where('modulo', $request->input('modulo'))))
+            ->when($request->filled('secuencia'), fn (Builder $query) => $query
+                ->whereHas('patient', fn (Builder $patient) => $patient->where('secuencia', $request->input('secuencia'))))
             ->when($request->filled('search'), function (Builder $query) use ($request) {
                 $search = trim((string) $request->input('search'));
                 $query->whereHas('patient', fn (Builder $patient) => $patient

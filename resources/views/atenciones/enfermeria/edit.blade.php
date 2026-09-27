@@ -48,10 +48,10 @@
         <div class="card card-medical header-info mb-4 p-3">
             <div class="row g-3">
                 <div class="col-md-1"><label>Sesión №</label><div class="h5 fw-bold text-primary mb-0">#{{ $nurse->numero_hd }}</div></div>
-                <div class="col-md-2"><label data-label="Puesto">Puesto *</label><input type="text" name="puesto" id="puestoInput" class="form-control form-control-sm fw-bold completion-field" value="{{ $nurse->puesto }}"></div>
-                <div class="col-md-2"><label data-label="№ Máquina">№ Máquina *</label><input type="text" name="numero_maquina" id="maquinaInput" class="form-control form-control-sm completion-field" value="{{ $nurse->numero_maquina ?? $nurse->puesto }}"></div>
+                <div class="col-md-2"><label data-label="Puesto">Puesto *</label><input type="text" name="puesto" id="puestoInput" class="form-control form-control-sm fw-bold completion-field" value="{{ old('puesto', $nurse->puesto ?? $previousPosition) }}"><small class="text-muted">Se recupera de la sesión anterior y puede modificarse.</small></div>
+                <div class="col-md-2"><label data-label="№ Máquina">№ Máquina *</label><input type="text" name="numero_maquina" id="maquinaInput" class="form-control form-control-sm completion-field" value="{{ old('numero_maquina', $nurse->numero_maquina ?? $nurse->puesto ?? $previousPosition) }}"></div>
                 <div class="col-md-3"><label>Marca / Modelo</label><input type="text" name="marca_modelo" class="form-control form-control-sm" value="{{ $nurse->marca_modelo }}"></div>
-                <div class="col-md-2"><label>Frecuencia</label><input type="text" class="form-control form-control-sm bg-light border-0 fw-bold" value="{{ $nurse->frecuencia_hd ?? '3 VECES POR SEMANA' }}" readonly></div>
+                <div class="col-md-2"><label>Frecuencia</label><input type="text" name="frecuencia_hd" class="form-control form-control-sm fw-bold" value="{{ $nurse->frecuencia_hd ?? '3 VECES POR SEMANA' }}"></div>
                 <div class="col-md-2"><label>Filtro / Dializador</label><input type="text" name="filtro" class="form-control form-control-sm" value="{{ $nurse->filtro }}"></div>
             </div>
         </div>
@@ -94,7 +94,7 @@
 
             <div class="tab-pane fade" id="t2">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div><h6 class="fw-bold mb-0 text-primary">Seguimiento Horario</h6><small class="text-muted">Horas programadas: {{ $order->medical->hora_hd }} hrs</small></div>
+                    <div><h6 class="fw-bold mb-0 text-primary">Seguimiento Horario (formato 24 horas)</h6><small class="text-muted">Horas programadas: {{ $order->medical->hora_hd }} hrs. Si el tratamiento cruza medianoche, las horas continúan en el día siguiente.</small></div>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="autoCalcularHoras()"><i class="bi bi-magic me-1"></i> Autocalcular</button>
                         <button type="button" class="btn btn-dark btn-sm rounded-pill px-3" onclick="addRow()"><i class="bi bi-plus-lg me-1"></i> Fila Manual</button>
@@ -153,8 +153,8 @@
                 </div>
 
                 <div class="row g-3 border-top pt-3 bg-light rounded">
-                    <div class="col-md-2"><label data-label="PA Final">PA Final</label><input type="text" name="pa_final" id="paFinalInput" class="form-control form-control-sm closure-field bg-light" value="{{ $nurse->pa_final }}" readonly></div>
-                    <div class="col-md-2"><label data-label="Peso Final">Peso Final</label><input type="number" step="0.01" name="peso_final" id="pesoFinalInput" class="form-control form-control-sm closure-field bg-light" value="{{ $nurse->peso_final }}" readonly></div>
+                    <div class="col-md-2"><label data-label="PA Final">PA Final</label><input type="text" name="pa_final" id="paFinalInput" class="form-control form-control-sm closure-field" value="{{ $nurse->pa_final }}"></div>
+                    <div class="col-md-2"><label data-label="Peso Final">Peso Final</label><input type="number" step="0.01" name="peso_final" id="pesoFinalInput" class="form-control form-control-sm closure-field" value="{{ $nurse->peso_final }}"></div>
                     <div class="col-md-5"><label data-label="Obs. Final">Observación Final</label><input type="text" name="observacion_final" class="form-control form-control-sm closure-field" value="{{ $nurse->observacion_final }}"></div>
                     <div class="col-md-3">
                         <label data-label="Enfermero Cierre">Enfermero Cierre</label>
@@ -192,11 +192,6 @@
 </div>
 
 <script>
-    // Sincronizar Puesto -> Máquina
-    document.getElementById('puestoInput').addEventListener('input', function() {
-        document.getElementById('maquinaInput').value = this.value;
-    });
-
     const paInicialInput = document.getElementById('paInicialInput');
     const pesoInicialInput = document.getElementById('pesoInicialInput');
     const ufInput = document.getElementById('ufInput');
@@ -322,6 +317,11 @@
             fila.querySelector('.hora-input').value = hora;
             actualizarHoraFormateada(fila.querySelector('.hora-input'));
         });
+
+        const cruzaMedianoche = hBase * 60 + mBase + minutosTotales >= 1440;
+        if (cruzaMedianoche) {
+            Swal.fire({ icon: 'info', title: 'Tratamiento de 24 horas detectado', text: 'La secuencia cruza la medianoche; las horas menores corresponden al día siguiente.' });
+        }
     }
 
     function insertarFila(hora) {

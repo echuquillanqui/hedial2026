@@ -7,6 +7,7 @@
                     <th>Paciente / DNI</th>
                     <th class="text-center"># de Sesión</th>
                     <th class="text-center">Puesto</th>
+                    <th class="text-center">Inicio / Final</th>
                     <th class="text-center">Estado</th>
                     <th>Responsable</th>
                     <th class="text-end pe-3">Acciones</th>
@@ -30,6 +31,15 @@
                         <span class="badge bg-dark px-3 py-2" style="font-size: 0.9rem;">
                             {{ $nurse->puesto ?? 'S/P' }}
                         </span>
+                    </td>
+                    @php
+                        $treatmentTimes = $nurse->order->treatments->pluck('hora')->filter()->values();
+                        $startTime = $treatmentTimes->first();
+                        $endTime = $treatmentTimes->last();
+                    @endphp
+                    <td class="text-center text-nowrap">
+                        <div><i class="bi bi-play-circle text-success me-1"></i>{{ $startTime ? substr($startTime, 0, 5) : '—' }}</div>
+                        <div><i class="bi bi-stop-circle text-danger me-1"></i>{{ $endTime ? substr($endTime, 0, 5) : '—' }}</div>
                     </td>
                     <td class="text-center">
                         @if($nurse->enfermero_que_finaliza_id)
@@ -65,7 +75,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">
+                    <td colspan="8" class="text-center py-5 text-muted">
                         <i class="bi bi-search fs-1 d-block opacity-25"></i>
                         No se encontraron registros de enfermería para esta fecha o filtros.
                     </td>
