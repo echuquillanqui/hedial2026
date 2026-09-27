@@ -176,7 +176,29 @@ class NurseController extends Controller
         $enfermeros = User::nursingProfessionals()
             ->orderBy('name')
             ->get();
-        return view('atenciones.enfermeria.edit', compact('nurse', 'order', 'enfermeros', 'previousPosition'));
+
+        $horaIngreso = Carbon::now()->startOfMinute();
+        $horasSugeridas = collect(range(0, 4))
+            ->map(fn (int $intervalo) => $horaIngreso->copy()->addMinutes($intervalo * 5)->format('H:i'));
+        $horasOcupadas = DB::table('treatments')
+            ->join('orders', 'orders.id', '=', 'treatments.order_id')
+            ->whereDate('orders.fecha_orden', $order->fecha_orden)
+            ->where('orders.id', '!=', $order->id)
+            ->when($order->sede_id, fn ($query) => $query->where('orders.sede_id', $order->sede_id))
+            ->whereIn('treatments.hora', $horasSugeridas->map(fn ($hora) => $hora . ':00'))
+            ->pluck('treatments.hora')
+            ->map(fn ($hora) => substr((string) $hora, 0, 5))
+            ->unique()
+            ->values();
+
+        return view('atenciones.enfermeria.edit', compact(
+            'nurse',
+            'order',
+            'enfermeros',
+            'previousPosition',
+            'horasSugeridas',
+            'horasOcupadas'
+        ));
     }
 
     public function show(Nurse $nurse)
