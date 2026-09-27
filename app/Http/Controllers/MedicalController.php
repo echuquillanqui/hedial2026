@@ -188,14 +188,26 @@ class MedicalController extends Controller
             }
 
             if ($finalTime) {
-                $lastTreatmentTime = $medical->order->treatments()
+                $treatmentTimes = $medical->order->treatments()
                     ->whereNotNull('hora')
-                    ->max('hora');
+                    ->orderBy('id')->pluck('hora')
+                    ->map(fn ($time) => substr((string) $time, 0, 5));
+                $referenceTime = $initialTime ?: $treatmentTimes->first();
+                $toMinutes = static function (string $time): int {
+                    [$hours, $minutes] = array_map('intval', explode(':', $time));
+                    return ($hours * 60) + $minutes;
+                };
+                $elapsed = static fn (string $time, string $reference): int =>
+                    ($toMinutes($time) - $toMinutes($reference) + 1440) % 1440;
+                $lastTreatmentTime = $referenceTime
+                    ? $treatmentTimes->sortByDesc(fn ($time) => $elapsed($time, $referenceTime))->first()
+                    : null;
 
-                if ($lastTreatmentTime && $finalTime <= substr($lastTreatmentTime, 0, 5)) {
+                if ($lastTreatmentTime && $referenceTime
+                    && $elapsed($finalTime, $referenceTime) <= $elapsed($lastTreatmentTime, $referenceTime)) {
                     $validator->errors()->add(
                         'hora_final',
-                        'La hora final médica debe ser mayor que la última hora registrada en el tratamiento (' . substr($lastTreatmentTime, 0, 5) . ').'
+                        'La hora final médica debe ser posterior a la última hora registrada en el tratamiento (' . $lastTreatmentTime . '), considerando el cambio de día.'
                     );
                 }
             }
