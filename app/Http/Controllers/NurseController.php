@@ -28,6 +28,7 @@ class NurseController extends Controller
             'storeModuleAssignment',
             'editModuleSchedules',
             'updateModuleSchedules',
+            'reserveStartTime',
         ]);
     }
 
@@ -149,7 +150,8 @@ class NurseController extends Controller
         $schedules = NurseModuleSchedule::query()
             ->where('sede_id', CurrentSede::id())
             ->get()
-            ->keyBy('module');
+            ->groupBy('module')
+            ->map(fn ($moduleSchedules) => $moduleSchedules->keyBy('shift'));
 
         return view('atenciones.enfermeria.configuration', compact('schedules'));
     }
@@ -158,22 +160,26 @@ class NurseController extends Controller
     {
         $rules = [];
         foreach (Patient::MODULES as $module) {
-            $rules["schedules.{$module}"] = ['required', 'array', 'size:5'];
-            $rules["schedules.{$module}.*"] = ['required', 'date_format:H:i', 'distinct'];
+            foreach (range(1, 4) as $shift) {
+                $rules["schedules.{$module}.{$shift}"] = ['required', 'array', 'size:5'];
+                $rules["schedules.{$module}.{$shift}.*"] = ['required', 'date_format:H:i', 'distinct'];
+            }
         }
 
         $validated = $request->validate($rules, [
-            'schedules.*.size' => 'Debe configurar exactamente 5 horas por módulo.',
-            'schedules.*.*.date_format' => 'Cada hora debe tener un formato válido.',
-            'schedules.*.*.distinct' => 'Las 5 horas de cada módulo deben ser diferentes.',
+            'schedules.*.*.size' => 'Debe configurar exactamente 5 horas por turno.',
+            'schedules.*.*.*.date_format' => 'Cada hora debe tener un formato válido.',
+            'schedules.*.*.*.distinct' => 'Las 5 horas de cada turno deben ser diferentes.',
         ]);
 
         DB::transaction(function () use ($validated) {
             foreach (Patient::MODULES as $module) {
-                NurseModuleSchedule::updateOrCreate(
-                    ['sede_id' => CurrentSede::id(), 'module' => $module],
-                    ['start_times' => array_values($validated['schedules'][$module])]
-                );
+                foreach (range(1, 4) as $shift) {
+                    NurseModuleSchedule::updateOrCreate(
+                        ['sede_id' => CurrentSede::id(), 'module' => $module, 'shift' => $shift],
+                        ['start_times' => array_values($validated['schedules'][$module][$shift])]
+                    );
+                }
             }
         });
 
@@ -224,6 +230,7 @@ class NurseController extends Controller
         $moduleSchedule = NurseModuleSchedule::query()
             ->where('sede_id', $order->sede_id)
             ->where('module', $module)
+            ->where('shift', $order->turno)
             ->first();
         $horasSugeridas = collect($moduleSchedule?->start_times ?? []);
         $horasOcupadas = DB::table('treatments')
@@ -232,6 +239,7 @@ class NurseController extends Controller
             ->whereDate('orders.fecha_orden', $order->fecha_orden)
             ->where('orders.id', '!=', $order->id)
             ->where('patients.modulo', $module)
+            ->where('orders.turno', $order->turno)
             ->when($order->sede_id, fn ($query) => $query->where('orders.sede_id', $order->sede_id))
             ->pluck('treatments.hora')
             ->map(fn ($hora) => substr((string) $hora, 0, 5))
@@ -247,6 +255,35 @@ class NurseController extends Controller
             'horasSugeridas',
             'horasOcupadas'
         ));
+    }
+
+    public function reserveStartTime(Request $request, Nurse $nurse)
+    {
+        $nurse->loadMissing('order.patient', 'order.treatments');
+        $order = $nurse->order;
+        abort_if(CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id(), 403);
+
+        $data = $request->validate(['hora' => ['required', 'date_format:H:i']]);
+        $module = (string) $order->patient->modulo;
+        $allowed = NurseModuleSchedule::query()
+            ->where('sede_id', $order->sede_id)->where('module', $module)
+            ->where('shift', $order->turno)->first()?->start_times ?? [];
+        abort_unless(in_array($data['hora'], $allowed, true), 422, 'La hora no pertenece a este módulo y turno.');
+
+        return DB::transaction(function () use ($order, $module, $data) {
+            $occupied = DB::table('treatments')->join('orders', 'orders.id', '=', 'treatments.order_id')
+                ->join('patients', 'patients.id', '=', 'orders.patient_id')
+                ->whereDate('orders.fecha_orden', $order->fecha_orden)->where('orders.sede_id', $order->sede_id)
+                ->where('orders.turno', $order->turno)->where('patients.modulo', $module)
+                ->where('orders.id', '!=', $order->id)->where('treatments.hora', $data['hora'])
+                ->lockForUpdate()->exists();
+            abort_if($occupied, 409, 'La hora acaba de ser seleccionada por otra atención.');
+
+            $treatment = $order->treatments()->oldest('id')->first();
+            $treatment ? $treatment->update(['hora' => $data['hora']]) : $order->treatments()->create(['hora' => $data['hora']]);
+
+            return response()->json(['message' => 'Hora guardada y reservada.', 'hora' => $data['hora']]);
+        });
     }
 
     public function show(Nurse $nurse)

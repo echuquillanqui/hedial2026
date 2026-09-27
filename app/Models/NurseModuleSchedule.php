@@ -13,10 +13,12 @@ class NurseModuleSchedule extends Model
     protected $fillable = [
         'sede_id',
         'module',
+        'shift',
         'start_times',
     ];
 
     protected $casts = [
+        'shift' => 'integer',
         'start_times' => 'array',
     ];
 
