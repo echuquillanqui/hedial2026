@@ -181,12 +181,38 @@ class NurseController extends Controller
         if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
             abort(403, 'Atención fuera de la sede activa.');
         }
+        $monitoringPa = $request->input('t_pa', []);
+        if ($request->filled('pa_inicial')) {
+            $monitoringPa[0] = $request->input('pa_inicial');
+        }
+
+        $monitoringRa = collect($request->input('t_ra', []))
+            ->map(fn ($value) => filled($value) ? -abs((int) $value) : $value)
+            ->all();
+
+        $calculatedFinalWeight = null;
+        if ($request->filled('peso_inicial') && $request->filled('uf')
+            && is_numeric($request->input('peso_inicial')) && is_numeric($request->input('uf'))) {
+            $calculatedFinalWeight = round(
+                (float) $request->input('peso_inicial') - ((float) $request->input('uf') / 1000),
+                2
+            );
+        }
+
+        $request->merge(array_filter([
+            't_pa' => $monitoringPa,
+            't_ra' => $monitoringRa,
+            'peso_final' => $calculatedFinalWeight,
+        ], fn ($value) => $value !== null));
+
         $isClosing = $request->filled('enfermero_que_finaliza_id');
         $requiredOnClosure = Rule::requiredIf($isClosing);
 
         $validator = Validator::make($request->all(), [
             't_hora.*' => ['nullable', 'date_format:H:i'],
             'peso_seco' => ['nullable', 'numeric', 'between:0,999.99'],
+            'peso_inicial' => ['nullable', 'numeric', 'between:0,999.99'],
+            'uf' => ['nullable', 'numeric', 'min:0'],
             'puesto' => [$requiredOnClosure],
             'numero_maquina' => [$requiredOnClosure],
             'acceso_arterial' => [$requiredOnClosure, 'nullable', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],

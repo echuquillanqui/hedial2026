@@ -77,9 +77,9 @@
                         </select>
                     </div>
                     <div class="col-md-2"><label>Peso Seco (kg)</label><input type="number" step="0.01" name="peso_seco" class="form-control form-control-sm" value="{{ old('peso_seco', $order->patient->peso_seco ?? $order->medical->peso_seco) }}"></div>
-                    <div class="col-md-2"><label>PA Inicial</label><input type="text" name="pa_inicial" class="form-control form-control-sm" value="{{ $nurse->pa_inicial ?? $order->medical->pa_inicial }}"></div>
-                    <div class="col-md-2"><label>Peso Inicial (kg)</label><input type="number" step="0.01" name="peso_inicial" class="form-control form-control-sm" value="{{ $nurse->peso_inicial ?? $order->medical->peso_inicial }}"></div>
-                    <div class="col-md-2"><label>UF Prog (L)</label><input type="text" name="uf" class="form-control form-control-sm" value="{{ $nurse->uf ?? $order->medical->uf }}"></div>
+                    <div class="col-md-2"><label>PA Inicial</label><input type="text" name="pa_inicial" id="paInicialInput" class="form-control form-control-sm" value="{{ $nurse->pa_inicial ?? $order->medical->pa_inicial }}"></div>
+                    <div class="col-md-2"><label>Peso Inicial (kg)</label><input type="number" step="0.01" name="peso_inicial" id="pesoInicialInput" class="form-control form-control-sm" value="{{ $nurse->peso_inicial ?? $order->medical->peso_inicial }}"></div>
+                    <div class="col-md-2"><label>UF Prog (ml)</label><input type="number" step="1" min="0" name="uf" id="ufInput" class="form-control form-control-sm" value="{{ $nurse->uf ?? $order->medical->uf }}"></div>
                     <div class="col-md-4"><label>Aspecto Filtro</label><input type="text" name="aspecto_dializador" class="form-control form-control-sm" value="{{ $nurse->aspecto_dializador ?? '0' }}"></div>
                     <div class="col-md-8"><label>Enfermero que Inicia *</label>
                         <select name="enfermero_que_inicia_id" class="form-select form-select-sm completion-field">
@@ -107,8 +107,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($order->treatments as $t) @include('atenciones.enfermeria.partials.row', ['t' => $t])
-                            @empty @include('atenciones.enfermeria.partials.row') @endforelse
+                            @forelse($order->treatments as $t) @include('atenciones.enfermeria.partials.row', ['t' => $t, 'isFirst' => $loop->first])
+                            @empty @include('atenciones.enfermeria.partials.row', ['isFirst' => true]) @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -152,7 +152,7 @@
 
                 <div class="row g-3 border-top pt-3 bg-light rounded">
                     <div class="col-md-2"><label data-label="PA Final">PA Final</label><input type="text" name="pa_final" class="form-control form-control-sm closure-field" value="{{ $nurse->pa_final }}"></div>
-                    <div class="col-md-2"><label data-label="Peso Final">Peso Final</label><input type="number" step="0.01" name="peso_final" class="form-control form-control-sm closure-field" value="{{ $nurse->peso_final }}"></div>
+                    <div class="col-md-2"><label data-label="Peso Final">Peso Final</label><input type="number" step="0.01" name="peso_final" id="pesoFinalInput" class="form-control form-control-sm closure-field bg-light" value="{{ $nurse->peso_final }}" readonly></div>
                     <div class="col-md-5"><label data-label="Obs. Final">Observación Final</label><input type="text" name="observacion_final" class="form-control form-control-sm closure-field" value="{{ $nurse->observacion_final }}"></div>
                     <div class="col-md-3">
                         <label data-label="Enfermero Cierre">Enfermero Cierre</label>
@@ -194,6 +194,37 @@
     document.getElementById('puestoInput').addEventListener('input', function() {
         document.getElementById('maquinaInput').value = this.value;
     });
+
+    const paInicialInput = document.getElementById('paInicialInput');
+    const pesoInicialInput = document.getElementById('pesoInicialInput');
+    const ufInput = document.getElementById('ufInput');
+    const pesoFinalInput = document.getElementById('pesoFinalInput');
+
+    function sincronizarPaInicial() {
+        const primeraPa = document.querySelector('#tableTreatments tbody tr:first-child input[name="t_pa[]"]');
+        if (primeraPa) primeraPa.value = paInicialInput.value;
+    }
+
+    function calcularPesoFinal() {
+        const pesoInicial = Number.parseFloat(pesoInicialInput.value);
+        const ufMililitros = Number.parseFloat(ufInput.value);
+
+        pesoFinalInput.value = Number.isFinite(pesoInicial) && Number.isFinite(ufMililitros)
+            ? (pesoInicial - (ufMililitros / 1000)).toFixed(2)
+            : '';
+    }
+
+    function normalizarRa(input) {
+        if (input.matches('input[name="t_ra[]"]') && input.value !== '') {
+            input.value = String(-Math.abs(Number.parseInt(input.value, 10)));
+        }
+    }
+
+    paInicialInput.addEventListener('input', sincronizarPaInicial);
+    pesoInicialInput.addEventListener('input', calcularPesoFinal);
+    ufInput.addEventListener('input', calcularPesoFinal);
+    document.getElementById('tableTreatments').addEventListener('change', event => normalizarRa(event.target));
+    calcularPesoFinal();
 
     // Lógica Autocalcular (avanza 1h y deja el sobrante solo al final)
     function autoCalcularHoras() {
@@ -249,7 +280,7 @@
             <td style="width: 65px;"><input type="number" name="t_fc[]"></td>
             <td style="width: 65px;"><input type="text" name="t_qb[]"></td>
             <td style="width: 65px;"><input type="number" step="0.1" name="t_cnd[]"></td>
-            <td style="width: 65px;"><input type="number" name="t_ra[]"></td>
+            <td style="width: 65px;"><input type="number" name="t_ra[]" max="0"></td>
             <td style="width: 65px;"><input type="number" name="t_rv[]"></td>
             <td style="width: 65px;"><input type="number" name="t_ptm[]"></td>
             <td><input type="text" name="t_obs[]" class="text-start ps-2" style="width: 100%"></td>
@@ -258,7 +289,10 @@
         document.querySelector('#tableTreatments tbody').insertAdjacentHTML('beforeend', row);
     }
 
-    function addRow() { insertarFila(''); }
+    function addRow() {
+        insertarFila('');
+        sincronizarPaInicial();
+    }
 
     function confirmDeleteRow(btn) {
         Swal.fire({
