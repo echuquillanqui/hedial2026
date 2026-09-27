@@ -151,10 +151,32 @@ class NurseController extends Controller
         ]);
         $order = $nurse->order;
 
+        $previousPosition = Nurse::query()
+            ->whereKeyNot($nurse->id)
+            ->whereNotNull('puesto')
+            ->whereHas('order', fn ($query) => $query
+                ->where('patient_id', $order->patient_id)
+                ->where(function ($query) use ($order) {
+                    $query->whereDate('fecha_orden', '<', $order->fecha_orden)
+                        ->orWhere(function ($query) use ($order) {
+                            $query->whereDate('fecha_orden', $order->fecha_orden)
+                                ->where('id', '<', $order->id);
+                        });
+                }))
+            ->whereHas('order')
+            ->with('order:id,fecha_orden')
+            ->get()
+            ->sortByDesc(fn (Nurse $previous) => sprintf(
+                '%s-%010d',
+                optional($previous->order->fecha_orden)->format('Y-m-d'),
+                $previous->order_id
+            ))
+            ->first()?->puesto;
+
         $enfermeros = User::nursingProfessionals()
             ->orderBy('name')
             ->get();
-        return view('atenciones.enfermeria.edit', compact('nurse', 'order', 'enfermeros'));
+        return view('atenciones.enfermeria.edit', compact('nurse', 'order', 'enfermeros', 'previousPosition'));
     }
 
     public function show(Nurse $nurse)
@@ -185,7 +207,7 @@ class NurseController extends Controller
         if ($request->filled('pa_inicial')) {
             $monitoringPa[0] = $request->input('pa_inicial');
         }
-        $finalPa = collect($monitoringPa)
+        $calculatedFinalPa = collect($monitoringPa)
             ->filter(fn ($value) => filled($value))
             ->last();
 
@@ -193,10 +215,10 @@ class NurseController extends Controller
             ->map(fn ($value) => filled($value) ? -abs((int) $value) : $value)
             ->all();
 
-        $calculatedFinalWeight = null;
-        if ($request->filled('peso_inicial') && $request->filled('uf')
+        $finalWeight = $request->input('peso_final');
+        if (! $request->filled('peso_final') && $request->filled('peso_inicial') && $request->filled('uf')
             && is_numeric($request->input('peso_inicial')) && is_numeric($request->input('uf'))) {
-            $calculatedFinalWeight = round(
+            $finalWeight = round(
                 (float) $request->input('peso_inicial') - ((float) $request->input('uf') / 1000),
                 2
             );
@@ -205,8 +227,8 @@ class NurseController extends Controller
         $request->merge([
             't_pa' => $monitoringPa,
             't_ra' => $monitoringRa,
-            'pa_final' => $finalPa,
-            'peso_final' => $calculatedFinalWeight,
+            'pa_final' => $request->filled('pa_final') ? $request->input('pa_final') : $calculatedFinalPa,
+            'peso_final' => $finalWeight,
         ]);
 
         $isClosing = $request->filled('enfermero_que_finaliza_id');

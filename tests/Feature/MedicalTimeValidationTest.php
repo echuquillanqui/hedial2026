@@ -94,6 +94,27 @@ class MedicalTimeValidationTest extends TestCase
             ->assertSessionHasErrors(['hora_final']);
     }
 
+    public function test_third_shift_can_finish_after_midnight_using_24_hour_times(): void
+    {
+        $sede = Sede::create(['name' => 'Sede de prueba', 'code' => 'NIGHT', 'is_active' => true]);
+        $medical = $this->medicalForShift($sede, 'TIME-AFTER-MIDNIGHT');
+        $medical->order->update(['turno' => '3']);
+        foreach (['22:30', '23:30', '00:30', '01:30'] as $time) {
+            Treatment::create(['order_id' => $medical->order_id, 'hora' => $time, 'pa' => '120/80']);
+        }
+
+        $this->actingAs(User::factory()->create())
+            ->withoutMiddleware()
+            ->put(route('medicals.update', $medical), $this->payload([
+                'hora_inicial' => '22:30',
+                'hora_final' => '02:30',
+            ]))
+            ->assertRedirect(route('medicals.index'))
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertSame('02:30', $medical->fresh()->hora_final);
+    }
+
     private function medicalForShift(Sede $sede, string $code): Medical
     {
         $patient = Patient::factory()->create(['sede_id' => $sede->id]);

@@ -65,7 +65,7 @@ class NutritionAssessmentController extends Controller
 
     public function show(NutritionAssessment $nutrition) { $this->authorizeAssessment($nutrition); $this->load($nutrition); return view('nutrition.show', ['assessment' => $nutrition]); }
     public function edit(NutritionAssessment $nutrition) { $this->authorizeAssessment($nutrition); return view('nutrition.form', ['assessment' => $nutrition, 'order' => $nutrition->order->load('patient')]); }
-    public function update(Request $request, NutritionAssessment $nutrition) { $this->authorizeAssessment($nutrition); $data = $this->validated($request); unset($data['assessment_date']); $nutrition->update($data + ['updated_by' => $request->user()->id]); return redirect()->route('nutrition.show', $nutrition)->with('success', 'Atención actualizada sin alterar su evidencia clínica.'); }
+    public function update(Request $request, NutritionAssessment $nutrition) { $this->authorizeAssessment($nutrition); $data = $this->validated($request);  $nutrition->update($data + ['updated_by' => $request->user()->id]); return redirect()->route('nutrition.show', $nutrition)->with('success', 'Atención actualizada sin alterar su evidencia clínica.'); }
     public function pdf(NutritionAssessment $nutrition, PdfBrandingService $branding) { $this->authorizeAssessment($nutrition); $this->load($nutrition); return Pdf::loadView('nutrition.pdf', $branding->data() + ['assessment' => $nutrition])->setPaper('a4')->stream("anexo-6-{$nutrition->id}.pdf"); }
 
     private function validated(Request $request): array
