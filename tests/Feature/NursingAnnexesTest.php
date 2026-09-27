@@ -42,7 +42,7 @@ class NursingAnnexesTest extends TestCase
 
     public function test_discard_is_unique_per_session_and_category_and_keeps_audit_user(): void
     {
-        $payload=['category'=>DisposableDiscard::DIALYZER,'discarded_at'=>'2026-08-25 12:00','lot_number'=>'LOT-1','discard_reason'=>'Coagulación','final_condition'=>'No reutilizable'];
+        $payload=['category'=>DisposableDiscard::DIALYZER,'discarded_at'=>'2026-08-25 12:00','lot_number'=>'LOT-1','valid_from'=>'2026-08-01','valid_until'=>'2027-08-01','discard_reason'=>'Coagulación','final_condition'=>'No reutilizable'];
         $this->actingAs($this->nurse)->withSession($this->session())->post(route('nursing-annexes.discards.store',$this->order),$payload)->assertRedirect();
         $this->post(route('nursing-annexes.discards.store',$this->order),$payload+['discard_reason'=>'Ruptura o fuga'])->assertSessionHasErrors('category');
         $this->assertSame(1,DisposableDiscard::count()); $this->assertDatabaseHas('disposable_discards',['order_id'=>$this->order->id,'recorded_by'=>$this->nurse->id,'discard_reason'=>'Coagulación']);
@@ -63,12 +63,15 @@ class NursingAnnexesTest extends TestCase
             'category' => DisposableDiscard::BLOOD_LINES,
             'discarded_at' => '2026-08-25 23:59',
             'lot_number' => 'LINEAS-LOT-99',
+            'valid_from' => '2026-08-01',
+            'valid_until' => '2027-08-01',
             'discard_reason' => 'Descarte posterior a sesión',
         ])->assertRedirect();
 
         $this->get(route('nursing-annexes.index', ['date' => '2026-08-25', 'tab' => 'discards']))
             ->assertOk()
-            ->assertSee('Líneas: LINEAS-LOT-99');
+            ->assertSee('Líneas: LINEAS-LOT-99')
+            ->assertSee('Vigencia: 01/08/2026 al 01/08/2027');
     }
 
     public function test_lot_is_required_when_registering_summary_data(): void
@@ -78,6 +81,49 @@ class NursingAnnexesTest extends TestCase
             'discarded_at' => '2026-08-25 23:59',
             'discard_reason' => 'Coagulación',
         ])->assertSessionHasErrors('lot_number');
+    }
+
+    public function test_lot_validity_dates_are_required_and_must_be_ordered(): void
+    {
+        $route = route('nursing-annexes.discards.store', $this->order);
+        $payload = [
+            'category' => DisposableDiscard::DIALYZER,
+            'discarded_at' => '2026-08-25 23:59',
+            'lot_number' => 'LOT-DATES',
+            'discard_reason' => 'Coagulación',
+        ];
+
+        $this->actingAs($this->nurse)->withSession($this->session())->post($route, $payload)
+            ->assertSessionHasErrors(['valid_from', 'valid_until']);
+        $this->post($route, $payload + ['valid_from' => '2027-01-01', 'valid_until' => '2026-01-01'])
+            ->assertSessionHasErrors('valid_until');
+        $this->post($route, $payload + ['valid_from' => '2026-01-01', 'valid_until' => '2027-01-01'])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('disposable_discards', [
+            'order_id' => $this->order->id,
+            'lot_number' => 'LOT-DATES',
+            'valid_from' => '2026-01-01',
+            'valid_until' => '2027-01-01',
+        ]);
+    }
+
+    public function test_annex_11_counts_only_one_finalized_session_per_patient_and_day(): void
+    {
+        $duplicate = Order::create([
+            'sede_id' => $this->sede->id, 'patient_id' => $this->order->patient_id,
+            'codigo_unico' => 'HD-DUPLICATE', 'attention_type' => ClinicalService::HEMODIALYSIS,
+            'fecha_orden' => '2026-08-25', 'turno' => '1', 'sala' => '1',
+        ]);
+        Nurse::create([
+            'order_id' => $duplicate->id,
+            'enfermero_que_inicia_id' => $this->nurse->id,
+            'enfermero_que_finaliza_id' => $this->nurse->id,
+        ]);
+
+        $this->actingAs($this->nurse)->withSession($this->session())->get(route('nursing-annexes.index', [
+            'date' => '2026-08-25', 'tab' => 'discards',
+        ]))->assertOk()->assertSee('1 finalizadas')->assertSee('HD-DUPLICATE')->assertDontSee('HD-001');
     }
 
     public function test_annex_11_filters_finalized_sessions_by_shift_module_and_sequence(): void
