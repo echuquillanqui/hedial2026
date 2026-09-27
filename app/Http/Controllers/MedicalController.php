@@ -11,6 +11,7 @@ use App\Support\DailyHemodialysisSequence;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class MedicalController extends Controller
@@ -140,7 +141,7 @@ class MedicalController extends Controller
             'cnd'                 => 'nullable|numeric',
             'na_final'            => 'nullable|integer',
             'perfil_na'           => 'nullable|string',
-            'area_filtro'         => 'nullable|string',
+            'area_filtro'         => ['required', Rule::in(['1.3', '1.5', '1.8', '1.9', '2.1', '2.2'])],
             'membrana'            => 'nullable|string',
             'perfil_uf'           => 'nullable|string',
 

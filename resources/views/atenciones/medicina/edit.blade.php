@@ -163,7 +163,11 @@
                     <div class="col-md-2">
                         <label>Área Filtro / Membrana</label>
                         <div class="input-group input-group-sm">
-                            <input type="text" name="area_filtro" class="form-control" value="{{ old('area_filtro', $medical->area_filtro) }}" placeholder=" ">
+                            <select name="area_filtro" class="form-select">
+                                @foreach(['1.3', '1.5', '1.8', '1.9', '2.1', '2.2'] as $areaFiltro)
+                                    <option value="{{ $areaFiltro }}" @selected((string) old('area_filtro', $medical->area_filtro ?? '1.8') === $areaFiltro)>{{ $areaFiltro }}</option>
+                                @endforeach
+                            </select>
                             <input type="text" name="membrana" class="form-control" value="{{ old('membrana', $medical->membrana ?? "PSF") }}" placeholder=" ">
                         </div>
                     </div>

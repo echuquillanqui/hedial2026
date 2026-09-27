@@ -44,6 +44,44 @@ class OrderDuplicatePreventionTest extends TestCase
         );
     }
 
+    public function test_a_new_attention_carries_forward_the_previous_filter_area(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create(['turno' => '1']);
+        $previousOrder = $this->dailyOrder($patient, '2026-09-16', 'ORD-FILTRO-ANTERIOR');
+        Medical::create([
+            'order_id' => $previousOrder->id,
+            'area_filtro' => '2.1',
+        ]);
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.store'), [
+            'patient_id' => $patient->id,
+            'turno' => '1',
+            'horas_dialisis' => 3.5,
+            'fecha_orden' => '2026-09-17',
+            'laboratory_period' => null,
+        ])->assertRedirect(route('orders.index'));
+
+        $currentOrder = Order::query()->whereDate('fecha_orden', '2026-09-17')->sole();
+        $this->assertSame('2.1', $currentOrder->medical->area_filtro);
+    }
+
+    public function test_the_first_attention_uses_the_default_filter_area(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create(['turno' => '1']);
+
+        $this->actingAs($user)->withoutMiddleware()->post(route('orders.store'), [
+            'patient_id' => $patient->id,
+            'turno' => '1',
+            'horas_dialisis' => 3.5,
+            'fecha_orden' => '2026-09-17',
+            'laboratory_period' => null,
+        ])->assertRedirect(route('orders.index'));
+
+        $this->assertSame('1.8', Order::query()->sole()->medical->area_filtro);
+    }
+
     public function test_individual_generation_preserves_an_existing_daily_hemodialysis_order(): void
     {
         $user = User::factory()->create();
