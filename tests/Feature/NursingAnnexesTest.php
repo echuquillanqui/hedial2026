@@ -25,7 +25,7 @@ class NursingAnnexesTest extends TestCase
         $this->nurse = User::factory()->create(['profession'=>'ENFERMERA']); $this->nurse->assignRole('enfermeria'); $this->nurse->sedes()->attach($this->sede);
         $patient = Patient::factory()->create(['sede_id'=>$this->sede->id, 'modulo'=>'1']);
         $this->order = Order::create(['sede_id'=>$this->sede->id,'patient_id'=>$patient->id,'codigo_unico'=>'HD-001','attention_type'=>ClinicalService::HEMODIALYSIS,'fecha_orden'=>'2026-08-25','turno'=>'1','sala'=>'1']);
-        Nurse::create(['order_id'=>$this->order->id,'puesto'=>'1','filtro'=>'FX80','aspecto_dializador'=>'Coagulado','acceso_arterial'=>'FAV','acceso_venoso'=>'FAV','transfusions'=>'No se realizó','dressings'=>'Curación de FAV','enfermero_que_inicia_id'=>$this->nurse->id]);
+        Nurse::create(['order_id'=>$this->order->id,'puesto'=>'1','filtro'=>'FX80','aspecto_dializador'=>'Coagulado','acceso_arterial'=>'FAV','acceso_venoso'=>'FAV','transfusions'=>'No se realizó','dressings'=>'Curación de FAV','enfermero_que_inicia_id'=>$this->nurse->id,'enfermero_que_finaliza_id'=>$this->nurse->id]);
         $lines = HemodialysisMaterial::where('name','like','Líneas de sangre%')->firstOrFail();
         $this->order->hemodialysisMaterialConsumptions()->create(['hemodialysis_material_id'=>$lines->id,'patient_id'=>$patient->id,'consumed_at'=>'2026-08-25','quantity'=>1]);
     }
@@ -46,6 +46,27 @@ class NursingAnnexesTest extends TestCase
         $this->actingAs($this->nurse)->withSession($this->session())->post(route('nursing-annexes.discards.store',$this->order),$payload)->assertRedirect();
         $this->post(route('nursing-annexes.discards.store',$this->order),$payload+['discard_reason'=>'Ruptura o fuga'])->assertSessionHasErrors('category');
         $this->assertSame(1,DisposableDiscard::count()); $this->assertDatabaseHas('disposable_discards',['order_id'=>$this->order->id,'recorded_by'=>$this->nurse->id,'discard_reason'=>'Coagulación']);
+    }
+
+    public function test_annex_11_filters_finalized_sessions_by_shift_module_and_sequence(): void
+    {
+        $this->order->patient->update(['secuencia' => 'M-J-S']);
+        $unfinishedPatient = Patient::factory()->create(['sede_id'=>$this->sede->id, 'modulo'=>'1', 'secuencia'=>'M-J-S']);
+        $unfinished = Order::create(['sede_id'=>$this->sede->id,'patient_id'=>$unfinishedPatient->id,'codigo_unico'=>'HD-PENDING','attention_type'=>ClinicalService::HEMODIALYSIS,'fecha_orden'=>'2026-08-25','turno'=>'1','sala'=>'1']);
+        Nurse::create(['order_id'=>$unfinished->id,'enfermero_que_inicia_id'=>$this->nurse->id]);
+
+        $this->actingAs($this->nurse)->withSession($this->session())->get(route('nursing-annexes.index', [
+            'date'=>'2026-08-25', 'tab'=>'discards', 'discard_shift'=>'1', 'discard_module'=>'1', 'discard_sequence'=>'M-J-S',
+        ]))->assertOk()->assertSee('HD-001')->assertDontSee('HD-PENDING')->assertSee('1 finalizadas');
+    }
+
+    public function test_an_unfinished_session_cannot_receive_a_discard(): void
+    {
+        $this->order->nurse->update(['enfermero_que_finaliza_id' => null]);
+
+        $this->actingAs($this->nurse)->withSession($this->session())->post(route('nursing-annexes.discards.store',$this->order), [
+            'category'=>DisposableDiscard::DIALYZER,'discarded_at'=>'2026-08-25 12:00','discard_reason'=>'Coagulación',
+        ])->assertStatus(422);
     }
 
     public function test_unrelated_sector_cannot_access_nursing_annexes(): void
