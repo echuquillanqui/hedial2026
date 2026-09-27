@@ -820,12 +820,23 @@ class OrderController extends Controller
 
     private function createRelatedRecords($order, $patient = null, $horasHD = null)
     {
+        $previousFilterArea = Medical::query()
+            ->whereNotNull('area_filtro')
+            ->whereHas('order', fn ($query) => $query
+                ->where('patient_id', $patient->id)
+                ->whereKeyNot($order->id))
+            ->join('orders', 'orders.id', '=', 'medicals.order_id')
+            ->orderByDesc('orders.fecha_orden')
+            ->orderByDesc('medicals.id')
+            ->value('medicals.area_filtro');
+
         // 1. Crear Medical
         Medical::create([
             'order_id' => $order->id,
             'hora_inicial' => now()->format('H:i'),
             'hora_hd' => $horasHD ?? $order->horas_dialisis,
             'peso_seco' => $patient->peso_seco ?? 0,
+            'area_filtro' => $previousFilterArea ?? '1.8',
             'usuario_que_inicia_hd' => auth()->id(),
             'epo2000' => '0',
             'epo4000' => '0',
