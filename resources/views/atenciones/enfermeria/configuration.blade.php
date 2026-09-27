@@ -14,13 +14,10 @@
         <div class="alert alert-success shadow-sm">{{ session('success') }}</div>
     @endif
 
-    <form method="POST" action="{{ route('nurses.schedules.update') }}">
-        @csrf
-        @method('PUT')
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-4">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
                 <div class="alert alert-info border-0 small">
-                    Las horas son fijas para la sede activa y se muestran según el módulo y turno de la atención.
+                    Las horas son fijas para la sede activa. Puede guardar cada módulo por separado, sin completar los demás.
                 </div>
                 <ul class="nav nav-tabs" role="tablist">
                     @foreach(\App\Models\Patient::MODULES as $module)
@@ -30,6 +27,9 @@
                 <div class="tab-content border border-top-0 rounded-bottom p-3">
                     @foreach(\App\Models\Patient::MODULES as $module)
                         <div class="tab-pane fade @if($loop->first) show active @endif" id="module-{{ $loop->index }}">
+                            <form method="POST" action="{{ route('nurses.schedules.update') }}">
+                                @csrf
+                                @method('PUT')
                             @foreach(range(1, 4) as $shift)
                                 @php $configuredTimes = old("schedules.$module.$shift", $schedules->get($module)?->get($shift)?->start_times ?? []); @endphp
                                 <fieldset class="border rounded-3 p-3 mb-3">
@@ -46,14 +46,14 @@
                                     @error("schedules.$module.$shift")<div class="text-danger small mt-2">{{ $message }}</div>@enderror
                                 </fieldset>
                             @endforeach
+                                <div class="text-end pt-2">
+                                    <button class="btn btn-primary px-4" type="submit"><i class="bi bi-check-circle me-2"></i>Guardar {{ $module === \App\Models\Patient::ISOLATED_MODULE ? 'módulo aislado' : "módulo $module" }}</button>
+                                </div>
+                            </form>
                         </div>
                     @endforeach
                 </div>
-            </div>
-            <div class="card-footer bg-white border-0 text-end p-4 pt-0">
-                <button class="btn btn-primary px-4" type="submit"><i class="bi bi-check-circle me-2"></i>Guardar horas</button>
-            </div>
         </div>
-    </form>
+    </div>
 </div>
 @endsection

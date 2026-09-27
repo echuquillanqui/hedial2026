@@ -158,10 +158,16 @@ class NurseController extends Controller
 
     public function updateModuleSchedules(Request $request)
     {
-        $rules = [];
+        $allowedModules = implode(',', Patient::MODULES);
+        $rules = [
+            'schedules' => ['required', 'array:'.$allowedModules, 'min:1'],
+        ];
+
         foreach (Patient::MODULES as $module) {
+            $rules["schedules.{$module}"] = ['sometimes', 'array:1,2,3,4', 'size:4'];
+
             foreach (range(1, 4) as $shift) {
-                $rules["schedules.{$module}.{$shift}"] = ['required', 'array', 'size:5'];
+                $rules["schedules.{$module}.{$shift}"] = ['required_with:schedules.'.$module, 'array', 'size:5'];
                 $rules["schedules.{$module}.{$shift}.*"] = ['required', 'date_format:H:i', 'distinct'];
             }
         }
@@ -173,11 +179,11 @@ class NurseController extends Controller
         ]);
 
         DB::transaction(function () use ($validated) {
-            foreach (Patient::MODULES as $module) {
-                foreach (range(1, 4) as $shift) {
+            foreach ($validated['schedules'] as $module => $shifts) {
+                foreach ($shifts as $shift => $startTimes) {
                     NurseModuleSchedule::updateOrCreate(
                         ['sede_id' => CurrentSede::id(), 'module' => $module, 'shift' => $shift],
-                        ['start_times' => array_values($validated['schedules'][$module][$shift])]
+                        ['start_times' => array_values($startTimes)]
                     );
                 }
             }
