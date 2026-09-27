@@ -97,6 +97,11 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div><h6 class="fw-bold mb-0 text-primary">Seguimiento Horario (formato 24 horas)</h6></div>
                     <div class="d-flex align-items-center gap-2 flex-wrap" aria-label="Horas de inicio disponibles">
+                        @if($horasSugeridas->isEmpty())
+                            <span class="small text-warning fw-semibold">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Este módulo todavía no tiene horas configuradas.
+                            </span>
+                        @endif
                         @foreach($horasSugeridas as $horaSugerida)
                             @php $horaOcupada = $horasOcupadas->contains($horaSugerida); @endphp
                             <button type="button"

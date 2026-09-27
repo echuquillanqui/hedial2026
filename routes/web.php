@@ -223,6 +223,10 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
         ->name('nurses.csrf-token');
     Route::post('enfermeria/modulo-diario', [NurseController::class, 'storeModuleAssignment'])
         ->name('nurses.module-assignment.store');
+    Route::get('enfermeria/configuracion-horarios', [NurseController::class, 'editModuleSchedules'])
+        ->name('nurses.schedules.edit');
+    Route::put('enfermeria/configuracion-horarios', [NurseController::class, 'updateModuleSchedules'])
+        ->name('nurses.schedules.update');
     Route::get('/enfermeria/imprimir-bloque/verificar', [NurseController::class, 'checkBulkPrint'])->name('enfermeria.print.bulk.check');
     Route::get('/enfermeria/imprimir-bloque', [NurseController::class, 'printBulk'])->name('enfermeria.print.bulk');
     Route::get('/enfermeria/imprimir/{id}', [NurseController::class, 'printSingle'])->name('enfermeria.print.single');

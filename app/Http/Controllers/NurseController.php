@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Nurse;
 use App\Models\NurseModuleAssignment;
+use App\Models\NurseModuleSchedule;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Patient;
@@ -11,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
-use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\CurrentSede;
 use App\Services\WarehouseConsumptionService;
@@ -22,7 +22,13 @@ class NurseController extends Controller
     public function __construct()
     {
         $this->middleware('permission:nurses.view')->only(['index', 'show', 'printSingle', 'printBulk', 'checkBulkPrint']);
-        $this->middleware('permission:nurses.edit')->only(['edit', 'update', 'storeModuleAssignment']);
+        $this->middleware('permission:nurses.edit')->only([
+            'edit',
+            'update',
+            'storeModuleAssignment',
+            'editModuleSchedules',
+            'updateModuleSchedules',
+        ]);
     }
 
     /**
@@ -138,6 +144,43 @@ class NurseController extends Controller
             ->with('success', 'Módulo de trabajo actualizado para hoy.');
     }
 
+    public function editModuleSchedules()
+    {
+        $schedules = NurseModuleSchedule::query()
+            ->where('sede_id', CurrentSede::id())
+            ->get()
+            ->keyBy('module');
+
+        return view('atenciones.enfermeria.configuration', compact('schedules'));
+    }
+
+    public function updateModuleSchedules(Request $request)
+    {
+        $rules = [];
+        foreach (Patient::MODULES as $module) {
+            $rules["schedules.{$module}"] = ['required', 'array', 'size:5'];
+            $rules["schedules.{$module}.*"] = ['required', 'date_format:H:i', 'distinct'];
+        }
+
+        $validated = $request->validate($rules, [
+            'schedules.*.size' => 'Debe configurar exactamente 5 horas por módulo.',
+            'schedules.*.*.date_format' => 'Cada hora debe tener un formato válido.',
+            'schedules.*.*.distinct' => 'Las 5 horas de cada módulo deben ser diferentes.',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            foreach (Patient::MODULES as $module) {
+                NurseModuleSchedule::updateOrCreate(
+                    ['sede_id' => CurrentSede::id(), 'module' => $module],
+                    ['start_times' => array_values($validated['schedules'][$module])]
+                );
+            }
+        });
+
+        return redirect()->route('nurses.schedules.edit')
+            ->with('success', 'Las horas de inicio por módulo fueron actualizadas.');
+    }
+
     public function edit(Nurse $nurse)
     {
         if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
@@ -177,17 +220,22 @@ class NurseController extends Controller
             ->orderBy('name')
             ->get();
 
-        $horaIngreso = Carbon::now()->startOfMinute();
-        $horasSugeridas = collect(range(0, 4))
-            ->map(fn (int $intervalo) => $horaIngreso->copy()->addMinutes($intervalo * 5)->format('H:i'));
+        $module = (string) $order->patient->modulo;
+        $moduleSchedule = NurseModuleSchedule::query()
+            ->where('sede_id', $order->sede_id)
+            ->where('module', $module)
+            ->first();
+        $horasSugeridas = collect($moduleSchedule?->start_times ?? []);
         $horasOcupadas = DB::table('treatments')
             ->join('orders', 'orders.id', '=', 'treatments.order_id')
+            ->join('patients', 'patients.id', '=', 'orders.patient_id')
             ->whereDate('orders.fecha_orden', $order->fecha_orden)
             ->where('orders.id', '!=', $order->id)
+            ->where('patients.modulo', $module)
             ->when($order->sede_id, fn ($query) => $query->where('orders.sede_id', $order->sede_id))
-            ->whereIn('treatments.hora', $horasSugeridas->map(fn ($hora) => $hora . ':00'))
             ->pluck('treatments.hora')
             ->map(fn ($hora) => substr((string) $hora, 0, 5))
+            ->intersect($horasSugeridas)
             ->unique()
             ->values();
 

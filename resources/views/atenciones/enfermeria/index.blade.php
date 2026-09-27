@@ -9,6 +9,11 @@
             </h3>
         </div>
         <div class="col-md-6 text-md-end mt-2 mt-md-0">
+            @can('nurses.edit')
+            <a href="{{ route('nurses.schedules.edit') }}" class="btn btn-outline-primary shadow-sm me-2">
+                <i class="bi bi-clock-history me-2"></i>Configurar horas
+            </a>
+            @endcan
             <button type="button" id="btnBulkPrint" class="btn btn-danger shadow-sm">
                 <i class="bi bi-printer-fill me-2"></i>Imprimir en bloque
             </button>
