@@ -6,6 +6,7 @@ use App\Models\DisposableDiscard;
 use App\Models\DailyNursingAnnex;
 use App\Models\Order;
 use App\Models\Patient;
+use App\Models\DialysisSupplyLot;
 use App\Services\DailyNursingAnnexService;
 use App\Services\NursingAnnexXlsxExporter;
 use App\Services\PdfBrandingService;
@@ -164,7 +165,7 @@ class NursingAnnexController extends Controller
 
     private function monthlyOrders(\Carbon\Carbon $month, array $filters): Collection
     {
-        return Order::query()->with(['patient', 'nurse', 'hemodialysisMaterialConsumptions.material', 'disposableDiscards.recorder'])
+        return Order::query()->with(['patient', 'medical', 'nurse', 'hemodialysisMaterialConsumptions.material', 'disposableDiscards.recorder'])
             ->where('sede_id', CurrentSede::id())->where('attention_type', ClinicalService::HEMODIALYSIS)
             ->finalizedHemodialysis()->whereBetween('fecha_orden', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
             ->when($filters['shift'], fn ($query, $shift) => $query->where('turno', $shift))
@@ -196,6 +197,8 @@ class NursingAnnexController extends Controller
                 ),
                 'dialyzerDiscard' => $order->disposableDiscards->firstWhere('category', DisposableDiscard::DIALYZER),
                 'linesDiscard' => $order->disposableDiscards->firstWhere('category', DisposableDiscard::BLOOD_LINES),
+                'dialyzerLot' => $this->configuredLot($order, DisposableDiscard::DIALYZER),
+                'linesLot' => $this->configuredLot($order, DisposableDiscard::BLOOD_LINES),
             ];
         });
     }
@@ -214,8 +217,16 @@ class NursingAnnexController extends Controller
                     : trim($discard->lot_number).$validity;
             }
 
+            $configuredLot = $this->configuredLot($order, $category);
+            if ($configuredLot) {
+                $validity = ' (vig. '.$configuredLot->valid_from->format('d/m/Y').' - '.$configuredLot->valid_until->format('d/m/Y').')';
+                return $dialyzer
+                    ? $configuredLot->measurement.' m² / '.$configuredLot->lot_number.$validity
+                    : $configuredLot->lot_number.$validity;
+            }
+
             return $dialyzer
-                ? trim((string) $order->nurse?->filtro)
+                ? trim((string) ($order->medical?->area_filtro ?: $order->nurse?->filtro))
                 : trim((string) optional($order->hemodialysisMaterialConsumptions->first(
                     fn ($consumption) => str_contains(mb_strtolower($consumption->material?->name ?? ''), 'línea')
                 ))->material?->name);
@@ -230,6 +241,14 @@ class NursingAnnexController extends Controller
         $codeCounts = $orders->map($product)->filter()->countBy();
 
         return [$codes, $rows, $codeCounts];
+    }
+
+    private function configuredLot(Order $order, string $category): ?DialysisSupplyLot
+    {
+        return DialysisSupplyLot::query()->where('category', $category)
+            ->when($category === DisposableDiscard::DIALYZER, fn ($query) => $query->where('measurement', $order->medical?->area_filtro))
+            ->whereDate('valid_from', '<=', $order->fecha_orden)->whereDate('valid_until', '>=', $order->fecha_orden)
+            ->latest('valid_from')->latest('id')->first();
     }
 
     private function annexOrders($orders, string $frequency, string $module)

@@ -111,7 +111,7 @@
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*', 'fuas.configuration.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*', 'fuas.configuration.*', 'dialysis-supply-lots.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-people-fill me-1"></i> Gestión
         </button>
@@ -146,6 +146,11 @@
             <li>
                 <a class="dropdown-item {{ request()->routeIs('fuas.configuration.*') ? 'active' : '' }}" href="{{ route('fuas.configuration.edit') }}">
                     <i class="bi bi-file-earmark-medical me-2"></i> Configuración FUA
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('dialysis-supply-lots.*') ? 'active' : '' }}" href="{{ route('dialysis-supply-lots.index') }}">
+                    <i class="bi bi-box-seam me-2"></i> Lotes de hemodiálisis
                 </a>
             </li>
             @endif

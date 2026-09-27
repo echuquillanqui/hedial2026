@@ -161,15 +161,16 @@
 
                 <div class="row g-2">
                     <div class="col-md-2">
-                        <label>Área Filtro / Membrana</label>
-                        <div class="input-group input-group-sm">
-                            <select name="area_filtro" class="form-select">
-                                @foreach(['1.3', '1.5', '1.8', '1.9', '2.1', '2.2'] as $areaFiltro)
-                                    <option value="{{ $areaFiltro }}" @selected((string) old('area_filtro', $medical->area_filtro ?? '1.8') === $areaFiltro)>{{ $areaFiltro }}</option>
-                                @endforeach
-                            </select>
-                            <input type="text" name="membrana" class="form-control" value="{{ old('membrana', $medical->membrana ?? "PSF") }}" placeholder=" ">
-                        </div>
+                        <label>Dializador (medida)</label>
+                        <select name="area_filtro" class="form-select form-select-sm @error('area_filtro') is-invalid @enderror" required>
+                            <option value="">-- Seleccionar medida --</option>
+                            @foreach($dialyzerMeasurements as $areaFiltro)
+                                <option value="{{ $areaFiltro }}" @selected((string) old('area_filtro', $medical->area_filtro) === (string) $areaFiltro)>{{ $areaFiltro }} m²</option>
+                            @endforeach
+                        </select>
+                        <input type="hidden" name="membrana" value="{{ old('membrana', $medical->membrana) }}">
+                        @error('area_filtro')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @if($dialyzerMeasurements->isEmpty())<small class="text-danger">Primero configure un lote global de dializador.</small>@endif
                     </div>
                     <div class="col-md-7">
                         <label>Evaluación Final</label>
