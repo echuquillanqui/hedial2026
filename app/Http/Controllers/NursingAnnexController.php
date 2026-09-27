@@ -31,6 +31,7 @@ class NursingAnnexController extends Controller
         $module = in_array((string) $request->input('module', '1'), Patient::MODULES, true) ? (string) $request->input('module', '1') : '1';
         $discardFilters = $this->discardFilters($request);
         $orders = $this->orders($date, $discardFilters);
+        $discardRows = $this->discardRows($orders);
         $annexOrders = $this->annexOrders($orders, $frequency, $module);
         $automaticValues = $service->calculate($annexOrders);
         $annex = DailyNursingAnnex::where(['sede_id' => CurrentSede::id(), 'work_date' => $date, 'frequency' => $frequency, 'module' => $module])->first();
@@ -39,7 +40,7 @@ class NursingAnnexController extends Controller
             ->when($request->filled('history_date'), fn ($q) => $q->whereDate('work_date', $request->input('history_date')))
             ->when($request->filled('history_frequency'), fn ($q) => $q->where('frequency', $this->frequency($request->input('history_frequency'))))
             ->latest('work_date')->latest('id')->paginate(12)->withQueryString();
-        return view('nursing-annexes.index', compact('orders', 'annexOrders', 'date', 'frequency', 'module', 'automaticValues', 'values', 'annex', 'history', 'discardFilters'));
+        return view('nursing-annexes.index', compact('orders', 'discardRows', 'annexOrders', 'date', 'frequency', 'module', 'automaticValues', 'values', 'annex', 'history', 'discardFilters'));
     }
 
     public function storeCare(Request $request, DailyNursingAnnexService $service)
@@ -146,6 +147,20 @@ class NursingAnnexController extends Controller
             'module' => in_array((string) $request->input('discard_module'), Patient::MODULES, true) ? (string) $request->input('discard_module') : null,
             'sequence' => in_array((string) $request->input('discard_sequence'), ['L-M-V', 'M-J-S'], true) ? (string) $request->input('discard_sequence') : null,
         ];
+    }
+
+    private function discardRows(Collection $orders): Collection
+    {
+        return $orders->map(function (Order $order): array {
+            return [
+                'order' => $order,
+                'lines' => $order->hemodialysisMaterialConsumptions->first(
+                    fn ($consumption) => str_contains(mb_strtolower($consumption->material?->name ?? ''), 'línea')
+                ),
+                'dialyzerDiscard' => $order->disposableDiscards->firstWhere('category', DisposableDiscard::DIALYZER),
+                'linesDiscard' => $order->disposableDiscards->firstWhere('category', DisposableDiscard::BLOOD_LINES),
+            ];
+        });
     }
 
     private function discardReport(Collection $orders, string $category): array
