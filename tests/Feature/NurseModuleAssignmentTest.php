@@ -173,6 +173,7 @@ class NurseModuleAssignmentTest extends TestCase
             ->assertJsonPath('status', 'success');
 
         $this->assertEquals(46.00, $nurse->fresh()->peso_final);
+        $this->assertSame('125/85', $nurse->fresh()->pa_final);
         $this->assertDatabaseHas('treatments', [
             'order_id' => $nurse->order_id,
             'hora' => '08:00:00',
@@ -185,6 +186,30 @@ class NurseModuleAssignmentTest extends TestCase
             'pa' => '125/85',
             'ra' => -120,
         ]);
+    }
+
+    public function test_nursing_update_does_not_trust_submitted_final_pa_or_weight(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-CALCULOS-SERVIDOR');
+        Permission::findOrCreate('nurses.edit');
+        $user->givePermissionTo('nurses.edit');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->putJson(route('nurses.update', $nurse), [
+                'peso_inicial' => 70,
+                'uf' => 1500,
+                'peso_final' => 99,
+                'pa_final' => '999/999',
+                't_hora' => ['08:00', '09:00'],
+                't_pa' => ['120/80', '110/70'],
+            ])
+            ->assertOk();
+
+        $nurse->refresh();
+        $this->assertEquals(68.50, $nurse->peso_final);
+        $this->assertSame('110/70', $nurse->pa_final);
     }
 
     public function test_selecting_closing_nurse_requires_completion_fields(): void
@@ -551,8 +576,10 @@ class NurseModuleAssignmentTest extends TestCase
             'acceso_venoso' => 'FAV',
             'enfermero_que_inicia_id' => $user->id,
             'enfermero_que_finaliza_id' => $user->id,
-            'pa_final' => '120/80',
-            'peso_final' => 70,
+            'peso_inicial' => 70,
+            'uf' => 0,
+            't_hora' => ['08:00'],
+            't_pa' => ['120/80'],
             'observacion_final' => 'Sesión finalizada sin complicaciones.',
         ];
     }

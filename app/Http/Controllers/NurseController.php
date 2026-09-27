@@ -185,6 +185,9 @@ class NurseController extends Controller
         if ($request->filled('pa_inicial')) {
             $monitoringPa[0] = $request->input('pa_inicial');
         }
+        $finalPa = collect($monitoringPa)
+            ->filter(fn ($value) => filled($value))
+            ->last();
 
         $monitoringRa = collect($request->input('t_ra', []))
             ->map(fn ($value) => filled($value) ? -abs((int) $value) : $value)
@@ -199,11 +202,12 @@ class NurseController extends Controller
             );
         }
 
-        $request->merge(array_filter([
+        $request->merge([
             't_pa' => $monitoringPa,
             't_ra' => $monitoringRa,
+            'pa_final' => $finalPa,
             'peso_final' => $calculatedFinalWeight,
-        ], fn ($value) => $value !== null));
+        ]);
 
         $isClosing = $request->filled('enfermero_que_finaliza_id');
         $requiredOnClosure = Rule::requiredIf($isClosing);
