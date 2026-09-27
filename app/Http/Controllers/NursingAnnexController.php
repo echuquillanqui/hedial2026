@@ -71,7 +71,7 @@ class NursingAnnexController extends Controller
         $this->authorizeOrder($order);
         $data = $request->validate([
             'category' => ['required', 'in:'.DisposableDiscard::DIALYZER.','.DisposableDiscard::BLOOD_LINES],
-            'discarded_at' => ['required', 'date'], 'lot_number' => ['nullable', 'string', 'max:80'],
+            'discarded_at' => ['required', 'date'], 'lot_number' => ['required', 'string', 'max:80'],
             'discard_reason' => ['required', 'string', 'max:120'], 'final_condition' => ['nullable', 'string', 'max:120'],
             'observations' => ['nullable', 'string'],
         ]);
@@ -89,8 +89,8 @@ class NursingAnnexController extends Controller
         $filters = $this->discardFilters($request);
         $month = $request->date('month', 'Y-m')?->startOfMonth() ?? \Carbon\Carbon::parse($date)->startOfMonth();
         $orders = $this->monthlyOrders($month, $filters);
-        [$codes, $rows] = $this->discardReport($orders, $category);
-        return Pdf::loadView('nursing-annexes.discard-pdf', $branding->data() + compact('orders', 'date', 'month', 'category', 'filters', 'codes', 'rows'))
+        [$codes, $rows, $codeCounts] = $this->discardReport($orders, $category);
+        return Pdf::loadView('nursing-annexes.discard-pdf', $branding->data() + compact('orders', 'date', 'month', 'category', 'filters', 'codes', 'rows', 'codeCounts'))
             ->setPaper('a4', 'landscape')->stream('control-descarte-'.$date.'.pdf');
     }
 
@@ -151,11 +151,20 @@ class NursingAnnexController extends Controller
     private function discardReport(Collection $orders, string $category): array
     {
         $dialyzer = $category === DisposableDiscard::DIALYZER;
-        $product = fn ($order) => $dialyzer
-            ? trim((string) $order->nurse?->filtro)
-            : trim((string) optional($order->hemodialysisMaterialConsumptions->first(
-                fn ($consumption) => str_contains(mb_strtolower($consumption->material?->name ?? ''), 'línea')
-            ))->material?->name);
+        $product = function ($order) use ($category, $dialyzer) {
+            $discard = $order->disposableDiscards->firstWhere('category', $category);
+            if ($discard?->lot_number) {
+                return $dialyzer && filled($order->nurse?->filtro)
+                    ? trim($order->nurse->filtro).' / '.trim($discard->lot_number)
+                    : trim($discard->lot_number);
+            }
+
+            return $dialyzer
+                ? trim((string) $order->nurse?->filtro)
+                : trim((string) optional($order->hemodialysisMaterialConsumptions->first(
+                    fn ($consumption) => str_contains(mb_strtolower($consumption->material?->name ?? ''), 'línea')
+                ))->material?->name);
+        };
         $products = $orders->map($product)->filter()->unique()->values();
         $codes = $products->mapWithKeys(fn ($name, $index) => [$name => $index + 1]);
         $rows = $orders->groupBy('patient_id')->map(function ($patientOrders) use ($product, $codes) {
@@ -163,7 +172,9 @@ class NursingAnnexController extends Controller
             return ['patient' => $patientOrders->first()->patient, 'sequence' => $patientOrders->first()->patient->secuencia, 'days' => $days,
                 'totals' => $days->filter()->countBy()];
         })->values();
-        return [$codes, $rows];
+        $codeCounts = $orders->map($product)->filter()->countBy();
+
+        return [$codes, $rows, $codeCounts];
     }
 
     private function annexOrders($orders, string $frequency, string $module)

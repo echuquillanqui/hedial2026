@@ -48,6 +48,38 @@ class NursingAnnexesTest extends TestCase
         $this->assertSame(1,DisposableDiscard::count()); $this->assertDatabaseHas('disposable_discards',['order_id'=>$this->order->id,'recorded_by'=>$this->nurse->id,'discard_reason'=>'Coagulación']);
     }
 
+    public function test_annex_screen_explains_where_to_enter_summary_lots_and_displays_saved_values(): void
+    {
+        $response = $this->actingAs($this->nurse)->withSession($this->session())->get(route('nursing-annexes.index', [
+            'date' => '2026-08-25', 'tab' => 'discards',
+        ]));
+
+        $response->assertOk()
+            ->assertSee('¿Dónde ingreso los datos del cuadro?')
+            ->assertSee('Lote del dializador')
+            ->assertSee('Lote del set de líneas');
+
+        $this->post(route('nursing-annexes.discards.store', $this->order), [
+            'category' => DisposableDiscard::BLOOD_LINES,
+            'discarded_at' => '2026-08-25 23:59',
+            'lot_number' => 'LINEAS-LOT-99',
+            'discard_reason' => 'Descarte posterior a sesión',
+        ])->assertRedirect();
+
+        $this->get(route('nursing-annexes.index', ['date' => '2026-08-25', 'tab' => 'discards']))
+            ->assertOk()
+            ->assertSee('Líneas: LINEAS-LOT-99');
+    }
+
+    public function test_lot_is_required_when_registering_summary_data(): void
+    {
+        $this->actingAs($this->nurse)->withSession($this->session())->post(route('nursing-annexes.discards.store', $this->order), [
+            'category' => DisposableDiscard::DIALYZER,
+            'discarded_at' => '2026-08-25 23:59',
+            'discard_reason' => 'Coagulación',
+        ])->assertSessionHasErrors('lot_number');
+    }
+
     public function test_annex_11_filters_finalized_sessions_by_shift_module_and_sequence(): void
     {
         $this->order->patient->update(['secuencia' => 'M-J-S']);
