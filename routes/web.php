@@ -31,6 +31,7 @@ use App\Http\Controllers\RemainingAnnexController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AttendanceReportController;
 use App\Http\Controllers\MonthlyAttendanceReportController;
+use App\Http\Controllers\DialysisSupplyLotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -84,6 +85,9 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::put('catalogo', [CatalogController::class, 'update'])->name('catalog.update');
     Route::get('fuas/configuracion', [FuaConfigurationController::class, 'edit'])->name('fuas.configuration.edit');
     Route::put('fuas/configuracion', [FuaConfigurationController::class, 'update'])->name('fuas.configuration.update');
+    Route::get('configuracion/lotes-hemodialisis', [DialysisSupplyLotController::class, 'index'])->name('dialysis-supply-lots.index');
+    Route::post('configuracion/lotes-hemodialisis', [DialysisSupplyLotController::class, 'store'])->name('dialysis-supply-lots.store');
+    Route::delete('configuracion/lotes-hemodialisis/{dialysisSupplyLot}', [DialysisSupplyLotController::class, 'destroy'])->name('dialysis-supply-lots.destroy');
     Route::get('fuas', [FuaController::class, 'index'])->name('fuas.index');
     Route::get('impresiones/fuas-hemodialisis', [FuaController::class, 'hemodialysisIndex'])->name('fuas.hemodialysis.index');
     Route::post('impresiones/fuas-hemodialisis/imprimir', [FuaController::class, 'bulkPdf'])->name('fuas.hemodialysis.bulk-pdf');

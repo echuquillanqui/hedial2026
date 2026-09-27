@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Medical;
 use App\Models\Nurse;
 use App\Models\User;
+use App\Models\DialysisSupplyLot;
+use App\Models\DisposableDiscard;
 use App\Services\WarehouseConsumptionService;
 use App\Support\CurrentSede;
 use App\Support\DailyHemodialysisSequence;
@@ -86,7 +88,14 @@ class MedicalController extends Controller
         // Obtenemos solo los usuarios cuya profesión sea MEDICO
         $medicos = User::where('profession', 'MEDICO')->get();
         
-        return view('atenciones.medicina.edit', compact('medical', 'order', 'medicos'));
+        $dialyzerMeasurements = DialysisSupplyLot::query()
+            ->where('category', DisposableDiscard::DIALYZER)->where('is_active', true)
+            ->whereDate('valid_until', '>=', $order->fecha_orden)->pluck('measurement')->map(fn ($value) => (string) $value)->unique()->sort()->values();
+        if ($medical->area_filtro && ! $dialyzerMeasurements->contains((string) $medical->area_filtro)) {
+            $dialyzerMeasurements->push((string) $medical->area_filtro);
+        }
+
+        return view('atenciones.medicina.edit', compact('medical', 'order', 'medicos', 'dialyzerMeasurements'));
     }
 
     /**
@@ -105,6 +114,10 @@ class MedicalController extends Controller
             'hora_inicial' => $this->withoutSeconds($request->input('hora_inicial')),
             'hora_final' => $this->withoutSeconds($request->input('hora_final')),
         ]);
+
+        $configuredMeasurements = DialysisSupplyLot::query()->where('category', DisposableDiscard::DIALYZER)
+            ->where('is_active', true)->pluck('measurement')->map(fn ($value) => (string) $value)->unique()->all();
+        $allowedMeasurements = $configuredMeasurements ?: ['1.3', '1.5', '1.8', '1.9', '2.1', '2.2'];
 
         $validated = $request->validate([
             // Signos Vitales e Iniciales (Migración)
@@ -141,7 +154,7 @@ class MedicalController extends Controller
             'cnd'                 => 'nullable|numeric',
             'na_final'            => 'nullable|integer',
             'perfil_na'           => 'nullable|string',
-            'area_filtro'         => ['required', Rule::in(['1.3', '1.5', '1.8', '1.9', '2.1', '2.2'])],
+            'area_filtro'         => ['required', Rule::in($allowedMeasurements)],
             'membrana'            => 'nullable|string',
             'perfil_uf'           => 'nullable|string',
 

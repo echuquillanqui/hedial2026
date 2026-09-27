@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\DisposableDiscard;
+use App\Models\DialysisSupplyLot;
+use App\Models\Medical;
 use App\Models\HemodialysisMaterial;
 use App\Models\Nurse;
 use App\Models\Order;
@@ -106,6 +108,33 @@ class NursingAnnexesTest extends TestCase
             'valid_from' => '2026-01-01',
             'valid_until' => '2027-01-01',
         ]);
+    }
+
+    public function test_global_dialyzer_lot_is_recognized_from_medical_measurement(): void
+    {
+        Medical::create(['order_id' => $this->order->id, 'hora_hd' => 4, 'area_filtro' => '1.8']);
+        DialysisSupplyLot::create([
+            'category' => DisposableDiscard::DIALYZER, 'measurement' => '1.8', 'lot_number' => 'GLOBAL-18',
+            'valid_from' => '2026-08-01', 'valid_until' => '2027-08-01', 'is_active' => true,
+        ]);
+
+        $this->actingAs($this->nurse)->withSession($this->session())->get(route('nursing-annexes.index', [
+            'date' => '2026-08-25', 'tab' => 'discards',
+        ]))->assertOk()->assertSee('1.8 m²')->assertSee('GLOBAL-18')->assertSee('(global)');
+    }
+
+    public function test_global_lot_configuration_can_be_registered(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $admin->sedes()->attach($this->sede);
+
+        $this->actingAs($admin)->withSession($this->session())->post(route('dialysis-supply-lots.store'), [
+            'category' => DisposableDiscard::DIALYZER, 'measurement' => '2.1', 'lot_number' => 'LOT-21',
+            'valid_from' => '2026-09-01', 'valid_until' => '2027-09-01',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertDatabaseHas('dialysis_supply_lots', ['measurement' => '2.1', 'lot_number' => 'LOT-21', 'is_active' => true]);
     }
 
     public function test_annex_11_counts_only_one_finalized_session_per_patient_and_day(): void
