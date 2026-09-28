@@ -50,7 +50,7 @@
                     </div>
                     <div class="col-md-2">
                         <label>Peso Inicial (kg)</label>
-                        <input type="number" step="0.1" name="peso_inicial" class="form-control form-control-sm" value="{{ old('peso_inicial', $medical->peso_inicial) }}" required placeholder=" ">
+                        <input type="number" step="0.01" name="peso_inicial" class="form-control form-control-sm" value="{{ old('peso_inicial', $medical->peso_inicial) }}" required placeholder=" ">
                     </div>
                     <div class="col-md-2">
                         <label>PA Inicial</label>
