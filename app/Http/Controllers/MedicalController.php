@@ -234,8 +234,9 @@ class MedicalController extends Controller
             $validated['usuario_que_inicia_hd'] = Auth::id();
         }
 
+        $previousMedications = $medical->only($this->nursingMedicationFields());
         $medical->update($validated);
-        $this->syncMedicationToNurseWhenDefault($medical);
+        $this->syncMedicationToNurse($medical, $previousMedications);
         app(WarehouseConsumptionService::class)->consumeIfFinalized($medical->order->fresh());
 
         return redirect()->route('medicals.index')
@@ -269,8 +270,9 @@ class MedicalController extends Controller
             'heparina'     => 'nullable|string|max:50',
         ]);
 
+        $previousMedications = $medical->only($this->nursingMedicationFields());
         $medical->update($medications);
-        $this->syncMedicationToNurseWhenDefault($medical);
+        $this->syncMedicationToNurse($medical, $previousMedications);
 
         return back()->with('success', 'Medicamentos de la atención actualizados correctamente.');
     }
@@ -316,8 +318,9 @@ class MedicalController extends Controller
         DB::transaction(function () use ($validated, $medicals) {
             foreach ($validated['medicals'] as $medicalId => $medications) {
                 $medical = $medicals->get((string) $medicalId);
+                $previousMedications = $medical->only($this->nursingMedicationFields());
                 $medical->update($medications);
-                $this->syncMedicationToNurseWhenDefault($medical);
+                $this->syncMedicationToNurse($medical, $previousMedications);
             }
         });
 
@@ -366,26 +369,32 @@ class MedicalController extends Controller
     }
 
     /**
-     * Sincroniza medicación hacia Nurse solo cuando Nurse aún está con valor por defecto ("0"/vacío).
+     * Mantiene en enfermería los cambios de una prescripción que todavía no fue
+     * modificada por el personal de enfermería.
+     *
+     * Además de los valores vacíos, se reemplaza el valor que coincide con la
+     * prescripción médica anterior. Así, una corrección de 3 a 1 no deja el 3
+     * copiado previamente en la ficha de enfermería. Un valor distinto se
+     * considera una cantidad administrada editada por enfermería y se conserva.
      */
-    private function syncMedicationToNurseWhenDefault(Medical $medical): void
+    private function syncMedicationToNurse(Medical $medical, array $previousMedications): void
     {
         $nurse = Nurse::where('order_id', $medical->order_id)->first();
         if (!$nurse) {
             return;
         }
 
-        $medicationFields = ['epo2000', 'epo4000', 'hierro', 'vitamina_b12', 'calcitriol'];
         $changes = [];
 
-        foreach ($medicationFields as $field) {
+        foreach ($this->nursingMedicationFields() as $field) {
             $nurseValue = (string) ($nurse->$field ?? '');
             $medicalValue = (string) ($medical->$field ?? '');
+            $previousMedicalValue = (string) ($previousMedications[$field] ?? '');
 
             $nurseHasDefaultValue = in_array($nurseValue, ['', '0'], true);
-            $medicalHasMeaningfulValue = !in_array($medicalValue, ['', '0'], true);
+            $nurseStillHasPreviousPrescription = $nurseValue === $previousMedicalValue;
 
-            if ($nurseHasDefaultValue && $medicalHasMeaningfulValue) {
+            if ($nurseHasDefaultValue || $nurseStillHasPreviousPrescription) {
                 $changes[$field] = $medical->$field;
             }
         }
@@ -393,5 +402,10 @@ class MedicalController extends Controller
         if (!empty($changes)) {
             $nurse->update($changes);
         }
+    }
+
+    private function nursingMedicationFields(): array
+    {
+        return ['epo2000', 'epo4000', 'hierro', 'vitamina_b12', 'calcitriol'];
     }
 }
