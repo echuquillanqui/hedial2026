@@ -54,6 +54,36 @@ class MedicalMedicationModalTest extends TestCase
         $this->assertNull($medical->fresh()->epo2000);
     }
 
+    public function test_corrected_medical_quantity_replaces_the_previous_quantity_copied_to_nursing(): void
+    {
+        $medical = $this->medical();
+        $medical->update(['epo2000' => '3']);
+        $nurse = Nurse::create(['order_id' => $medical->order_id, 'epo2000' => '3']);
+
+        $this->actingAs(User::factory()->create())
+            ->withoutMiddleware()
+            ->patch(route('medicals.medications.update', $medical), ['epo2000' => '1'])
+            ->assertRedirect();
+
+        $this->assertSame('1', $medical->fresh()->epo2000);
+        $this->assertSame('1', $nurse->fresh()->epo2000);
+    }
+
+    public function test_correcting_a_prescription_preserves_a_quantity_changed_by_nursing(): void
+    {
+        $medical = $this->medical();
+        $medical->update(['epo2000' => '3']);
+        $nurse = Nurse::create(['order_id' => $medical->order_id, 'epo2000' => '2']);
+
+        $this->actingAs(User::factory()->create())
+            ->withoutMiddleware()
+            ->patch(route('medicals.medications.update', $medical), ['epo2000' => '1'])
+            ->assertRedirect();
+
+        $this->assertSame('1', $medical->fresh()->epo2000);
+        $this->assertSame('2', $nurse->fresh()->epo2000);
+    }
+
     public function test_medications_can_be_saved_for_multiple_selected_patients(): void
     {
         $firstMedical = $this->medical('MED-BULK-001');
