@@ -9,6 +9,7 @@ use App\Models\Profile;
 use App\Models\Test;
 use App\Models\User;
 use App\Services\LaboratoryResultsXlsxExporter;
+use App\Services\LaboratorySealResolver;
 use App\Support\CurrentSede;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -257,18 +258,24 @@ class LaboratoryOrderController extends Controller
         return view('laboratory.results.show', ['order' => $laboratoryOrder]);
     }
 
-    public function pdf(LaboratoryOrder $laboratoryOrder)
+    public function pdf(LaboratoryOrder $laboratoryOrder, LaboratorySealResolver $sealResolver)
     {
         $laboratoryOrder->load(['patient', 'items.test.area', 'validator']);
-        return Pdf::loadView('laboratory.results.pdf', ['orders' => collect([$laboratoryOrder])])
+        return Pdf::loadView('laboratory.results.pdf', [
+            'orders' => collect([$laboratoryOrder]),
+            'laboratoryProfessional' => $sealResolver->resolve(),
+        ])
             ->setPaper('a4')->stream('laboratorio-'.$laboratoryOrder->id.'.pdf');
     }
 
-    public function bulkPdf(Request $request)
+    public function bulkPdf(Request $request, LaboratorySealResolver $sealResolver)
     {
         $data = $request->validate(['order_ids' => 'required|array|min:1', 'order_ids.*' => 'exists:laboratory_orders,id']);
         $orders = LaboratoryOrder::with(['patient', 'items.test.area', 'validator'])->whereIn('id', $data['order_ids'])->get();
-        return Pdf::loadView('laboratory.results.pdf', compact('orders'))->setPaper('a4')->stream('laboratorios-fissal.pdf');
+        $laboratoryProfessional = $sealResolver->resolve();
+
+        return Pdf::loadView('laboratory.results.pdf', compact('orders', 'laboratoryProfessional'))
+            ->setPaper('a4')->stream('laboratorios-fissal.pdf');
     }
 
     public function bulkUpdate(Request $request)

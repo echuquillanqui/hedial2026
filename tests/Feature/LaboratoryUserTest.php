@@ -7,6 +7,7 @@ use App\Models\LaboratoryOrder;
 use App\Models\LaboratoryOrderItem;
 use App\Models\Test;
 use App\Models\User;
+use App\Services\LaboratorySealResolver;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -143,6 +144,36 @@ class LaboratoryUserTest extends TestCase
             $this->assertStringNotContainsString('LABORATORIO FISSAL', $html);
             $this->assertStringNotContainsString('Documento generado', $html);
             $this->assertStringNotContainsString('Orden N.°', $html);
+        } finally {
+            File::delete($absoluteSealPath);
+        }
+    }
+
+    public function test_registered_laboratory_professionals_seal_is_used_for_every_result(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+        $sealPath = 'users/digital-seals/registered-laboratory-seal.png';
+        $absoluteSealPath = storage_path('app/public/'.$sealPath);
+        File::ensureDirectoryExists(dirname($absoluteSealPath));
+        File::put($absoluteSealPath, 'registered seal');
+
+        try {
+            $laboratoryProfessional = User::factory()->create([
+                'profession' => 'TECNÓLOGO MÉDICO EN LABORATORIO',
+                'digital_seal_path' => $sealPath,
+            ]);
+            $laboratoryProfessional->assignRole('laboratorio');
+
+            $order = LaboratoryOrder::create(['patient_name' => 'Paciente sin validador']);
+            $resolvedProfessional = app(LaboratorySealResolver::class)->resolve();
+            $html = view('laboratory.results.pdf', [
+                'orders' => collect([$order->load(['patient', 'items.test.area', 'validator'])]),
+                'laboratoryProfessional' => $resolvedProfessional,
+            ])->render();
+
+            $this->assertTrue($laboratoryProfessional->is($resolvedProfessional));
+            $this->assertStringContainsString($absoluteSealPath, $html);
+            $this->assertStringContainsString('alt="Sello digital"', $html);
         } finally {
             File::delete($absoluteSealPath);
         }
