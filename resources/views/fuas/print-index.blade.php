@@ -10,17 +10,62 @@
 <style>
     .fua-print-page {
         max-width: 1540px;
+        --fua-primary: #174ea6;
+        --fua-accent: #0d9488;
     }
 
     .fua-filter-grid {
         display: grid;
-        grid-template-columns: 1.15fr 1.8fr 1.15fr 1.15fr 1.15fr .75fr 1.15fr;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
         gap: 1rem;
-        align-items: start;
+        align-items: end;
     }
 
-    .fua-filter-check { padding-top: 2rem; }
-    .fua-filter-action { padding-top: 1.75rem; }
+    .fua-filter-date, .fua-filter-select { grid-column: span 2; }
+    .fua-filter-patient { grid-column: span 4; }
+    .fua-filter-check { grid-column: span 2; padding-bottom: .55rem; }
+    .fua-filter-action { grid-column: span 2; }
+
+    .fua-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 1.5rem 1.75rem;
+        color: #fff;
+        border-radius: 1.15rem;
+        background: linear-gradient(125deg, #102a67 0%, var(--fua-primary) 58%, var(--fua-accent) 135%);
+        box-shadow: 0 .7rem 1.7rem rgba(16, 42, 103, .22);
+    }
+    .fua-hero::after {
+        content: '';
+        position: absolute;
+        width: 240px;
+        height: 240px;
+        right: -65px;
+        top: -115px;
+        border: 38px solid rgba(255,255,255,.08);
+        border-radius: 50%;
+    }
+    .fua-hero-icon {
+        display: inline-grid;
+        place-items: center;
+        width: 3.25rem;
+        height: 3.25rem;
+        border-radius: .9rem;
+        background: rgba(255,255,255,.14);
+        font-size: 1.6rem;
+    }
+    .fua-filter-card { border: 0; border-radius: 1.15rem; }
+    .fua-filter-card .card-body { padding: 1.35rem; }
+    .fua-filter-heading { color: #17356f; }
+    .fua-filter-grid .form-control, .fua-filter-grid .form-select { min-height: 44px; border-color: #d5deeb; }
+    .fua-filter-grid .form-control:focus, .fua-filter-grid .form-select:focus { border-color: #6d9cf0; box-shadow: 0 0 0 .2rem rgba(23,78,166,.12); }
+    .fua-sequence-hint { color: #0f766e; font-weight: 600; }
+    .fua-results-card { border: 0; border-radius: 1.15rem; }
+    .fua-results-card thead th { color: #40516e; font-size: .78rem; letter-spacing: .035em; text-transform: uppercase; white-space: nowrap; }
+    .fua-results-card tbody tr { transition: background-color .15s ease; }
+    .fua-results-card tbody td { padding-top: .8rem; padding-bottom: .8rem; }
+    .fua-result-count { display: inline-flex; align-items: center; gap: .55rem; color: #40516e; }
+    .fua-result-count strong { display: inline-grid; place-items: center; min-width: 2.15rem; height: 2.15rem; padding: 0 .55rem; color: #fff; background: var(--fua-primary); border-radius: .7rem; }
 
     .fua-workspace-tabs {
         display: flex;
@@ -49,7 +94,6 @@
     .fua-workspace-tab-doctor.is-active { color: #fff; background: #0d6efd; box-shadow: 0 .3rem .7rem rgba(13, 110, 253, .25); }
 
     @media (max-width: 1199.98px) {
-        .fua-filter-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
         .fua-filter-date,
         .fua-filter-select,
         .fua-filter-check,
@@ -63,22 +107,28 @@
         .fua-filter-select,
         .fua-filter-check,
         .fua-filter-action { grid-column: 1 / -1; }
-        .fua-filter-check,
-        .fua-filter-action { padding-top: 0; }
         .fua-workspace-tabs { flex-direction: column; }
+        .fua-hero { padding: 1.25rem; }
     }
 </style>
 <div class="container-fluid fua-print-page px-3 px-xl-4 py-3" x-data="fuaPdfViewer()">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
-        <div>
-            <span class="text-uppercase small fw-bold text-primary">Impresiones</span>
-            <h3 class="mb-1"><i class="bi bi-files me-2"></i>FUA de {{ $attentionLabel }}</h3>
-            <p class="text-muted mb-0">Filtra las atenciones y prepara varias FUA en un solo documento, sin salir de esta pantalla.</p>
+    <div class="fua-hero d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div class="d-flex align-items-center gap-3 position-relative" style="z-index: 1">
+            <span class="fua-hero-icon"><i class="bi bi-files"></i></span>
+            <div>
+                <span class="text-uppercase small fw-bold opacity-75">Centro de impresiones</span>
+                <h2 class="mb-1 fw-bold">FUA de {{ $attentionLabel }}</h2>
+                <p class="mb-0 opacity-75">Encuentra, organiza e imprime las atenciones de tu jornada.</p>
+            </div>
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4"><div class="card-body">
-        <form method="GET" class="fua-filter-grid">
+    <div class="card fua-filter-card shadow-sm mb-4"><div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="fua-filter-heading mb-0"><i class="bi bi-sliders me-2"></i>Filtros de búsqueda</h5>
+            <span class="badge rounded-pill bg-light text-primary border"><i class="bi bi-calendar3 me-1"></i>Jornada diaria</span>
+        </div>
+        <form method="GET" class="fua-filter-grid" id="fuaFilters">
             <div class="fua-filter-date">
                 <label class="form-label fw-semibold">Fecha de atención</label>
                 <input type="date" name="date" value="{{ $date }}" class="form-control" @disabled(request()->boolean('all_dates'))>
@@ -103,7 +153,7 @@
                 </select>
             </div>
             @endif
-            @if($type === \App\Models\Fua::HEMODIALYSIS)
+            @if($type === \App\Models\Fua::HEMODIALYSIS || $isMultisectorial)
             <div class="fua-filter-select">
                 <label class="form-label fw-semibold" for="sequence">Secuencia del paciente</label>
                 <select name="sequence" id="sequence" class="form-select">
@@ -111,10 +161,10 @@
                     <option value="L-M-V" @selected($sequence === 'L-M-V')>L-M-V</option>
                     <option value="M-J-S" @selected($sequence === 'M-J-S')>M-J-S</option>
                 </select>
-                <div class="form-text">Se selecciona automáticamente según la fecha.</div>
+                <div class="form-text fua-sequence-hint"><i class="bi bi-magic me-1"></i>Automática según el día elegido.</div>
             </div>
             @endif
-            @unless($isMultisectorial)<div class="fua-filter-select">
+            <div class="fua-filter-select">
                 <label class="form-label fw-semibold" for="modulo">Módulo</label>
                 <select name="modulo" id="modulo" class="form-select">
                     <option value="">Todos los módulos</option>
@@ -131,7 +181,7 @@
                         <option value="{{ $shift }}" @selected((string) request('turno') === (string) $shift)>Turno {{ $shift }}</option>
                     @endforeach
                 </select>
-            </div>@endunless
+            </div>
             <div class="fua-filter-check">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="all_dates" value="1" id="allDates" @checked(request()->boolean('all_dates')) onchange="this.form.querySelector('[name=date]').disabled=this.checked">
@@ -202,9 +252,9 @@
     <form method="POST" action="{{ $bulkRoute }}" @submit.prevent="openBulkPdf($event.currentTarget)">
         @csrf
         @if($isMultisectorial)<input type="hidden" name="type" value="{{ $type }}">@endif
-        <div class="card shadow-sm overflow-hidden">
+        <div class="card fua-results-card shadow-sm overflow-hidden">
             <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3">
-                <span><strong>{{ $fuas->total() }}</strong> FUA encontradas</span>
+                <span class="fua-result-count"><strong>{{ $fuas->total() }}</strong> <span>FUA encontradas</span></span>
                 <button type="submit" class="btn btn-danger" :disabled="selected.length === 0 || pdfLoading"><i class="bi bi-printer me-2"></i>Imprimir seleccionadas (<span x-text="selected.length">0</span>)</button>
             </div>
             <div class="table-responsive"><table class="table table-hover align-middle mb-0">
@@ -246,4 +296,19 @@
 </div>
 
 @include('fuas.partials.pdf-modal-script')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('fuaFilters');
+    const date = form?.querySelector('[name="date"]');
+    const sequence = form?.querySelector('[name="sequence"]');
+    const allDates = form?.querySelector('[name="all_dates"]');
+    if (!date || !sequence) return;
+
+    date.addEventListener('change', () => {
+        if (!date.value || allDates?.checked) return;
+        const day = new Date(`${date.value}T12:00:00`).getDay();
+        sequence.value = [1, 3, 5].includes(day) ? 'L-M-V' : ([2, 4, 6].includes(day) ? 'M-J-S' : '');
+    });
+});
+</script>
 @endsection

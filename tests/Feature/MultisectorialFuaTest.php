@@ -129,6 +129,48 @@ class MultisectorialFuaTest extends TestCase
         );
     }
 
+    public function test_multisectorial_fua_index_filters_by_daily_sequence_module_and_shift(): void
+    {
+        $admin = User::query()->where('username', 'admin.sede.de.prueba')->firstOrFail();
+        $numberService = app(FuaNumberService::class);
+        $matchingPatient = Patient::factory()->create([
+            'sede_id' => $this->sede->id,
+            'secuencia' => 'L-M-V',
+            'modulo' => '2',
+        ]);
+        $otherSequencePatient = Patient::factory()->create([
+            'sede_id' => $this->sede->id,
+            'secuencia' => 'M-J-S',
+            'modulo' => '2',
+        ]);
+        $otherModulePatient = Patient::factory()->create([
+            'sede_id' => $this->sede->id,
+            'secuencia' => 'L-M-V',
+            'modulo' => '3',
+        ]);
+
+        $matching = $numberService->createForOrder($this->orderForPatient($matchingPatient, 'MATCH', '2'));
+        $otherSequence = $numberService->createForOrder($this->orderForPatient($otherSequencePatient, 'OTHER-SEQUENCE', '2'));
+        $otherModule = $numberService->createForOrder($this->orderForPatient($otherModulePatient, 'OTHER-MODULE', '1'));
+
+        $response = $this->actingAs($admin)->withSession($this->sedeSession())
+            ->get(route('fuas.multisectorial.index', [
+                'type' => ClinicalService::NUTRITION,
+                'date' => '2026-09-30',
+                'modulo' => '2',
+                'turno' => 2,
+            ]));
+
+        $response->assertOk()
+            ->assertViewHas('sequence', 'L-M-V')
+            ->assertSee('name="sequence"', false)
+            ->assertSee('name="modulo"', false)
+            ->assertSee('name="turno"', false)
+            ->assertSee($matching->number)
+            ->assertDontSee($otherSequence->number)
+            ->assertDontSee($otherModule->number);
+    }
+
     public function test_multisectorial_procedure_uses_configured_cpms_in_shared_pdf_data(): void
     {
         $fua = new Fua(['type' => ClinicalService::SOCIAL_WORK]);
@@ -200,6 +242,18 @@ class MultisectorialFuaTest extends TestCase
             'horas_dialisis' => 0.5,
             'fecha_orden' => now()->toDateString(),
         ]);
+    }
+
+    private function orderForPatient(Patient $patient, string $code, string $shift): Order
+    {
+        $order = $this->order(ClinicalService::NUTRITION, $code);
+        $order->update([
+            'patient_id' => $patient->id,
+            'turno' => $shift,
+            'fecha_orden' => '2026-09-30',
+        ]);
+
+        return $order;
     }
 
     private function sedeSession(): array
