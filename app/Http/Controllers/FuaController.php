@@ -67,7 +67,8 @@ class FuaController extends Controller
         ]);
 
         $date = $request->boolean('all_dates') ? null : ($filters['date'] ?? now()->toDateString());
-        $sequence = $type === Fua::HEMODIALYSIS
+        $usesDialysisSchedule = $type === Fua::HEMODIALYSIS || ClinicalService::isMultisectorial($type);
+        $sequence = $usesDialysisSchedule
             ? ($request->has('sequence')
                 ? ($filters['sequence'] ?? null)
                 : ($date ? DailyHemodialysisSequence::forDate($date) : null))
@@ -292,7 +293,7 @@ class FuaController extends Controller
             ->when($sequence, fn (Builder $query) => $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery
                 ->scheduledForSequence($sequence)))
             ->when($module, function (Builder $query, string $module) use ($type) {
-                if ($type === Fua::NEPHROLOGY) {
+                if ($type !== Fua::HEMODIALYSIS) {
                     $query->whereHas('order.patient', fn (Builder $patientQuery) => $patientQuery
                         ->where('modulo', (string) $module));
 
