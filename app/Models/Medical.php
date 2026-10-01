@@ -21,6 +21,11 @@ class Medical extends Model
         'evaluacion_final', 'hora_final', 'usuario_que_inicia_hd', 'usuario_que_finaliza_hd'
     ];
 
+    public function getDialyzerMembraneAttribute(): string
+    {
+        return filled($this->membrana) ? trim((string) $this->membrana) : 'PSF';
+    }
+
     // Haz lo mismo para Nurse y Treatment agregando 'order_id' a su $fillable
 
     // Relación con la orden original

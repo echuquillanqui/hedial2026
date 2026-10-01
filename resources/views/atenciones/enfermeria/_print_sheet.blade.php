@@ -96,7 +96,7 @@
         <tr>
             <td colspan="2" class="bold">PRESCRIPCION PARA DIALIZADOR:</td>
             <td class="bold">Area de dializador:</td><td class="border-bottom text-center">{{ $order->medical->area_filtro }}</td>
-            <td class="bold">Membrana de dializador:</td><td class="border-bottom text-center">{{ $order->medical->membrana }}</td>
+            <td class="bold">Membrana de dializador:</td><td class="border-bottom text-center">{{ $order->medical?->dialyzer_membrane ?? 'PSF' }}</td>
             <td class="bold"></td><td></td>
         </tr>
 

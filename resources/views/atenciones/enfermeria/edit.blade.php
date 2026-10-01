@@ -51,9 +51,10 @@
                 <div class="col-md-1"><label>Sesión №</label><div class="h5 fw-bold text-primary mb-0">#{{ $nurse->numero_hd }}</div></div>
                 <div class="col-md-2"><label data-label="Puesto">Puesto *</label><input type="text" name="puesto" id="puestoInput" class="form-control form-control-sm fw-bold completion-field" value="{{ old('puesto', $nurse->puesto ?? $previousPosition) }}"><small class="text-muted">Se recupera de la sesión anterior y puede modificarse.</small></div>
                 <div class="col-md-2"><label data-label="№ Máquina">№ Máquina *</label><input type="text" name="numero_maquina" id="maquinaInput" class="form-control form-control-sm completion-field" value="{{ old('numero_maquina', $nurse->numero_maquina ?? $nurse->puesto ?? $previousPosition) }}"></div>
-                <div class="col-md-3"><label>Marca / Modelo</label><input type="text" name="marca_modelo" class="form-control form-control-sm" value="{{ $nurse->marca_modelo }}"></div>
+                <div class="col-md-2"><label>Marca / Modelo</label><input type="text" name="marca_modelo" class="form-control form-control-sm" value="{{ $nurse->marca_modelo }}"></div>
                 <div class="col-md-2"><label>Frecuencia</label><input type="text" name="frecuencia_hd" class="form-control form-control-sm fw-bold" value="{{ $nurse->frecuencia_hd ?? '3 VECES POR SEMANA' }}"></div>
                 <div class="col-md-2"><label>Filtro / Dializador</label><input type="text" name="filtro" class="form-control form-control-sm" value="{{ $nurse->filtro }}"></div>
+                <div class="col-md-1"><label>Membrana</label><input type="text" class="form-control form-control-sm" value="{{ $order->medical?->dialyzer_membrane ?? 'PSF' }}" readonly></div>
             </div>
         </div>
 
