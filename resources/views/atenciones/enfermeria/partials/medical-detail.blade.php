@@ -21,7 +21,7 @@
             'QB' => [$medical?->qb], 'QD' => [$medical?->qd], 'Bicarbonato' => [$medical?->bicarbonato],
             'Na inicial' => [$medical?->na_inicial], 'CND' => [$medical?->cnd], 'Na final' => [$medical?->na_final],
             'Perfil Na' => [$medical?->perfil_na], 'Área del filtro' => [$medical?->area_filtro],
-            'Membrana' => [$medical?->membrana], 'Perfil UF' => [$medical?->perfil_uf],
+            'Membrana' => [$medical?->dialyzer_membrane ?? 'PSF'], 'Perfil UF' => [$medical?->perfil_uf],
         ],
     ];
 @endphp

@@ -36,7 +36,7 @@
             'Na final' => [$medical?->na_final],
             'Perfil Na' => [$medical?->perfil_na],
             'Área del filtro' => [$medical?->area_filtro],
-            'Membrana' => [$medical?->membrana],
+            'Membrana' => [$medical?->dialyzer_membrane ?? 'PSF'],
             'Perfil UF' => [$medical?->perfil_uf],
         ],
     ];
