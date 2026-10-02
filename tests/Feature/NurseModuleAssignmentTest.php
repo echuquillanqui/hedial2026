@@ -152,7 +152,7 @@ class NurseModuleAssignmentTest extends TestCase
         ]);
     }
 
-    public function test_nursing_update_calculates_final_weight_and_normalizes_initial_pa_and_ra(): void
+    public function test_nursing_update_keeps_each_pa_value_editable_and_normalizes_ra(): void
     {
         [$user, $sede] = $this->nursingUserAndSede();
         $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-CALCULOS');
@@ -167,17 +167,18 @@ class NurseModuleAssignmentTest extends TestCase
                 'uf' => 600,
                 't_hora' => ['08:00', '09:00'],
                 't_pa' => ['110/70', '125/85'],
+                'pa_final' => '130/90',
                 't_ra' => [140, -120],
             ])
             ->assertOk()
             ->assertJsonPath('status', 'success');
 
         $this->assertEquals(46.00, $nurse->fresh()->peso_final);
-        $this->assertSame('125/85', $nurse->fresh()->pa_final);
+        $this->assertSame('130/90', $nurse->fresh()->pa_final);
         $this->assertDatabaseHas('treatments', [
             'order_id' => $nurse->order_id,
             'hora' => '08:00:00',
-            'pa' => '120/80',
+            'pa' => '110/70',
             'ra' => -140,
         ]);
         $this->assertDatabaseHas('treatments', [
@@ -188,7 +189,7 @@ class NurseModuleAssignmentTest extends TestCase
         ]);
     }
 
-    public function test_nursing_update_does_not_trust_submitted_final_pa_or_weight(): void
+    public function test_nursing_update_preserves_manually_entered_final_pa(): void
     {
         [$user, $sede] = $this->nursingUserAndSede();
         $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-CALCULOS-SERVIDOR');
@@ -209,7 +210,30 @@ class NurseModuleAssignmentTest extends TestCase
 
         $nurse->refresh();
         $this->assertEquals(68.50, $nurse->peso_final);
-        $this->assertSame('110/70', $nurse->pa_final);
+        $this->assertSame('999/999', $nurse->pa_final);
+    }
+
+    public function test_nursing_update_stores_decimal_conductivity(): void
+    {
+        [$user, $sede] = $this->nursingUserAndSede();
+        $nurse = $this->nurseForModule($sede, 1, 'PACIENTE-CND-DECIMAL');
+        Permission::findOrCreate('nurses.edit');
+        $user->givePermissionTo('nurses.edit');
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->putJson(route('nurses.update', $nurse), [
+                't_hora' => ['08:00'],
+                't_cnd' => [13.8],
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertDatabaseHas('treatments', [
+            'order_id' => $nurse->order_id,
+            'hora' => '08:00:00',
+            'cnd' => 13.8,
+        ]);
     }
 
     public function test_selecting_closing_nurse_requires_completion_fields(): void

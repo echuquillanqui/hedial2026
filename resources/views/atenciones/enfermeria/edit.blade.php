@@ -81,7 +81,7 @@
                         </select>
                     </div>
                     <div class="col-md-2"><label>Peso Seco (kg)</label><input type="number" step="0.01" name="peso_seco" id="pesoSecoInput" class="form-control form-control-sm" value="{{ old('peso_seco', $order->patient->peso_seco ?? $order->medical->peso_seco) }}"></div>
-                    <div class="col-md-2"><label>PA Inicial</label><input type="text" name="pa_inicial" id="paInicialInput" class="form-control form-control-sm" value="{{ $nurse->pa_inicial ?? $order->medical->pa_inicial }}"></div>
+                    <div class="col-md-2"><label>PA Inicial</label><input type="text" name="pa_inicial" class="form-control form-control-sm" value="{{ old('pa_inicial', $nurse->pa_inicial ?? $order->medical->pa_inicial) }}"></div>
                     <div class="col-md-2"><label>Peso Inicial (kg)</label><input type="number" step="0.01" name="peso_inicial" id="pesoInicialInput" class="form-control form-control-sm" value="{{ $nurse->peso_inicial ?? $order->medical->peso_inicial }}"></div>
                     <div class="col-md-2"><label>UF Prog (ml)</label><input type="number" step="1" min="0" name="uf" id="ufInput" class="form-control form-control-sm" value="{{ $nurse->uf ?? $order->medical->uf }}"></div>
                     <div class="col-md-4"><label>Aspecto Filtro</label><input type="text" name="aspecto_dializador" class="form-control form-control-sm" value="{{ $nurse->aspecto_dializador ?? '0' }}"></div>
@@ -173,7 +173,7 @@
                 </div>
 
                 <div class="row g-3 border-top pt-3 bg-light rounded">
-                    <div class="col-md-2"><label data-label="PA Final">PA Final</label><input type="text" name="pa_final" id="paFinalInput" class="form-control form-control-sm closure-field" value="{{ $nurse->pa_final }}"></div>
+                    <div class="col-md-2"><label data-label="PA Final">PA Final</label><input type="text" name="pa_final" class="form-control form-control-sm closure-field" value="{{ old('pa_final', $nurse->pa_final) }}"></div>
                     <div class="col-md-2"><label data-label="Peso Final">Peso Final</label><input type="number" step="0.01" name="peso_final" id="pesoFinalInput" class="form-control form-control-sm closure-field" value="{{ $nurse->peso_final }}"></div>
                     <div class="col-md-5"><label data-label="Obs. Final">Observación Final</label><input type="text" name="observacion_final" class="form-control form-control-sm closure-field" value="{{ $nurse->observacion_final }}"></div>
                     <div class="col-md-3">
@@ -212,18 +212,10 @@
 </div>
 
 <script>
-    const paInicialInput = document.getElementById('paInicialInput');
     const pesoInicialInput = document.getElementById('pesoInicialInput');
     const ufInput = document.getElementById('ufInput');
     const pesoSecoInput = document.getElementById('pesoSecoInput');
-    const paFinalInput = document.getElementById('paFinalInput');
     const pesoFinalInput = document.getElementById('pesoFinalInput');
-
-    function sincronizarPaInicial() {
-        const primeraPa = document.querySelector('#tableTreatments tbody tr:first-child input[name="t_pa[]"]');
-        if (primeraPa) primeraPa.value = paInicialInput.value;
-        sincronizarPaFinal();
-    }
 
     function calcularPesoFinal() {
         const pesoInicial = Number.parseFloat(pesoInicialInput.value);
@@ -245,24 +237,16 @@
         pesoFinalInput.classList.toggle('final-weight-warning', tieneComparacion && Math.abs(pesoFinal - pesoSeco) >= 0.005);
     }
 
-    function sincronizarPaFinal() {
-        const registrosPa = Array.from(document.querySelectorAll('#tableTreatments tbody input[name="t_pa[]"]'));
-        const ultimaPa = registrosPa.map(input => input.value.trim()).filter(isFilled).pop();
-        paFinalInput.value = ultimaPa || '';
-    }
-
     function normalizarRa(input) {
         if (input.matches('input[name="t_ra[]"]') && input.value !== '') {
             input.value = String(-Math.abs(Number.parseInt(input.value, 10)));
         }
     }
 
-    paInicialInput.addEventListener('input', sincronizarPaInicial);
     pesoInicialInput.addEventListener('input', calcularPesoFinal);
     ufInput.addEventListener('input', calcularPesoFinal);
     pesoSecoInput.addEventListener('input', actualizarEstadoPesoFinal);
     document.getElementById('tableTreatments').addEventListener('input', event => {
-        if (event.target.matches('input[name="t_pa[]"]')) sincronizarPaFinal();
         if (event.target.matches('.hora-input')) actualizarHoraFormateada(event.target);
     });
     document.getElementById('tableTreatments').addEventListener('change', event => {
@@ -273,7 +257,6 @@
         }
     });
     calcularPesoFinal();
-    sincronizarPaFinal();
 
     function formatearHora12(hora) {
         if (!/^\d{2}:\d{2}$/.test(hora)) return '';
@@ -431,8 +414,6 @@
 
     function addRow() {
         insertarFila('');
-        sincronizarPaInicial();
-        sincronizarPaFinal();
     }
 
     function confirmDeleteRow(btn) {
@@ -447,7 +428,6 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 btn.closest('tr').remove();
-                sincronizarPaFinal();
             }
         });
     }
