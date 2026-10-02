@@ -316,14 +316,6 @@ class NurseController extends Controller
         if (CurrentSede::id() && (int) optional($nurse->order)->sede_id !== (int) CurrentSede::id()) {
             abort(403, 'Atención fuera de la sede activa.');
         }
-        $monitoringPa = $request->input('t_pa', []);
-        if ($request->filled('pa_inicial')) {
-            $monitoringPa[0] = $request->input('pa_inicial');
-        }
-        $calculatedFinalPa = collect($monitoringPa)
-            ->filter(fn ($value) => filled($value))
-            ->last();
-
         $monitoringRa = collect($request->input('t_ra', []))
             ->map(fn ($value) => filled($value) ? -abs((int) $value) : $value)
             ->all();
@@ -338,9 +330,7 @@ class NurseController extends Controller
         }
 
         $request->merge([
-            't_pa' => $monitoringPa,
             't_ra' => $monitoringRa,
-            'pa_final' => $request->filled('pa_final') ? $request->input('pa_final') : $calculatedFinalPa,
             'peso_final' => $finalWeight,
         ]);
 
@@ -349,6 +339,7 @@ class NurseController extends Controller
 
         $validator = Validator::make($request->all(), [
             't_hora.*' => ['nullable', 'date_format:H:i'],
+            't_cnd.*' => ['nullable', 'numeric'],
             'peso_seco' => ['nullable', 'numeric', 'between:0,999.99'],
             'peso_inicial' => ['nullable', 'numeric', 'between:0,999.99'],
             'uf' => ['nullable', 'numeric', 'min:0'],
