@@ -11,10 +11,14 @@ class WarehouseStockEntry extends Model
 
     protected $fillable = [
         'warehouse_id', 'warehouse_material_id', 'warehouse_supplier_id', 'quantity',
-        'expiration_date', 'batch_number', 'document_number', 'received_by', 'notes',
+        'valid_from', 'expiration_date', 'batch_number', 'document_number', 'received_by', 'notes',
     ];
 
-    protected $casts = ['quantity' => 'decimal:2', 'expiration_date' => 'date'];
+    protected $casts = [
+        'quantity' => 'decimal:2',
+        'valid_from' => 'date',
+        'expiration_date' => 'date',
+    ];
 
     public function warehouse() { return $this->belongsTo(Warehouse::class); }
     public function material() { return $this->belongsTo(WarehouseMaterial::class, 'warehouse_material_id'); }

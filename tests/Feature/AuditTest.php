@@ -594,6 +594,29 @@ class AuditTest extends TestCase
         $this->assertStringNotContainsString('FUERA DEL PERIODO', $spreadsheet);
     }
 
+    public function test_dashboard_counts_only_finalized_hemodialysis_attendances(): void
+    {
+        [$user, $sede, $finalizedOrder] = $this->auditScenario();
+        $pendingDuplicate = Order::create([
+            'sede_id' => $sede->id,
+            'patient_id' => $finalizedOrder->patient_id,
+            'codigo_unico' => 'ORD-DUPLICADA-PENDIENTE',
+            'sala' => 'MODULO 2',
+            'turno' => '1',
+            'fecha_orden' => today(),
+            'attention_type' => 'HEMODIALYSIS',
+        ]);
+        Nurse::create(['order_id' => $pendingDuplicate->id]);
+
+        $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->get(route('home', ['date' => today()->toDateString()]))
+            ->assertOk()
+            ->assertViewHas('kpis', fn (array $kpis) => $kpis['totalSesiones'] === 1)
+            ->assertSee($finalizedOrder->codigo_unico)
+            ->assertDontSee('ORD-DUPLICADA-PENDIENTE');
+    }
+
     private function auditScenario(): array
     {
         $user = User::factory()->create();
