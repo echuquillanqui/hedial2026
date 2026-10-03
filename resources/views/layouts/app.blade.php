@@ -75,8 +75,9 @@
                         $canManagePatients = auth()->user()->can('patients.view');
                         $canManageSedes = auth()->user()->can('users.view');
                         $canManageFuaConfiguration = auth()->user()->can('fua.configuration.manage');
+                        $canManageMedicalSchedules = auth()->user()->can('medicals.edit');
                         $canManageNurseSchedules = auth()->user()->can('nurses.edit');
-                        $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSedes || $canManageFuaConfiguration || $canManageNurseSchedules;
+                        $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSedes || $canManageFuaConfiguration || $canManageMedicalSchedules || $canManageNurseSchedules;
 
                         $canViewReferrals = auth()->user()->can('referrals.view');
 
@@ -111,7 +112,7 @@
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*', 'fuas.configuration.*', 'dialysis-supply-lots.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*', 'fuas.configuration.*', 'dialysis-supply-lots.*', 'medicals.schedules.*', 'nurses.schedules.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-people-fill me-1"></i> Gestión
         </button>
@@ -151,6 +152,13 @@
             <li>
                 <a class="dropdown-item {{ request()->routeIs('dialysis-supply-lots.*') ? 'active' : '' }}" href="{{ route('dialysis-supply-lots.index') }}">
                     <i class="bi bi-box-seam me-2"></i> Lotes de hemodiálisis
+                </a>
+            </li>
+            @endif
+            @if($canManageMedicalSchedules)
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('medicals.schedules.*') ? 'active' : '' }}" href="{{ route('medicals.schedules.edit') }}">
+                    <i class="bi bi-heart-pulse me-2"></i> Horarios médicos
                 </a>
             </li>
             @endif

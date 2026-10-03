@@ -17,6 +17,19 @@ class MedicalModuleScheduleTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_schedule_configuration_is_available_from_management_navigation(): void
+    {
+        [$user, $sede] = $this->userAndSede();
+
+        $response = $this->actingAs($user)->withSession(['current_sede_id' => $sede->id])
+            ->get(route('medicals.schedules.edit'));
+
+        $response->assertOk()
+            ->assertSee('Gestión')
+            ->assertSee('Horarios médicos')
+            ->assertSee('href="'.route('medicals.schedules.edit').'"', false);
+    }
+
     public function test_authorized_user_can_configure_dynamic_ranges_for_one_module(): void
     {
         [$user, $sede] = $this->userAndSede();
