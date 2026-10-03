@@ -48,6 +48,17 @@
                         <input type="time" name="hora_inicial" id="hora_inicial" class="form-control form-control-sm @error('hora_inicial') is-invalid @enderror" value="{{ old('hora_inicial', $medical->hora_inicial ? substr($medical->hora_inicial, 0, 5) : null) }}">
                         @error('hora_inicial')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
+                    <div class="col-md-10 d-flex align-items-end pb-1">
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <span class="small text-muted fw-bold">SUGERENCIAS:</span>
+                            @forelse($startSuggestions as $suggestedTime)
+                                <button type="button" class="btn btn-sm btn-outline-success rounded-pill medical-time-suggestion" data-group="start" data-target="hora_inicial" data-time="{{ $suggestedTime }}">{{ Carbon\Carbon::createFromFormat('H:i', $suggestedTime)->format('g:i A') }}</button>
+                            @empty
+                                <span class="small text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Sin rango configurado para este módulo y turno.</span>
+                            @endforelse
+                            @if($startSuggestions->isNotEmpty())<button type="button" class="btn btn-sm btn-success rounded-pill random-medical-time" data-group="start"><i class="bi bi-shuffle me-1"></i>Elegir aleatoria</button>@endif
+                        </div>
+                    </div>
                     <div class="col-md-2">
                         <label>Peso Inicial (kg)</label>
                         <input type="number" step="0.01" name="peso_inicial" class="form-control form-control-sm" value="{{ old('peso_inicial', $medical->peso_inicial) }}" required placeholder=" ">
@@ -182,6 +193,18 @@
                         @error('hora_final')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                 </div>
+                <div class="alert alert-light border mt-2 mb-0 py-2">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <strong class="small text-uppercase"><i class="bi bi-activity text-success me-1"></i>Última hora del tratamiento:</strong>
+                        <span class="badge bg-dark">{{ $lastTreatmentTime ? Carbon\Carbon::createFromFormat('H:i', $lastTreatmentTime)->format('g:i A') : 'Sin registros' }}</span>
+                        <span class="small text-muted me-2">La hora médica final debe ser posterior.</span>
+                        @foreach($finishSuggestions as $suggestedTime)
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill medical-time-suggestion" data-group="finish" data-target="hora_final" data-time="{{ $suggestedTime }}">{{ Carbon\Carbon::createFromFormat('H:i', $suggestedTime)->format('g:i A') }}</button>
+                        @endforeach
+                        @if($finishSuggestions->isNotEmpty())<button type="button" class="btn btn-sm btn-primary rounded-pill random-medical-time" data-group="finish"><i class="bi bi-shuffle me-1"></i>Elegir aleatoria</button>@endif
+                        @if($moduleSchedule && $finishSuggestions->isEmpty())<span class="small text-warning">El rango configurado no contiene una hora posterior al tratamiento.</span>@endif
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -227,6 +250,18 @@
     (function () {
         'use strict'
         var form = document.getElementById('medicalForm');
+
+        document.querySelectorAll('.medical-time-suggestion').forEach(function (button) {
+            button.addEventListener('click', function () {
+                document.getElementById(this.dataset.target).value = this.dataset.time;
+            });
+        });
+        document.querySelectorAll('.random-medical-time').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var options = document.querySelectorAll('.medical-time-suggestion[data-group="' + this.dataset.group + '"]');
+                if (options.length) options[Math.floor(Math.random() * options.length)].click();
+            });
+        });
 
         form.addEventListener('submit', function (event) {
             var hFinal = document.getElementById('hora_final').value;
