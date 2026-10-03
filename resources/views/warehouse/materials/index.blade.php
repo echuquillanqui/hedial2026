@@ -8,7 +8,7 @@
             <h4 class="mb-0">Productos configurados</h4>
             <small class="text-muted">Los consumibles automáticos se descuentan del stock de la sede de la atención.</small>
         </div>
-        @can('warehouse.requests.create')
+        @can('warehouse.products.create')
         @if($currentWarehouse?->is_principal)
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#materialModal">
             <i class="bi bi-plus-circle"></i> Nuevo material
@@ -66,13 +66,21 @@
                             <td><span class="badge bg-{{ $material->is_active ? 'success' : 'secondary' }}">{{ $material->is_active ? 'ACTIVO' : 'INACTIVO' }}</span></td>
                             <td class="text-end">
                                 @if($currentWarehouse?->is_principal)
-                                    @can('warehouse.requests.create')
+                                    @can('warehouse.products.edit')
                                         <button type="button" class="btn btn-sm btn-outline-secondary" @click="openEdit({{ Illuminate\Support\Js::from(['id' => $material->id, 'code' => $material->code, 'name' => $material->name, 'unit' => $material->unit, 'category_id' => $material->warehouse_material_category_id, 'min_qty' => $stock?->min_qty ?? 1, 'is_active' => $material->is_active]) }})" aria-label="Editar {{ $material->name }}">
                                             <i class="bi bi-pencil-square"></i>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-primary" @click="materialId={{ $material->id }}; materialName={{ Illuminate\Support\Js::from($material->name) }}; automatic={{ $material->automatic_consumption ? 'true' : 'false' }}; quantity='{{ $material->quantity_per_session }}'; consumptionOpen=true" data-bs-toggle="modal" data-bs-target="#consumptionModal" aria-label="Configurar consumo de {{ $material->name }}">
                                             <i class="bi bi-sliders"></i>
                                         </button>
+                                    @endcan
+                                    @can('warehouse.products.delete')
+                                        @if($material->is_active)
+                                            <form method="POST" action="{{ route('warehouse.materials.destroy', $material) }}" class="d-inline" onsubmit="return confirm('¿Eliminar {{ addslashes($material->name) }} del catálogo activo?');">
+                                                @csrf @method('DELETE')
+                                                <button class="btn btn-sm btn-outline-danger" aria-label="Eliminar {{ $material->name }}"><i class="bi bi-trash"></i></button>
+                                            </form>
+                                        @endif
                                     @endcan
                                 @endif
                             </td>

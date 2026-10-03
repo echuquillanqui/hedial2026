@@ -68,6 +68,9 @@ class WarehouseRequestController extends Controller
         $this->middleware('permission:warehouse.requests.update.status')->only(['updateStatus']);
         $this->middleware('permission:warehouse.requests.dispatch')->only(['dispatch']);
         $this->middleware('permission:warehouse.requests.receive')->only(['receive']);
+        $this->middleware('permission:warehouse.products.create')->only(['storeMaterial']);
+        $this->middleware('permission:warehouse.products.edit')->only(['updateMaterial', 'updateAutomaticConsumption']);
+        $this->middleware('permission:warehouse.products.delete')->only(['destroyMaterial']);
     }
 
     public function index(Request $request)
@@ -248,7 +251,6 @@ class WarehouseRequestController extends Controller
 
     public function storeMaterial(Request $request)
     {
-        $this->authorizePermission('warehouse.requests.create');
         $this->ensurePrincipalWarehouseContext();
         $currentWarehouse = $this->currentWarehouseOrFail();
 
@@ -286,7 +288,6 @@ class WarehouseRequestController extends Controller
 
     public function updateMaterial(Request $request, WarehouseMaterial $warehouseMaterial)
     {
-        $this->authorizePermission('warehouse.requests.create');
         $this->ensurePrincipalWarehouseContext();
         $currentWarehouse = $this->currentWarehouseOrFail();
 
@@ -315,6 +316,18 @@ class WarehouseRequestController extends Controller
         });
 
         return back()->with('toastr', ['type' => 'success', 'message' => 'Material actualizado.']);
+    }
+
+    public function destroyMaterial(WarehouseMaterial $warehouseMaterial)
+    {
+        $this->ensurePrincipalWarehouseContext();
+
+        $warehouseMaterial->update(['is_active' => false]);
+
+        return back()->with('toastr', [
+            'type' => 'success',
+            'message' => 'Producto eliminado del catálogo activo. Su historial se conserva.',
+        ]);
     }
 
     public function entries(Request $request)
@@ -523,7 +536,6 @@ class WarehouseRequestController extends Controller
 
     public function updateAutomaticConsumption(Request $request, WarehouseMaterial $warehouseMaterial)
     {
-        $this->authorizePermission('warehouse.requests.create');
         $this->ensurePrincipalWarehouseContext();
 
         $validated = $request->validate([

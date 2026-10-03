@@ -7,6 +7,7 @@ use App\Models\Sede;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
+use App\Models\WarehouseMaterialCategory;
 use App\Models\WarehouseRequest;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +41,46 @@ class WarehouseRequestFlowTest extends TestCase
         $this->assertTrue($user->hasRole('logistica'));
         $this->assertTrue($user->sedes->contains($activeSede));
         $this->assertFalse($user->sedes->contains($inactiveSede));
+        $this->assertTrue($user->can('warehouse.products.create'));
+        $this->assertTrue($user->can('warehouse.products.edit'));
+        $this->assertTrue($user->can('warehouse.products.delete'));
+    }
+
+    public function test_logistics_can_create_edit_and_remove_products_from_the_active_catalog(): void
+    {
+        [, , $principal] = $this->structure();
+        $principalSede = $principal->sede;
+        $category = WarehouseMaterialCategory::create(['name' => 'Insumos', 'is_active' => true]);
+        $user = User::factory()->create();
+        $user->assignRole('logistica');
+        $user->sedes()->attach($principalSede);
+
+        $session = ['current_sede_id' => $principalSede->id];
+        $this->actingAs($user)->withSession($session)->post(route('warehouse.materials.store'), [
+            'code' => 'PROD-01',
+            'name' => 'Producto de prueba',
+            'unit' => 'unidad',
+            'warehouse_material_category_id' => $category->id,
+            'min_qty' => 1,
+        ])->assertRedirect();
+
+        $material = WarehouseMaterial::where('code', 'PROD-01')->firstOrFail();
+        $this->actingAs($user)->withSession($session)->put(route('warehouse.materials.update', $material), [
+            'code' => 'PROD-01',
+            'name' => 'Producto actualizado',
+            'unit' => 'caja',
+            'warehouse_material_category_id' => $category->id,
+            'min_qty' => 2,
+            'is_active' => 1,
+        ])->assertRedirect();
+
+        $this->assertSame('Producto actualizado', $material->fresh()->name);
+
+        $this->actingAs($user)->withSession($session)
+            ->delete(route('warehouse.materials.destroy', $material))
+            ->assertRedirect();
+
+        $this->assertFalse($material->fresh()->is_active);
     }
 
     public function test_logistics_sees_requests_from_all_sedes_while_admin_only_sees_assigned_areas(): void

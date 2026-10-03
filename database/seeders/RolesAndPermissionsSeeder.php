@@ -58,6 +58,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'warehouse.requests.receive',
             'warehouse.requests.print',
             'warehouse.configuration.manage',
+            'warehouse.products.create',
+            'warehouse.products.edit',
+            'warehouse.products.delete',
         ];
 
         foreach ($permissions as $permission) {
@@ -138,6 +141,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'warehouse.requests.view', 'warehouse.requests.create', 'warehouse.requests.update.status',
                 'warehouse.requests.dispatch', 'warehouse.requests.print',
                 'warehouse.configuration.manage',
+                'warehouse.products.create', 'warehouse.products.edit', 'warehouse.products.delete',
             ],
             'nutricionista' => [
                 'dashboard.view', 'patients.view', 'laboratory.results.view',
