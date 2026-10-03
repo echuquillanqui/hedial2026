@@ -28,6 +28,9 @@
             <i class="bi bi-clipboard2-pulse me-2"></i> Control Médico de Hemodiálisis
         </h4>
         @can('medicals.edit')
+        <a href="{{ route('medicals.schedules.edit') }}" class="btn btn-outline-success ms-auto me-2">
+            <i class="bi bi-clock-history me-1"></i> Configurar horarios
+        </a>
         <button type="button" id="openBulkMedications" class="btn btn-success" disabled>
             <i class="bi bi-capsule-pill me-1"></i> Asignar medicamentos
             <span class="badge bg-white text-success ms-1" id="selectedPatientsCount">0</span>

@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Medical;
-use App\Models\Nurse;
-use App\Models\User;
 use App\Models\DialysisSupplyLot;
 use App\Models\DisposableDiscard;
+use App\Models\Medical;
+use App\Models\MedicalModuleSchedule;
+use App\Models\Nurse;
+use App\Models\Patient;
+use App\Models\User;
 use App\Services\WarehouseConsumptionService;
 use App\Support\CurrentSede;
 use App\Support\DailyHemodialysisSequence;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -21,7 +24,7 @@ class MedicalController extends Controller
     public function __construct()
     {
         $this->middleware('permission:medicals.view')->only(['index', 'show']);
-        $this->middleware('permission:medicals.edit')->only(['edit', 'update']);
+        $this->middleware('permission:medicals.edit')->only(['edit', 'update', 'editModuleSchedules', 'updateModuleSchedules']);
     }
 
     /**
@@ -84,6 +87,7 @@ class MedicalController extends Controller
             abort(403, 'Atención fuera de la sede activa.');
         }
         $order = $medical->order;
+        $order->loadMissing('patient', 'treatments');
         
         // Obtenemos solo los usuarios cuya profesión sea MEDICO
         $medicos = User::where('profession', 'MEDICO')->get();
@@ -95,7 +99,70 @@ class MedicalController extends Controller
             $dialyzerMeasurements->push((string) $medical->area_filtro);
         }
 
-        return view('atenciones.medicina.edit', compact('medical', 'order', 'medicos', 'dialyzerMeasurements'));
+        $moduleSchedule = MedicalModuleSchedule::query()
+            ->where('sede_id', $order->sede_id)
+            ->where('module', (string) $order->patient->modulo)
+            ->where('shift', $order->turno)
+            ->first();
+        $startSuggestions = $moduleSchedule?->startSlots() ?? collect();
+        $finishSuggestions = $moduleSchedule?->finishSlots() ?? collect();
+        $treatmentTimes = $order->treatments->pluck('hora')->filter()
+            ->map(fn ($time) => substr((string) $time, 0, 5))->values();
+        $firstTreatmentTime = $treatmentTimes->first();
+        $lastTreatmentTime = $this->lastTimeAfterReference($treatmentTimes, $firstTreatmentTime);
+
+        if ($lastTreatmentTime && $firstTreatmentTime) {
+            $lastElapsed = $this->elapsedMinutes($lastTreatmentTime, $firstTreatmentTime);
+            $finishSuggestions = $finishSuggestions->filter(
+                fn ($time) => $this->elapsedMinutes($time, $firstTreatmentTime) > $lastElapsed
+            )->values();
+        }
+
+        return view('atenciones.medicina.edit', compact(
+            'medical', 'order', 'medicos', 'dialyzerMeasurements', 'moduleSchedule',
+            'startSuggestions', 'finishSuggestions', 'firstTreatmentTime', 'lastTreatmentTime'
+        ));
+    }
+
+    public function editModuleSchedules()
+    {
+        $schedules = MedicalModuleSchedule::query()
+            ->where('sede_id', CurrentSede::id())->get()->groupBy('module')
+            ->map(fn ($moduleSchedules) => $moduleSchedules->keyBy('shift'));
+
+        return view('atenciones.medicina.configuration', compact('schedules'));
+    }
+
+    public function updateModuleSchedules(Request $request)
+    {
+        $allowedModules = implode(',', Patient::MODULES);
+        $rules = ['schedules' => ['required', 'array:'.$allowedModules, 'min:1']];
+        foreach (Patient::MODULES as $module) {
+            $rules["schedules.{$module}"] = ['sometimes', 'array:1,2,3,4', 'size:4'];
+            foreach (range(1, 4) as $shift) {
+                $prefix = "schedules.{$module}.{$shift}";
+                $rules[$prefix] = ['required_with:schedules.'.$module, 'array'];
+                foreach (['start_from', 'start_to', 'finish_from', 'finish_to'] as $field) {
+                    $rules["{$prefix}.{$field}"] = ['required', 'date_format:H:i'];
+                }
+                $rules["{$prefix}.interval_minutes"] = ['required', 'integer', Rule::in([1, 2, 5, 10, 15, 20, 30])];
+            }
+        }
+
+        $validated = $request->validate($rules);
+        DB::transaction(function () use ($validated) {
+            foreach ($validated['schedules'] as $module => $shifts) {
+                foreach ($shifts as $shift => $schedule) {
+                    MedicalModuleSchedule::updateOrCreate(
+                        ['sede_id' => CurrentSede::id(), 'module' => $module, 'shift' => $shift],
+                        $schedule
+                    );
+                }
+            }
+        });
+
+        return redirect()->route('medicals.schedules.edit')
+            ->with('success', 'Los rangos médicos por módulo fueron actualizados.');
     }
 
     /**
@@ -250,6 +317,26 @@ class MedicalController extends Controller
         }
 
         return $time;
+    }
+
+    private function elapsedMinutes(string $time, string $reference): int
+    {
+        $toMinutes = static function (string $value): int {
+            [$hours, $minutes] = array_map('intval', explode(':', substr($value, 0, 5)));
+
+            return ($hours * 60) + $minutes;
+        };
+
+        return ($toMinutes($time) - $toMinutes($reference) + 1440) % 1440;
+    }
+
+    private function lastTimeAfterReference(Collection $times, ?string $reference): ?string
+    {
+        if (! $reference || $times->isEmpty()) {
+            return null;
+        }
+
+        return $times->sortByDesc(fn ($time) => $this->elapsedMinutes($time, $reference))->first();
     }
 
     /**
