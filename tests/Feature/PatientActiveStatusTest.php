@@ -59,6 +59,45 @@ class PatientActiveStatusTest extends TestCase
             ->assertSee('Inactivos');
     }
 
+    public function test_an_inactive_patient_can_be_reactivated(): void
+    {
+        [$user, $sede] = $this->userWithPatientPermissions();
+        $patient = Patient::factory()->create([
+            'sede_id' => $sede->id,
+            'is_active' => false,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['current_sede_id' => $sede->id])
+            ->put(route('patients.update', $patient), [
+                'dni' => $patient->dni,
+                'medical_history_number' => $patient->medical_history_number,
+                'first_name' => $patient->first_name,
+                'surname' => $patient->surname,
+                'last_name' => $patient->last_name,
+                'insurance_type' => 'SIS',
+                'sede_id' => $sede->id,
+                'is_active' => 1,
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertSessionHas('success', 'Historial actualizado correctamente.');
+        $this->assertTrue($patient->fresh()->is_active);
+    }
+
+    public function test_patient_form_submits_a_single_status_value_bound_to_the_switch(): void
+    {
+        $view = file_get_contents(resource_path('views/patients/modals/form.blade.php'));
+
+        $this->assertSame(1, substr_count($view, 'name="is_active"'));
+        $this->assertStringContainsString(
+            'name="is_active" :value="currentPatient.is_active ? \'1\' : \'0\'"',
+            $view
+        );
+        $this->assertStringContainsString('id="patient_is_active"', $view);
+        $this->assertStringContainsString('x-model="currentPatient.is_active"', $view);
+    }
+
     public function test_only_active_patients_are_available_in_every_order_generation_form(): void
     {
         $user = User::factory()->create(['profession' => 'NUTRICIONISTA']);
