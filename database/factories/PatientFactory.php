@@ -33,6 +33,7 @@ class PatientFactory extends Factory
             'secuencia' => $this->faker->randomElement(['L-M-V', 'M-J-S']),
             'turno' => $this->faker->randomElement(['1', '2', '3', '4']),
             'modulo' => $this->faker->randomElement(['1', '2', '3', '4']),
+            'is_active' => true,
         ];
     }
 }

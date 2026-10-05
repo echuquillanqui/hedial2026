@@ -37,11 +37,22 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
-            <div class="input-group">
-                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control border-start-0 shadow-none" 
-                       placeholder="Buscar por DNI, Apellidos o Historia Clínica..." 
-                       x-model="search" @input="page = 1">
+            <div class="row g-2">
+                <div class="col-md-9">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control border-start-0 shadow-none"
+                               placeholder="Buscar por DNI, Apellidos o Historia Clínica..."
+                               x-model="search" @input="page = 1">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select shadow-none" x-model="statusFilter" @change="page = 1" aria-label="Filtrar pacientes por estado">
+                        <option value="all">Todos los estados</option>
+                        <option value="active">Activos</option>
+                        <option value="inactive">Inactivos</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>
@@ -59,6 +70,7 @@
                         <th>SECUENCIA</th>
                         <th>TURNO</th>
                         <th>SEDE</th>
+                        <th>ESTADO</th>
                         <th class="text-end pe-4">ACCIONES</th>
                     </tr>
                 </thead>
@@ -101,6 +113,11 @@
                             <td>
                                 <span class="badge bg-warning bg-opacity-10 text-dark" x-text="(p.sede && p.sede.name) ? p.sede.name : 'Sin sede'"></span>
                             </td>
+                            <td>
+                                <span class="badge rounded-pill px-3"
+                                      :class="p.is_active ? 'bg-success bg-opacity-10 text-success' : 'bg-secondary bg-opacity-10 text-secondary'"
+                                      x-text="p.is_active ? 'Activo' : 'Inactivo'"></span>
+                            </td>
                             <td class="text-end pe-4">
                                 <button class="btn btn-sm btn-outline-primary border-0" @click="openModal(p)">
                                     <i class="bi bi-pencil-square"></i>
@@ -135,6 +152,7 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('patientManagement', () => ({
             search: '',
+            statusFilter: 'all',
             patients: window.patientsData || [],
             page: 1,
             sedesCatalog: window.sedesData || [],
@@ -162,11 +180,16 @@
 
             get filteredPatients() {
                 const q = this.normalize(this.search);
-                return this.patients.filter(p => 
-                    this.normalize(`${p.first_name} ${p.surname} ${p.last_name}`).includes(q) || 
-                    (p.dni && p.dni.includes(q)) ||
-                    (p.medical_history_number && p.medical_history_number.includes(q))
-                );
+                return this.patients.filter(p => {
+                    const matchesSearch = this.normalize(`${p.first_name} ${p.surname} ${p.last_name}`).includes(q)
+                        || (p.dni && p.dni.includes(q))
+                        || (p.medical_history_number && p.medical_history_number.includes(q));
+                    const matchesStatus = this.statusFilter === 'all'
+                        || (this.statusFilter === 'active' && p.is_active)
+                        || (this.statusFilter === 'inactive' && !p.is_active);
+
+                    return matchesSearch && matchesStatus;
+                });
             },
 
             get totalPages() { return Math.ceil(this.filteredPatients.length / this.perPage); },
@@ -191,7 +214,7 @@
                         id: null, dni: '', affiliation_code: '', medical_history_number: '', 
                         first_name: '', other_names: '', surname: '', last_name: '', 
                         is_insured: true, insurance_type: 'ESSALUD', insurance_regime: 'SUBSIDIADO', 
-                        gender: 'M', birth_date: '', age: '', address: '', district: '', province: '', department: '', phone: '', secuencia:'L-M-V', turno: "1", modulo: "1", sede_id: this.currentSedeId
+                        gender: 'M', birth_date: '', age: '', address: '', district: '', province: '', department: '', phone: '', secuencia:'L-M-V', turno: "1", modulo: "1", sede_id: this.currentSedeId, is_active: true
                     };
                 }
                 
