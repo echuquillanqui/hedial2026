@@ -20,6 +20,7 @@ class Patient extends Model
     protected $casts = [
         'birth_date' => 'date',
         'is_insured' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     // Permite asignación masiva de todos los campos definidos como nullables en la migración

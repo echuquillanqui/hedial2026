@@ -137,6 +137,18 @@
                                 <option value="AISLADO">Modulo AISLADO</option>
                             </select>
                         </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold d-block">Estado del paciente</label>
+                            <input type="hidden" name="is_active" value="0">
+                            <div class="form-check form-switch pt-2">
+                                <input class="form-check-input" type="checkbox" role="switch" id="patient_is_active"
+                                       name="is_active" value="1" x-model="currentPatient.is_active">
+                                <label class="form-check-label" for="patient_is_active"
+                                       x-text="currentPatient.is_active ? 'Activo' : 'Inactivo'"></label>
+                            </div>
+                            <div class="form-text">Los pacientes nuevos se registran activos.</div>
+                        </div>
                         
                     </div>
                 </div>

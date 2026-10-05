@@ -55,6 +55,7 @@ class PatientController extends Controller
             'modulo'                 => ['nullable', Rule::in(Patient::MODULES)],
             'fua_non_signature_reason' => 'nullable|string|max:500',
             'sede_id'                => ['required', 'exists:sedes,id'],
+            'is_active'              => 'required|boolean',
         ]);
 
         if ($currentSedeId && (int) $request->sede_id !== (int) $currentSedeId) {
@@ -96,6 +97,7 @@ class PatientController extends Controller
             'modulo'                 => ['nullable', Rule::in(Patient::MODULES)],
             'fua_non_signature_reason' => 'nullable|string|max:500',
             'sede_id'                => ['required', 'exists:sedes,id'],
+            'is_active'              => 'required|boolean',
         ]);
 
         if ($currentSedeId && (int) $request->sede_id !== (int) $currentSedeId) {
