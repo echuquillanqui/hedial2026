@@ -189,6 +189,7 @@ class OrderController extends Controller
         $this->authorizeMultisectorial($request, $type, 'create');
 
         $patients = Patient::query()
+            ->active()
             ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->where('sede_id', $sede))
             ->when($request->filled('secuencia'), fn (Builder $query) => $query->where('secuencia', $request->input('secuencia')))
             ->when($request->filled('turno'), fn (Builder $query) => $query->where('turno', $request->input('turno')))
@@ -218,7 +219,7 @@ class OrderController extends Controller
         $this->authorizeMultisectorial($request, $type, 'create');
 
         $data = $request->validate([
-            'patient_id' => ['required', 'integer', 'exists:patients,id'],
+            'patient_id' => ['required', 'integer', Rule::exists('patients', 'id')->where('is_active', true)],
             'assigned_professional_id' => ['required', 'integer', 'exists:users,id'],
             'fecha_orden' => ['required', 'date'],
         ]);
@@ -247,7 +248,7 @@ class OrderController extends Controller
 
         $data = $request->validate([
             'patient_ids' => ['required', 'array', 'min:1'],
-            'patient_ids.*' => ['integer', 'distinct', 'exists:patients,id'],
+            'patient_ids.*' => ['integer', 'distinct', Rule::exists('patients', 'id')->where('is_active', true)],
             'assigned_professional_id' => ['required', 'integer', 'exists:users,id'],
             'fecha_orden' => ['required', 'date'],
         ]);
@@ -282,6 +283,7 @@ class OrderController extends Controller
         // listar toda la sede o combinar únicamente los filtros necesarios.
         if ($request->boolean('filter_patients') || $request->filled(['secuencia', 'turno', 'modulo'])) {
             $patients = Patient::query()
+                ->active()
                 ->when(CurrentSede::id(), fn ($q) => $q->where('sede_id', CurrentSede::id()))
                 ->when($request->filled('secuencia'), fn ($q) => $q->where('secuencia', $request->secuencia))
                 ->when($request->filled('turno'), fn ($q) => $q->where('turno', $request->turno))
@@ -296,6 +298,7 @@ class OrderController extends Controller
             $search = trim((string) $request->patient_search);
 
             $searchedPatients = Patient::query()
+                ->active()
                 ->when(CurrentSede::id(), fn ($q) => $q->where('sede_id', CurrentSede::id()))
                 ->where(function ($query) use ($search) {
                     $query->where('dni', 'like', "%{$search}%")
@@ -319,7 +322,7 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'patient_id'     => 'required|exists:patients,id',
+            'patient_id'     => ['required', Rule::exists('patients', 'id')->where('is_active', true)],
             'turno'          => 'required|string',
             'horas_dialisis' => 'required|numeric|min:0.5',
             'fecha_orden'    => 'required|date',
@@ -375,7 +378,7 @@ class OrderController extends Controller
     {
         $request->validate([
             'patient_ids'      => 'required|array|min:1',
-            'patient_ids.*'    => 'integer|distinct|exists:patients,id',
+            'patient_ids.*'    => ['integer', 'distinct', Rule::exists('patients', 'id')->where('is_active', true)],
             'fecha_orden'      => 'required|date',
             'horas_individual' => 'required|array', // Captura el array de la vista
             'laboratory_periods' => 'required|array',
@@ -452,6 +455,7 @@ class OrderController extends Controller
     public function createNephrology(Request $request)
     {
         $patients = Patient::query()
+            ->active()
             ->when(CurrentSede::id(), fn ($query) => $query->where('sede_id', CurrentSede::id()))
             ->when($request->filled('secuencia'), fn ($query) => $query->where('secuencia', $request->secuencia))
             ->when($request->filled('turno'), fn ($query) => $query->where('turno', $request->turno))
@@ -480,7 +484,7 @@ class OrderController extends Controller
     {
         $data = $request->validate([
             'patient_ids' => ['required', 'array', 'min:1'],
-            'patient_ids.*' => ['integer', 'distinct', 'exists:patients,id'],
+            'patient_ids.*' => ['integer', 'distinct', Rule::exists('patients', 'id')->where('is_active', true)],
             'fecha_orden' => ['required', 'date'],
             'patient_dates' => ['nullable', 'array'],
             'patient_dates.*' => ['nullable', 'date'],

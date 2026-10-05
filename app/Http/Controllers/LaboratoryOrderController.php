@@ -49,6 +49,7 @@ class LaboratoryOrderController extends Controller
 
         $tests = Test::with('area:id,name')->where('is_fissal', true)->orderBy('area_id')->orderBy('name')->get();
         $patients = Patient::query()
+            ->active()
             ->when(CurrentSede::id(), fn ($query) => $query->where('sede_id', CurrentSede::id()))
             ->when($sequence, fn ($query) => $query->where('secuencia', $sequence))
             ->when($shift, fn ($query) => $query->where('turno', $shift))
@@ -69,7 +70,7 @@ class LaboratoryOrderController extends Controller
     {
         $data = $request->validate([
             'patient_ids' => 'required|array|min:1',
-            'patient_ids.*' => 'integer|exists:patients,id',
+            'patient_ids.*' => ['integer', Rule::exists('patients', 'id')->where('is_active', true)],
             'requested_by' => ['nullable', 'string', 'max:120', Rule::in($this->doctors()->pluck('name'))],
             'schedules' => 'required|array|min:1',
             'schedules.*.sampled_at' => 'required|date',

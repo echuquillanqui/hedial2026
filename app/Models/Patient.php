@@ -8,6 +8,7 @@ use App\Models\ExtraMaterial;
 use App\Models\HemodialysisMaterialConsumption;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 
 class Patient extends Model
 {
@@ -25,6 +26,14 @@ class Patient extends Model
 
     // Permite asignación masiva de todos los campos definidos como nullables en la migración
     protected $guarded = [];
+
+    /**
+     * Limit patient selectors for new clinical care to enabled records.
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
 
     public function scopeScheduledForSequence($query, ?string $sequence)
     {

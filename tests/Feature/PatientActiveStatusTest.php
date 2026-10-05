@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Patient;
 use App\Models\Sede;
 use App\Models\User;
+use App\Support\ClinicalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
@@ -56,6 +57,61 @@ class PatientActiveStatusTest extends TestCase
             ->assertOk()
             ->assertSee('ESTADO')
             ->assertSee('Inactivos');
+    }
+
+    public function test_only_active_patients_are_available_in_every_order_generation_form(): void
+    {
+        $user = User::factory()->create(['profession' => 'NUTRICIONISTA']);
+        Permission::findOrCreate('orders.create', 'web');
+        $user->givePermissionTo('orders.create');
+        $active = Patient::factory()->create(['is_active' => true, 'secuencia' => 'L-M-V']);
+        $inactive = Patient::factory()->create(['is_active' => false, 'secuencia' => 'L-M-V']);
+
+        $routes = [
+            route('orders.create', ['filter_patients' => 1]),
+            route('orders.nephrology.create'),
+            route('orders.multisectorial.create', ['type' => ClinicalService::NUTRITION]),
+            route('laboratory.orders.create', ['secuencia' => 'L-M-V']),
+        ];
+
+        foreach ($routes as $route) {
+            $this->actingAs($user)->withoutMiddleware()->get($route)
+                ->assertOk()
+                ->assertViewHas('patients', fn ($patients) => $patients->contains('id', $active->id)
+                    && ! $patients->contains('id', $inactive->id));
+        }
+    }
+
+    public function test_inactive_patients_cannot_be_submitted_to_create_orders(): void
+    {
+        $user = User::factory()->create(['profession' => 'NUTRICIONISTA']);
+        Permission::findOrCreate('orders.create', 'web');
+        $user->givePermissionTo('orders.create');
+        $inactive = Patient::factory()->create(['is_active' => false]);
+
+        $this->actingAs($user)->withoutMiddleware()->from('/orders/create')->post(route('orders.store'), [
+            'patient_id' => $inactive->id,
+            'turno' => '1',
+            'horas_dialisis' => 3,
+            'fecha_orden' => today()->toDateString(),
+        ])->assertSessionHasErrors('patient_id');
+
+        $this->actingAs($user)->withoutMiddleware()->from('/orders/nephrology/create')->post(route('orders.nephrology.store'), [
+            'patient_ids' => [$inactive->id],
+            'fecha_orden' => today()->toDateString(),
+        ])->assertSessionHasErrors('patient_ids.0');
+
+        $this->actingAs($user)->withoutMiddleware()->from('/orders/multisectorial/create')->post(route('orders.multisectorial.store'), [
+            'type' => ClinicalService::NUTRITION,
+            'patient_id' => $inactive->id,
+            'assigned_professional_id' => $user->id,
+            'fecha_orden' => today()->toDateString(),
+        ])->assertSessionHasErrors('patient_id');
+
+        $this->actingAs($user)->withoutMiddleware()->from('/laboratory/orders/create')->post(route('laboratory.orders.store'), [
+            'patient_ids' => [$inactive->id],
+            'schedules' => [['sampled_at' => today()->toDateString(), 'period' => 'M']],
+        ])->assertSessionHasErrors('patient_ids.0');
     }
 
     private function userWithPatientPermissions(): array
