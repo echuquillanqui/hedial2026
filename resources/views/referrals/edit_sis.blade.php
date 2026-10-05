@@ -63,7 +63,7 @@
                     </div>
                     <div class="col-md-4">
                         <label class="data-title">Establecimiento de Origen</label>
-                        <input type="text" name="origin_facility" class="form-control bg-light" value="{{ $referral->origin_facility }}" readonly>
+                        <input type="text" name="origin_facility" class="form-control bg-light" value="{{ old('origin_facility', $originFacility) }}" readonly>
                     </div>
                     <div class="col-md-4">
                         <label class="data-title">Establecimiento Destino</label>

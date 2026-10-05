@@ -43,7 +43,7 @@
         </tr>
         <tr>
             <td colspan="2"><span class="label">Establecimiento Destino</span><span class="data-text">{{ strtoupper($referral->destination_facility) }}</span></td>
-            <td colspan="2"><span class="label">Establecimiento de Origen</span><span class="data-text">{{ strtoupper($referral->origin_facility) }}</span></td>
+            <td colspan="2"><span class="label">Establecimiento de Origen</span><span class="data-text">{{ mb_strtoupper($originFacility) }}</span></td>
         </tr>
     </table>
 
