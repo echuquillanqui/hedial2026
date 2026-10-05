@@ -60,11 +60,11 @@
                     </div>
                     <div class="col-md-4">
                         <label class="data-title">Establecimiento de Origen</label>
-                        <input type="text" name="origin_facility" class="form-control bg-light" value="CENTRO NEFROLÓGICO INTEGRAL RENAL CARE S.A.C." readonly>
+                        <input type="text" name="origin_facility" class="form-control bg-light" value="{{ old('origin_facility', $originFacility) }}" readonly>
                     </div>
                     <div class="col-md-4">
                         <label class="data-title">Establecimiento Destino</label>
-                        <input type="text" name="destination_facility" class="form-control @error('destination_facility') is-invalid @enderror" value="{{ old('destination_facility', 'HOSPITAL HERMILIO VALDIZAN MEDRANO') }}" required>
+                        <input type="text" name="destination_facility" class="form-control @error('destination_facility') is-invalid @enderror" value="{{ old('destination_facility') }}" required>
                     </div>
                 </div>
 

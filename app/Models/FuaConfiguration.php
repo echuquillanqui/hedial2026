@@ -12,4 +12,9 @@ class FuaConfiguration extends Model
     {
         return static::query()->firstOrCreate([]);
     }
+
+    public function referralFacilityName(): string
+    {
+        return trim((string) ($this->ipress_name ?: $this->company_name));
+    }
 }

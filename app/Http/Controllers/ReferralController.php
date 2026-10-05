@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Referral, Patient, User, Cie10};
+use App\Models\{Referral, Patient, User, Cie10, FuaConfiguration};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -62,10 +62,11 @@ class ReferralController extends Controller
         $type = strtoupper($request->query('type', 'SIS'));
         $patients = Patient::all();
         $staff = User::all();
+        $originFacility = FuaConfiguration::global()->referralFacilityName();
 
         $view = ($type === 'SIS') ? 'referrals.create_sis' : 'referrals.create_essalud';
 
-        return view($view, compact('patients', 'staff', 'type'));
+        return view($view, compact('patients', 'staff', 'type', 'originFacility'));
     }
 
     public function searchCie10(Request $request)
@@ -139,7 +140,8 @@ class ReferralController extends Controller
             $referral->patient->calculated_age = 'N/A';
         }
 
-        $pdf = Pdf::loadView('referrals.pdf', compact('referral'));
+        $originFacility = FuaConfiguration::global()->referralFacilityName();
+        $pdf = Pdf::loadView('referrals.pdf', compact('referral', 'originFacility'));
         $pdf->setPaper('a4', 'portrait');
 
         return $pdf->stream('Referencia_' . $referral->referral_code . '.pdf');
@@ -162,7 +164,8 @@ class ReferralController extends Controller
             $referral->patient->calculated_age = 'N/A';
         }
 
-        $pdf = Pdf::loadView('referrals.pdf_essalud', compact('referral'));
+        $originFacility = FuaConfiguration::global()->referralFacilityName();
+        $pdf = Pdf::loadView('referrals.pdf_essalud', compact('referral', 'originFacility'));
         $pdf->setPaper('a4', 'portrait');
 
         return $pdf->stream("Referencia_EsSalud_{$referral->referral_code}.pdf");
@@ -172,11 +175,12 @@ class ReferralController extends Controller
     {
         $referral->load(['patient', 'diagnosisTreatments']);
         $staff = User::all();
+        $originFacility = FuaConfiguration::global()->referralFacilityName();
 
         $type = $referral->type ?? ($referral->patient->insurance_type === 'ESSALUD' ? 'ESSALUD' : 'SIS');
         $view = ($type === 'ESSALUD') ? 'referrals.edit_essalud' : 'referrals.edit_sis';
 
-        return view($view, compact('referral', 'staff', 'type'));
+        return view($view, compact('referral', 'staff', 'type', 'originFacility'));
     }
 
     public function update(Request $request, $id)
