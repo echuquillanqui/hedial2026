@@ -24,7 +24,7 @@ class ProfileController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'dni' => ['nullable', 'digits:8', Rule::unique('users')->ignore($user->id)],
+            'dni' => ['nullable', 'digits:9', Rule::unique('users')->ignore($user->id)],
             'license_number' => ['nullable', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'specialty_number' => ['nullable', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'digital_seal' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],

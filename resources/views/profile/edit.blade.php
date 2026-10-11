@@ -40,7 +40,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label for="dni" class="form-label fw-semibold">DNI</label>
-                                <input id="dni" name="dni" value="{{ old('dni', $user->dni) }}" class="form-control @error('dni') is-invalid @enderror" inputmode="numeric" maxlength="8">
+                                <input id="dni" name="dni" value="{{ old('dni', $user->dni) }}" class="form-control @error('dni') is-invalid @enderror" inputmode="numeric" pattern="[0-9]{9}" maxlength="9">
                                 @error('dni')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-12">

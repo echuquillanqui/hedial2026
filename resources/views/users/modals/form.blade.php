@@ -31,7 +31,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">DNI</label>
-                            <input type="text" name="dni" x-model="currentUser.dni" class="form-control rounded-3" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" placeholder="8 dígitos">
+                            <input type="text" name="dni" x-model="currentUser.dni" class="form-control rounded-3" inputmode="numeric" pattern="[0-9]{9}" maxlength="9" placeholder="9 dígitos">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Profesión / Rol Interno</label>
