@@ -244,7 +244,7 @@ class LaboratoryOrderController extends Controller
         $date = CarbonImmutable::parse($data['sampled_at'])->toDateString();
         $tests = Test::query()->where('is_fissal', true)
             ->whereIn('frequency', $this->includedFrequencies($period))
-            ->orderBy('area_id')->orderBy('name')->get(['name']);
+            ->orderBy('area_id')->orderBy('id')->get(['name']);
         $patients = Patient::query()->active()
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')->get();
