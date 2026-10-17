@@ -27,7 +27,7 @@ class LaboratoryOrderController extends Controller
     {
         $this->middleware('permission:laboratory.results.view')->only(['results', 'export', 'show', 'pdf', 'bulkPdf']);
         $this->middleware('permission:laboratory.orders.create')->only(['create', 'store', 'import']);
-        $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'bulkUpdate', 'bulkDestroyEmpty']);
+        $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'bulkUpdate', 'bulkDestroyEmpty', 'removeDuplicates']);
     }
 
     public function create(Request $request)
@@ -364,6 +364,80 @@ class LaboratoryOrderController extends Controller
         $message = $deleted.' orden(es) vacía(s) eliminada(s).';
         if ($protected > 0) {
             $message .= ' Se conservaron '.$protected.' porque tienen resultados o están vinculadas a datos clínicos.';
+        }
+
+        return back()->with('success', $message);
+    }
+
+    public function removeDuplicates(Request $request)
+    {
+        $groups = LaboratoryOrder::query()
+            ->select('patient_id', 'sampled_at', 'period')
+            ->whereNotNull('patient_id')
+            ->whereNotNull('sampled_at')
+            ->when(CurrentSede::id(), fn ($query, $sede) => $query->whereHas('patient', fn ($patient) => $patient->where('sede_id', $sede)))
+            ->groupBy('patient_id', 'sampled_at', 'period')
+            ->havingRaw('COUNT(*) > 1')
+            ->get();
+
+        [$deleted, $protected] = DB::transaction(function () use ($groups) {
+            $deleted = 0;
+            $protected = 0;
+
+            foreach ($groups as $group) {
+                $orders = LaboratoryOrder::query()
+                    ->where('patient_id', $group->patient_id)
+                    ->whereDate('sampled_at', $group->sampled_at)
+                    ->where('period', $group->period)
+                    ->withCount(['items as data_items_count' => fn ($items) => $items->where(function ($query) {
+                        $query->whereNotNull('result_value')->where('result_value', '<>', '')
+                            ->orWhereNotNull('result_notes')->where('result_notes', '<>', '')
+                            ->orWhereNotNull('completed_at');
+                    })])
+                    ->withCount('items')
+                    ->orderByDesc('data_items_count')
+                    ->orderByDesc('items_count')
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                $keep = $orders->first();
+                foreach ($orders->skip(1) as $duplicate) {
+                    $hasData = $duplicate->data_items_count > 0;
+                    $hasReferences = DB::table('laboratory_order_items')
+                        ->join('initial_history_laboratory_results', 'initial_history_laboratory_results.laboratory_order_item_id', '=', 'laboratory_order_items.id')
+                        ->where('laboratory_order_items.laboratory_order_id', $duplicate->id)
+                        ->exists()
+                        || DB::table('laboratory_order_items')
+                            ->join('nutrition_assessment_laboratory_results', 'nutrition_assessment_laboratory_results.laboratory_order_item_id', '=', 'laboratory_order_items.id')
+                            ->where('laboratory_order_items.laboratory_order_id', $duplicate->id)
+                            ->exists()
+                        || DB::table('laboratory_order_items')
+                            ->join('viral_investigation_laboratory_results', 'viral_investigation_laboratory_results.laboratory_order_item_id', '=', 'laboratory_order_items.id')
+                            ->where('laboratory_order_items.laboratory_order_id', $duplicate->id)
+                            ->exists()
+                        || DB::table('nutrition_assessments')
+                            ->where(function ($query) use ($duplicate) {
+                                $query->whereIn('albumin_result_id', $duplicate->items()->select('id'))
+                                    ->orWhereIn('transferrin_result_id', $duplicate->items()->select('id'));
+                            })->exists();
+
+                    if ($hasData || $hasReferences) {
+                        $protected++;
+                        continue;
+                    }
+
+                    $duplicate->delete();
+                    $deleted++;
+                }
+            }
+
+            return [$deleted, $protected];
+        });
+
+        $message = $deleted.' duplicado(s) vacío(s) eliminado(s); se conservó al menos un registro por paciente, fecha y periodo.';
+        if ($protected > 0) {
+            $message .= ' Se conservaron '.$protected.' duplicado(s) adicional(es) porque tienen resultados o vínculos clínicos.';
         }
 
         return back()->with('success', $message);

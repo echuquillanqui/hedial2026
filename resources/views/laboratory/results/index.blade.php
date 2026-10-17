@@ -43,7 +43,6 @@
    <label for="bulkLaboratoryDate" class="small fw-bold mb-0">Nueva fecha</label>
    <input id="bulkLaboratoryDate" type="date" name="sampled_at" class="form-control form-control-sm" style="width:155px" value="{{ old('sampled_at', now()->toDateString()) }}">
    <button class="btn btn-warning btn-sm fw-semibold" type="submit" formaction="{{ route('laboratory.results.bulk-update') }}" name="_method" value="PATCH" formtarget="_self" onclick="return confirm('¿Cambiar la fecha de todos los laboratorios seleccionados?')"><i class="bi bi-calendar-event me-1"></i>Cambiar fecha</button>
-   <button class="btn btn-outline-light btn-sm fw-semibold" type="submit" formaction="{{ route('laboratory.results.bulk-destroy-empty') }}" name="_method" value="DELETE" formtarget="_self" onclick="return confirm('¿Eliminar las órdenes seleccionadas que estén vacías y no tengan vínculos clínicos? Las que tengan resultados o estén vinculadas se conservarán.')"><i class="bi bi-trash me-1"></i>Eliminar vacías</button>
    @endcan
    <button class="btn btn-light btn-sm" type="submit" formtarget="_blank"><i class="bi bi-printer me-2"></i>Imprimir en bloque</button>
   </div>
@@ -54,6 +53,9 @@
  @empty<tr><td colspan="8" class="text-center py-5 text-muted">No hay órdenes para mostrar.</td></tr>@endforelse
  </tbody></table></div></div></form><div class="mt-3">{{ $orders->links() }}</div>
 </div>
+@can('laboratory.results.update')
+<form method="POST" action="{{ route('laboratory.results.remove-duplicates') }}" class="mb-3">@csrf @method('DELETE')<button class="btn btn-outline-danger rounded-pill px-4" onclick="return confirm('Se buscarán órdenes repetidas por paciente, fecha de toma y periodo en la sede activa. Se eliminarán las copias vacías sin vínculos, conservando la orden con más datos. ¿Continuar?')"><i class="bi bi-files me-2"></i>Eliminar duplicados</button><span class="small text-muted ms-2">Agrupa por paciente, fecha y periodo.</span></form>
+@endcan
 @can('laboratory.results.update')
 <div class="modal fade" id="digitalSealModal" tabindex="-1" aria-labelledby="digitalSealTitle" aria-hidden="true">
  <div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header"><h5 class="modal-title" id="digitalSealTitle">Mi sello digital</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
