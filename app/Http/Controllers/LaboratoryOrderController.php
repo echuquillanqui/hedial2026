@@ -27,7 +27,7 @@ class LaboratoryOrderController extends Controller
     {
         $this->middleware('permission:laboratory.results.view')->only(['results', 'export', 'show', 'pdf', 'bulkPdf']);
         $this->middleware('permission:laboratory.orders.create')->only(['create', 'store', 'import']);
-        $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'bulkUpdate']);
+        $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'bulkUpdate', 'bulkDestroyEmpty']);
     }
 
     public function create(Request $request)
@@ -301,6 +301,72 @@ class LaboratoryOrderController extends Controller
             ->update(['sampled_at' => $data['sampled_at']]);
 
         return back()->with('success', $orders->count().' órdenes de laboratorio cambiadas a la nueva fecha.');
+    }
+
+    public function bulkDestroyEmpty(Request $request)
+    {
+        $data = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['integer', 'distinct', 'exists:laboratory_orders,id'],
+        ]);
+
+        [$deleted, $protected] = DB::transaction(function () use ($data) {
+            $orders = LaboratoryOrder::query()
+                ->with('patient:id,sede_id')
+                ->whereIn('id', $data['order_ids'])
+                ->lockForUpdate()
+                ->get();
+
+            abort_if(CurrentSede::id() && $orders->contains(
+                fn (LaboratoryOrder $order) => $order->patient && (int) $order->patient->sede_id !== (int) CurrentSede::id()
+            ), 403, 'Una de las órdenes de laboratorio está fuera de la sede activa.');
+
+            $deleted = 0;
+            $protected = 0;
+
+            foreach ($orders as $order) {
+                $hasData = $order->items()->where(function ($query) {
+                    $query->whereNotNull('result_value')->where('result_value', '<>', '')
+                        ->orWhereNotNull('result_notes')->where('result_notes', '<>', '')
+                        ->orWhereNotNull('completed_at');
+                })->exists();
+
+                $hasReferences = DB::table('laboratory_order_items')
+                    ->join('initial_history_laboratory_results', 'initial_history_laboratory_results.laboratory_order_item_id', '=', 'laboratory_order_items.id')
+                    ->where('laboratory_order_items.laboratory_order_id', $order->id)
+                    ->exists()
+                    || DB::table('laboratory_order_items')
+                        ->join('nutrition_assessment_laboratory_results', 'nutrition_assessment_laboratory_results.laboratory_order_item_id', '=', 'laboratory_order_items.id')
+                        ->where('laboratory_order_items.laboratory_order_id', $order->id)
+                        ->exists()
+                    || DB::table('laboratory_order_items')
+                        ->join('viral_investigation_laboratory_results', 'viral_investigation_laboratory_results.laboratory_order_item_id', '=', 'laboratory_order_items.id')
+                        ->where('laboratory_order_items.laboratory_order_id', $order->id)
+                        ->exists()
+                    || DB::table('nutrition_assessments')
+                        ->where(function ($query) use ($order) {
+                            $query->whereIn('albumin_result_id', $order->items()->select('id'))
+                                ->orWhereIn('transferrin_result_id', $order->items()->select('id'));
+                        })->exists();
+
+                if ($hasData || $hasReferences) {
+                    $protected++;
+                    continue;
+                }
+
+                $order->delete();
+                $deleted++;
+            }
+
+            return [$deleted, $protected];
+        });
+
+        $message = $deleted.' orden(es) vacía(s) eliminada(s).';
+        if ($protected > 0) {
+            $message .= ' Se conservaron '.$protected.' porque tienen resultados o están vinculadas a datos clínicos.';
+        }
+
+        return back()->with('success', $message);
     }
 
     public function updateResults(Request $request, LaboratoryOrder $laboratoryOrder)

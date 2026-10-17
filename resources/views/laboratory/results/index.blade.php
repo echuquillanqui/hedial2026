@@ -43,6 +43,7 @@
    <label for="bulkLaboratoryDate" class="small fw-bold mb-0">Nueva fecha</label>
    <input id="bulkLaboratoryDate" type="date" name="sampled_at" class="form-control form-control-sm" style="width:155px" value="{{ old('sampled_at', now()->toDateString()) }}">
    <button class="btn btn-warning btn-sm fw-semibold" type="submit" formaction="{{ route('laboratory.results.bulk-update') }}" name="_method" value="PATCH" formtarget="_self" onclick="return confirm('¿Cambiar la fecha de todos los laboratorios seleccionados?')"><i class="bi bi-calendar-event me-1"></i>Cambiar fecha</button>
+   <button class="btn btn-outline-light btn-sm fw-semibold" type="submit" formaction="{{ route('laboratory.results.bulk-destroy-empty') }}" name="_method" value="DELETE" formtarget="_self" onclick="return confirm('¿Eliminar las órdenes seleccionadas que estén vacías y no tengan vínculos clínicos? Las que tengan resultados o estén vinculadas se conservarán.')"><i class="bi bi-trash me-1"></i>Eliminar vacías</button>
    @endcan
    <button class="btn btn-light btn-sm" type="submit" formtarget="_blank"><i class="bi bi-printer me-2"></i>Imprimir en bloque</button>
   </div>
