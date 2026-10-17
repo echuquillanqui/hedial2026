@@ -371,10 +371,20 @@ class LaboratoryOrderController extends Controller
 
     public function removeDuplicates(Request $request)
     {
+        $data = $request->validate([
+            'date' => ['nullable', 'date_format:Y-m-d'],
+            'period' => ['nullable', Rule::in(['M', 'B', 'T', 'S'])],
+            'sequence' => ['nullable', Rule::in(['L-M-V', 'M-J-S'])],
+        ]);
+
         $groups = LaboratoryOrder::query()
             ->select('patient_id', 'sampled_at', 'period')
             ->whereNotNull('patient_id')
             ->whereNotNull('sampled_at')
+            ->when(! empty($data['date']), fn ($query) => $query->whereDate('sampled_at', $data['date']))
+            ->when(empty($data['date']), fn ($query) => $query->whereBetween('sampled_at', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()]))
+            ->when(! empty($data['period']), fn ($query) => $query->where('period', $data['period']))
+            ->when(in_array($data['sequence'] ?? null, ['L-M-V', 'M-J-S'], true), fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->where('secuencia', $data['sequence'])) )
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->whereHas('patient', fn ($patient) => $patient->where('sede_id', $sede)))
             ->groupBy('patient_id', 'sampled_at', 'period')
             ->havingRaw('COUNT(*) > 1')
