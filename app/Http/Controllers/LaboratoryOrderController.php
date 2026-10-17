@@ -139,59 +139,127 @@ class LaboratoryOrderController extends Controller
         $rows = $this->readSpreadsheetRows($data['file']->getRealPath(), $data['file']->getClientOriginalExtension());
         $header = array_shift($rows) ?? [];
         $columns = collect($header)->map(fn ($value) => $this->normalizeHeader($value));
-        $nameIndex = $columns->search('nombres_y_apellidos');
-
-        if ($nameIndex === false) {
-            return back()->withErrors(['file' => 'El archivo debe incluir la columna nombres_y_apellidos.']);
+        $requiredColumns = ['dni', 'historia_clinica', 'fecha_toma', 'periodo'];
+        if (collect($requiredColumns)->contains(fn ($required) => ! $columns->contains($required))) {
+            return back()->withErrors(['file' => 'La plantilla debe incluir DNI, historia_clinica, fecha_toma y periodo. Descargue la plantilla del periodo correspondiente.']);
         }
 
-        $testsByName = Test::query()->get(['id', 'name'])->keyBy(fn (Test $test) => $this->normalizeHeader($test->name));
+        $indexes = $columns->flip();
+        $testsByColumn = Test::query()->where('is_fissal', true)->get(['id', 'name', 'frequency'])
+            ->keyBy(fn (Test $test) => $this->normalizeHeader($test->name));
         $imported = 0;
+        $unchanged = 0;
         $skipped = 0;
+        $allowedPeriods = ['M', 'B', 'T', 'S'];
 
-        DB::transaction(function () use ($rows, $columns, $nameIndex, $testsByName, &$imported, &$skipped) {
+        DB::transaction(function () use ($rows, $indexes, $testsByColumn, &$imported, &$unchanged, &$skipped, $allowedPeriods) {
             foreach ($rows as $row) {
-                $patientName = trim((string) ($row[$nameIndex] ?? ''));
+                $valueAt = fn (string $column) => trim((string) ($row[$indexes[$column] ?? -1] ?? ''));
+                $dni = $valueAt('dni');
+                $medicalHistory = $valueAt('historia_clinica');
+                $sampledAt = $valueAt('fecha_toma');
+                $period = strtoupper($valueAt('periodo'));
 
-                if ($patientName === '') {
+                if (($dni === '' && $medicalHistory === '') || $sampledAt === '' || ! in_array($period, $allowedPeriods, true)) {
                     $skipped++;
                     continue;
                 }
 
-                $order = LaboratoryOrder::create([
-                    'patient_name' => $patientName,
-                    'status' => 'completed',
-                ]);
+                try {
+                    $date = CarbonImmutable::parse($sampledAt)->toDateString();
+                } catch (\Throwable) {
+                    $skipped++;
+                    continue;
+                }
 
-                $items = [];
-                foreach ($columns as $index => $column) {
-                    if ($index === $nameIndex || ! $testsByName->has($column)) {
+                $patientQuery = Patient::query()
+                    ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede));
+                if ($dni !== '') $patientQuery->where('dni', $dni);
+                if ($medicalHistory !== '') $patientQuery->where('medical_history_number', $medicalHistory);
+                $matchedPatients = $patientQuery->limit(2)->get();
+                if ($matchedPatients->count() !== 1) {
+                    $skipped++;
+                    continue;
+                }
+                $patient = $matchedPatients->first();
+
+                $frequencyIds = $testsByColumn->filter(fn (Test $test) => in_array($test->frequency, $this->includedFrequencies($period), true))->pluck('id');
+                $resultColumns = $indexes->keys()->filter(fn ($column) => $testsByColumn->has($column));
+                $order = LaboratoryOrder::query()
+                    ->where('patient_id', $patient->id)
+                    ->whereDate('sampled_at', $date)
+                    ->where('period', $period)
+                    ->orderBy('id')
+                    ->first();
+
+                if (! $order) {
+                    $order = LaboratoryOrder::create([
+                        'patient_id' => $patient->id,
+                        'patient_name' => $patient->full_name,
+                        'period' => $period,
+                        'sampled_at' => $date,
+                        'provenance' => 'FISSAL',
+                        'status' => 'pending',
+                    ]);
+                }
+
+                $existingItems = $order->items()->get()->keyBy('test_id');
+                foreach ($frequencyIds as $testId) {
+                    if (! $existingItems->has($testId)) {
+                        $existingItems->put($testId, $order->items()->create(['test_id' => $testId]));
+                    }
+                }
+
+                foreach ($resultColumns as $column) {
+                    $test = $testsByColumn[$column];
+                    if (! $frequencyIds->contains($test->id)) continue;
+                    $result = $valueAt($column);
+                    if ($result === '') continue;
+
+                    $item = $existingItems->get($test->id);
+                    if (filled($item->result_value) || filled($item->result_notes) || $item->completed_at !== null) {
+                        $unchanged++;
                         continue;
                     }
 
-                    $value = trim((string) ($row[$index] ?? ''));
-                    if ($value === '') {
-                        continue;
-                    }
-
-                    $items[] = [
-                        'test_id' => $testsByName[$column]->id,
-                        'result_value' => $value,
-                        'completed_at' => now(),
-                    ];
+                    $item->update(['result_value' => $result, 'completed_at' => now()]);
+                    $imported++;
                 }
 
-                if ($items === []) {
-                    $order->update(['status' => 'pending']);
-                } else {
-                    $order->items()->createMany($items);
-                }
-
-                $imported++;
+                $hasPending = $order->items()->whereNull('completed_at')->exists();
+                $order->update(['status' => $hasPending ? 'pending' : 'completed']);
             }
         });
 
-        return back()->with('success', "Importación completada: {$imported} pacientes importados, {$skipped} filas omitidas.");
+        return back()->with('success', "Importación finalizada: {$imported} resultado(s) cargado(s), {$unchanged} existente(s) conservado(s), {$skipped} fila(s) omitida(s).");
+    }
+
+    public function downloadImportTemplate(Request $request)
+    {
+        $data = $request->validate([
+            'period' => ['required', Rule::in(['M', 'B', 'T', 'S'])],
+            'sampled_at' => ['required', 'date'],
+        ]);
+        $period = $data['period'];
+        $date = CarbonImmutable::parse($data['sampled_at'])->toDateString();
+        $tests = Test::query()->where('is_fissal', true)
+            ->whereIn('frequency', $this->includedFrequencies($period))
+            ->orderBy('area_id')->orderBy('name')->get(['name']);
+        $patients = Patient::query()->active()
+            ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
+            ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')->get();
+
+        $filename = 'plantilla_resultados_'.$period.'_'.str_replace('-', '', $date).'.csv';
+
+        return response()->streamDownload(function () use ($patients, $tests, $date, $period) {
+            $output = fopen('php://output', 'w');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, array_merge(['dni', 'historia_clinica', 'nombres_y_apellidos', 'fecha_toma', 'periodo'], $tests->pluck('name')->all()), ';');
+            foreach ($patients as $patient) {
+                fputcsv($output, array_merge([$patient->dni, $patient->medical_history_number, $patient->full_name, $date, $period], array_fill(0, $tests->count(), '')), ';');
+            }
+            fclose($output);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function results(Request $request)
@@ -628,7 +696,7 @@ class LaboratoryOrderController extends Controller
 
     private function normalizeHeader(mixed $value): string
     {
-        return Str::of((string) $value)
+        return Str::of(ltrim((string) $value, "\xEF\xBB\xBF"))
             ->ascii()
             ->lower()
             ->replaceMatches('/[^a-z0-9]+/', '_')

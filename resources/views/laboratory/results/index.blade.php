@@ -4,6 +4,20 @@
  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4"><div><span class="overline">GESTIÓN CLÍNICA</span><h2>Laboratorio FISSAL</h2><p class="text-muted mb-0">Resultados, seguimiento e impresión por paciente.</p></div><div class="d-flex gap-2 flex-wrap"><form method="GET" action="{{ route('laboratory.results.export') }}" class="d-flex gap-2"><label for="export-month" class="visually-hidden">Mes a exportar</label><input id="export-month" type="month" name="month" value="{{ request('date') ? substr(request('date'), 0, 7) : now()->format('Y-m') }}" class="form-control" required><button class="btn btn-outline-success rounded-pill px-4 text-nowrap"><i class="bi bi-file-earmark-excel me-2"></i>Exportar Excel</button></form>@can('laboratory.results.update')<button type="button" class="btn btn-outline-success rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#digitalSealModal"><i class="bi bi-patch-check me-2"></i>Mi sello digital</button>@endcan @can('laboratory.orders.create')<a href="{{ route('laboratory.orders.create') }}" class="btn btn-success rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Nueva orden</a>@endcan</div></div>
  @if(session('success'))<div class="alert alert-success border-0">{{ session('success') }}</div>@endif
  @if($errors->any())<div class="alert alert-danger border-0"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+ @can('laboratory.orders.create')
+ <div class="card filter-card mb-4"><div class="card-body"><div class="row g-3 align-items-end">
+  <div class="col-12"><strong class="text-success"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Importar resultados</strong><div class="small text-muted">Descarga la plantilla global del periodo, completa los resultados y vuelve a cargar el archivo. La plantilla incluye a los pacientes activos de la sede.</div></div>
+  <form method="GET" action="{{ route('laboratory.orders.import-template') }}" class="col-lg-6 row g-2 align-items-end">
+   <div class="col-sm-4"><label class="form-label filter-label" for="template-period">Plantilla</label><select id="template-period" name="period" class="form-select" required><option value="M">Mensual (M)</option><option value="B">Bimestral (B)</option><option value="T">Trimestral (T)</option><option value="S">Semestral (S)</option></select></div>
+   <div class="col-sm-4"><label class="form-label filter-label" for="template-date">Fecha de toma</label><input id="template-date" type="date" name="sampled_at" value="{{ request('date', now()->toDateString()) }}" class="form-control" required></div>
+   <div class="col-sm-4"><button class="btn btn-outline-success w-100"><i class="bi bi-download me-1"></i>Descargar plantilla</button></div>
+  </form>
+  <form method="POST" action="{{ route('laboratory.orders.import') }}" enctype="multipart/form-data" class="col-lg-6 row g-2 align-items-end">@csrf
+   <div class="col-sm-8"><label class="form-label filter-label" for="laboratory-import-file">Archivo completado</label><input id="laboratory-import-file" type="file" name="file" accept=".csv,.txt,.xlsx" class="form-control" required></div>
+   <div class="col-sm-4"><button class="btn btn-success w-100"><i class="bi bi-upload me-1"></i>Importar resultados</button></div>
+  </form>
+ </div></div></div>
+ @endcan
  <div class="card filter-card mb-4">
   <div class="card-body">
    <form class="row g-2 align-items-end" x-ref="filters">
