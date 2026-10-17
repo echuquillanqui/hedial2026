@@ -54,9 +54,24 @@
  </tbody></table></div></div></form><div class="mt-3">{{ $orders->links() }}</div>
 </div>
 @can('laboratory.results.update')
-<form method="POST" action="{{ route('laboratory.results.remove-duplicates') }}" class="mb-3">@csrf @method('DELETE')
-@foreach(request()->only(['date', 'period', 'sequence']) as $key => $value)<input type="hidden" name="{{ $key }}" value="{{ $value }}">@endforeach
-<button class="btn btn-outline-danger rounded-pill px-4" onclick="return confirm('Se buscarán órdenes repetidas por paciente, fecha de toma y periodo en el alcance indicado. Si no elegiste fecha, se limitará al mes actual. Se eliminarán solo copias vacías sin vínculos. ¿Continuar?')"><i class="bi bi-files me-2"></i>Eliminar duplicados</button><span class="small text-muted ms-2">@if(request('date'))Solo fecha {{ \Carbon\Carbon::parse(request('date'))->format('d/m/Y') }}@else Mes actual@endif · paciente, fecha y periodo.</span></form>
+<form method="POST" action="{{ route('laboratory.results.remove-duplicates') }}" class="mb-3">
+ @csrf
+ @method('DELETE')
+ @foreach(request()->only(['date', 'period', 'sequence']) as $key => $value)
+  <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+ @endforeach
+ <button class="btn btn-outline-danger rounded-pill px-4" onclick="return confirm('Se buscarán órdenes repetidas por paciente, fecha de toma y periodo en el alcance indicado. Si no elegiste fecha, se limitará al mes actual. Se eliminarán solo copias vacías sin vínculos. ¿Continuar?')">
+  <i class="bi bi-files me-2"></i>Eliminar duplicados
+ </button>
+ <span class="small text-muted ms-2">
+  @if(request('date'))
+   Solo fecha {{ \Carbon\Carbon::parse(request('date'))->format('d/m/Y') }}
+  @else
+   Mes actual
+  @endif
+  · paciente, fecha y periodo.
+ </span>
+</form>
 @endcan
 @can('laboratory.results.update')
 <div class="modal fade" id="digitalSealModal" tabindex="-1" aria-labelledby="digitalSealTitle" aria-hidden="true">
