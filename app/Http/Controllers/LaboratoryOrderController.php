@@ -390,9 +390,10 @@ class LaboratoryOrderController extends Controller
             ->havingRaw('COUNT(*) > 1')
             ->get();
 
-        [$deleted, $protected] = DB::transaction(function () use ($groups) {
+        [$deleted, $protected, $groupsProcessed] = DB::transaction(function () use ($groups) {
             $deleted = 0;
             $protected = 0;
+            $groupsProcessed = 0;
 
             foreach ($groups as $group) {
                 $orders = LaboratoryOrder::query()
@@ -412,8 +413,8 @@ class LaboratoryOrderController extends Controller
                     ->get();
 
                 $keep = $orders->first();
+                $groupProtected = false;
                 foreach ($orders->skip(1) as $duplicate) {
-                    $hasData = $duplicate->data_items_count > 0;
                     $hasReferences = DB::table('laboratory_order_items')
                         ->join('initial_history_laboratory_results', 'initial_history_laboratory_results.laboratory_order_item_id', '=', 'laboratory_order_items.id')
                         ->where('laboratory_order_items.laboratory_order_id', $duplicate->id)
@@ -432,20 +433,58 @@ class LaboratoryOrderController extends Controller
                                     ->orWhereIn('transferrin_result_id', $duplicate->items()->select('id'));
                             })->exists();
 
-                    if ($hasData || $hasReferences) {
+                    if ($hasReferences) {
                         $protected++;
+                        $groupProtected = true;
+                        continue;
+                    }
+
+                    foreach ($duplicate->items as $duplicateItem) {
+                        $keptItem = $keep->items()->where('test_id', $duplicateItem->test_id)->first();
+                        if (! $keptItem) {
+                            $duplicateItem->update(['laboratory_order_id' => $keep->id]);
+                            continue;
+                        }
+
+                        $duplicateHasData = filled($duplicateItem->result_value)
+                            || filled($duplicateItem->result_notes)
+                            || $duplicateItem->completed_at !== null;
+                        $keptHasData = filled($keptItem->result_value)
+                            || filled($keptItem->result_notes)
+                            || $keptItem->completed_at !== null;
+
+                        if ($duplicateHasData && $keptHasData) {
+                            $protected++;
+                            $groupProtected = true;
+                            break;
+                        }
+
+                        if ($duplicateHasData) {
+                            $keptItem->update([
+                                'result_value' => $duplicateItem->result_value,
+                                'result_notes' => $duplicateItem->result_notes,
+                                'completed_at' => $duplicateItem->completed_at,
+                            ]);
+                        }
+                    }
+
+                    if ($groupProtected) {
                         continue;
                     }
 
                     $duplicate->delete();
                     $deleted++;
                 }
+
+                if (! $groupProtected) {
+                    $groupsProcessed++;
+                }
             }
 
-            return [$deleted, $protected];
+            return [$deleted, $protected, $groupsProcessed];
         });
 
-        $message = $deleted.' duplicado(s) vacío(s) eliminado(s); se conservó al menos un registro por paciente, fecha y periodo.';
+        $message = $groupsProcessed.' grupo(s) revisado(s); '.$deleted.' duplicado(s) eliminado(s) y se conservó al menos una orden por paciente, fecha y periodo.';
         if ($protected > 0) {
             $message .= ' Se conservaron '.$protected.' duplicado(s) adicional(es) porque tienen resultados o vínculos clínicos.';
         }
