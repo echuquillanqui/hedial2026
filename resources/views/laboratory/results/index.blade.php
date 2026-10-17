@@ -72,6 +72,21 @@
   · paciente, fecha y periodo.
  </span>
 </form>
+<form method="POST" action="{{ route('laboratory.results.remove-wrong-sequence') }}" class="mb-4">
+ @csrf
+ @method('DELETE')
+ @if(request('date'))
+  <input type="hidden" name="date" value="{{ request('date') }}">
+  @php($filteredDateSequence = match(\Carbon\CarbonImmutable::parse(request('date'))->dayOfWeekIso) { 1, 3, 5 => 'L-M-V', 2, 4, 6 => 'M-J-S', default => null })
+  <button class="btn btn-outline-warning rounded-pill px-4" @disabled(!$filteredDateSequence) onclick="return confirm('¿Eliminar las órdenes vacías del {{ \Carbon\Carbon::parse(request('date'))->format('d/m/Y') }} cuyo paciente no pertenece a la secuencia {{ $filteredDateSequence ?? 'asignada' }}? Las órdenes con resultados o vínculos clínicos se conservarán.')">
+   <i class="bi bi-calendar2-x me-2"></i>Eliminar fuera de secuencia
+  </button>
+  <span class="small text-muted ms-2">{{ $filteredDateSequence ? 'Fecha '.\Carbon\Carbon::parse(request('date'))->format('d/m/Y').' · secuencia esperada: '.$filteredDateSequence : 'Los domingos no tienen secuencia asignada.' }}</span>
+ @else
+  <button class="btn btn-outline-warning rounded-pill px-4" type="button" disabled><i class="bi bi-calendar2-x me-2"></i>Eliminar fuera de secuencia</button>
+  <span class="small text-muted ms-2">Selecciona primero una fecha en el filtro.</span>
+ @endif
+</form>
 @endcan
 @can('laboratory.results.update')
 <div class="modal fade" id="digitalSealModal" tabindex="-1" aria-labelledby="digitalSealTitle" aria-hidden="true">

@@ -15,6 +15,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -27,7 +28,7 @@ class LaboratoryOrderController extends Controller
     {
         $this->middleware('permission:laboratory.results.view')->only(['results', 'export', 'show', 'pdf', 'bulkPdf']);
         $this->middleware('permission:laboratory.orders.create')->only(['create', 'store', 'import']);
-        $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'bulkUpdate', 'bulkDestroyEmpty', 'removeDuplicates']);
+        $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'bulkUpdate', 'bulkDestroyEmpty', 'removeDuplicates', 'removeWrongSequence']);
     }
 
     public function create(Request $request)
@@ -487,6 +488,76 @@ class LaboratoryOrderController extends Controller
         $message = $groupsProcessed.' grupo(s) revisado(s); '.$deleted.' duplicado(s) eliminado(s) y se conservó al menos una orden por paciente, fecha y periodo.';
         if ($protected > 0) {
             $message .= ' Se conservaron '.$protected.' duplicado(s) adicional(es) porque tienen resultados o vínculos clínicos.';
+        }
+
+        return back()->with('success', $message);
+    }
+
+    public function removeWrongSequence(Request $request)
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+        ]);
+
+        $sampleDate = CarbonImmutable::createFromFormat('!Y-m-d', $data['date']);
+        $expectedSequence = match ($sampleDate->dayOfWeekIso) {
+            1, 3, 5 => 'L-M-V',
+            2, 4, 6 => 'M-J-S',
+            default => null,
+        };
+
+        if ($expectedSequence === null) {
+            return back()->with('success', 'La fecha seleccionada cae domingo y no tiene una secuencia de laboratorio asignada. No se eliminó ningún registro.');
+        }
+
+        [$deleted, $protected] = DB::transaction(function () use ($data, $expectedSequence) {
+            $orders = LaboratoryOrder::query()
+                ->whereDate('sampled_at', $data['date'])
+                ->whereNotNull('patient_id')
+                ->whereHas('patient', fn ($patient) => $patient->whereNotNull('secuencia')->where('secuencia', '<>', $expectedSequence))
+                ->when(CurrentSede::id(), fn ($query, $sede) => $query->whereHas('patient', fn ($patient) => $patient->where('sede_id', $sede)))
+                ->with('items')
+                ->lockForUpdate()
+                ->get();
+
+            $deleted = 0;
+            $protected = 0;
+
+            foreach ($orders as $order) {
+                $hasData = $order->items->contains(fn (LaboratoryOrderItem $item) => filled($item->result_value)
+                    || filled($item->result_notes)
+                    || $item->completed_at !== null);
+
+                $itemIds = $order->items->pluck('id');
+                $hasReferences = $itemIds->isNotEmpty() && (
+                    (Schema::hasTable('initial_history_laboratory_results') && DB::table('initial_history_laboratory_results')->whereIn('laboratory_order_item_id', $itemIds)->exists())
+                    || (Schema::hasTable('nutrition_assessment_laboratory_results') && DB::table('nutrition_assessment_laboratory_results')->whereIn('laboratory_order_item_id', $itemIds)->exists())
+                    || (Schema::hasTable('viral_investigation_laboratory_results') && DB::table('viral_investigation_laboratory_results')->whereIn('laboratory_order_item_id', $itemIds)->exists())
+                    || (Schema::hasTable('mis_assessments') && DB::table('mis_assessments')->where(function ($query) use ($itemIds) {
+                        if (Schema::hasColumn('mis_assessments', 'albumin_result_id')) {
+                            $query->whereIn('albumin_result_id', $itemIds);
+                        }
+                        if (Schema::hasColumn('mis_assessments', 'transferrin_result_id')) {
+                            $query->orWhereIn('transferrin_result_id', $itemIds);
+                        }
+                    })->exists())
+                );
+
+                if ($hasData || $hasReferences) {
+                    $protected++;
+                    continue;
+                }
+
+                $order->delete();
+                $deleted++;
+            }
+
+            return [$deleted, $protected];
+        });
+
+        $message = "Se eliminaron {$deleted} órdenes vacías de la fecha {$sampleDate->format('d/m/Y')} que no correspondían a la secuencia {$expectedSequence}.";
+        if ($protected > 0) {
+            $message .= " Se conservaron {$protected} órdenes porque tienen resultados o vínculos clínicos.";
         }
 
         return back()->with('success', $message);
