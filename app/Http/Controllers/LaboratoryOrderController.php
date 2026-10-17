@@ -343,7 +343,7 @@ class LaboratoryOrderController extends Controller
                         ->join('viral_investigation_laboratory_results', 'viral_investigation_laboratory_results.laboratory_order_item_id', '=', 'laboratory_order_items.id')
                         ->where('laboratory_order_items.laboratory_order_id', $order->id)
                         ->exists()
-                    || DB::table('nutrition_assessments')
+                    || DB::table('mis_assessments')
                         ->where(function ($query) use ($order) {
                             $query->whereIn('albumin_result_id', $order->items()->select('id'))
                                 ->orWhereIn('transferrin_result_id', $order->items()->select('id'));
@@ -427,7 +427,7 @@ class LaboratoryOrderController extends Controller
                             ->join('viral_investigation_laboratory_results', 'viral_investigation_laboratory_results.laboratory_order_item_id', '=', 'laboratory_order_items.id')
                             ->where('laboratory_order_items.laboratory_order_id', $duplicate->id)
                             ->exists()
-                        || DB::table('nutrition_assessments')
+                        || DB::table('mis_assessments')
                             ->where(function ($query) use ($duplicate) {
                                 $query->whereIn('albumin_result_id', $duplicate->items()->select('id'))
                                     ->orWhereIn('transferrin_result_id', $duplicate->items()->select('id'));
