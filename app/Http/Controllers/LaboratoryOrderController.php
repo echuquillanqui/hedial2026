@@ -243,8 +243,6 @@ class LaboratoryOrderController extends Controller
         $period = $data['period'];
         $sampledAt = CarbonImmutable::parse($data['sampled_at']);
         $date = $sampledAt->toDateString();
-        $previousMonthStart = $sampledAt->startOfMonth()->subMonth()->startOfMonth();
-        $previousMonthEnd = $previousMonthStart->endOfMonth();
         $tests = Test::query()->where('is_fissal', true)
             ->whereIn('frequency', $this->includedFrequencies($period))
             ->orderBy('area_id')->orderBy('id')->get(['name']);
@@ -264,10 +262,7 @@ class LaboratoryOrderController extends Controller
                 ->join('laboratory_orders', 'laboratory_orders.id', '=', 'laboratory_order_items.laboratory_order_id')
                 ->whereIn('laboratory_orders.patient_id', $patientIds)
                 ->whereIn('laboratory_order_items.test_id', $testIds)
-                ->whereBetween(DB::raw('COALESCE(laboratory_orders.sampled_at, DATE(laboratory_orders.created_at))'), [
-                    $previousMonthStart->toDateString(),
-                    $previousMonthEnd->toDateString(),
-                ])
+                ->whereRaw('COALESCE(laboratory_orders.sampled_at, DATE(laboratory_orders.created_at)) < ?', [$date])
                 ->whereNotNull('laboratory_order_items.result_value')
                 ->where('laboratory_order_items.result_value', '<>', '')
                 ->with('order:id,patient_id,sampled_at,created_at')
@@ -280,77 +275,15 @@ class LaboratoryOrderController extends Controller
                 ->unique(fn (LaboratoryOrderItem $item) => $item->order->patient_id.'-'.$item->test_id)
                 ->keyBy(fn (LaboratoryOrderItem $item) => $item->order->patient_id.'-'.$item->test_id);
 
-        // Older deployments store laboratory attention results in the legacy
-        // laboratories table, linked to the clinical order rather than the
-        // newer laboratory_orders tables. Use it as a fallback when present.
-        $legacyResults = collect();
-        $legacyTestColumns = [
-            'Cloro' => ['cloro'],
-            'Sodio' => ['sodio'],
-            'Potasio' => ['potasio'],
-            'Calcio total' => ['result6', 'calcio_total'],
-            'Fósforo inorgánico (fosfato)' => ['result5', 'fosforo'],
-        ];
-        $orderDateColumn = Schema::hasTable('orders')
-            ? (Schema::hasColumn('orders', 'fecha_orden')
-                ? 'fecha_orden'
-                : (Schema::hasColumn('orders', 'date_order') ? 'date_order' : null))
-            : null;
-
-        if ($patientIds->isNotEmpty()
-            && Schema::hasTable('laboratories')
-            && Schema::hasTable('orders')
-            && Schema::hasColumn('laboratories', 'patient_id')
-            && Schema::hasColumn('laboratories', 'order_id')
-            && $orderDateColumn !== null) {
-            $legacyColumns = [];
-            foreach ($legacyTestColumns as $testName => $candidates) {
-                foreach ($candidates as $column) {
-                    if (Schema::hasColumn('laboratories', $column)) {
-                        $legacyColumns[$testName] = $column;
-                        break;
-                    }
-                }
-            }
-
-            if ($legacyColumns !== []) {
-                $legacyQuery = DB::table('laboratories')
-                    ->join('orders', 'orders.id', '=', 'laboratories.order_id')
-                    ->whereIn('laboratories.patient_id', $patientIds)
-                    ->whereBetween('orders.'.$orderDateColumn, [
-                        $previousMonthStart->toDateString(),
-                        $previousMonthEnd->toDateString(),
-                    ])
-                    ->orderByDesc('orders.'.$orderDateColumn)
-                    ->orderByDesc('laboratories.id')
-                    ->select(['laboratories.patient_id', 'laboratories.id']);
-
-                foreach ($legacyColumns as $testName => $column) {
-                    $legacyQuery->addSelect('laboratories.'.$column.' as legacy_'.md5($testName));
-                }
-
-                foreach ($legacyQuery->get() as $legacyRow) {
-                    foreach ($legacyColumns as $testName => $column) {
-                        $value = $legacyRow->{'legacy_'.md5($testName)};
-                        $key = $legacyRow->patient_id.'-'.$testName;
-                        if (! $legacyResults->has($key) && filled($value)) {
-                            $legacyResults->put($key, $value);
-                        }
-                    }
-                }
-            }
-        }
-
         $filename = 'plantilla_resultados_'.$period.'_'.str_replace('-', '', $date).'.csv';
 
-        return response()->streamDownload(function () use ($patients, $tests, $date, $period, $historicalResults, $legacyResults) {
+        return response()->streamDownload(function () use ($patients, $tests, $date, $period, $historicalResults) {
             $output = fopen('php://output', 'w');
             fwrite($output, "\xEF\xBB\xBF");
             fputcsv($output, array_merge(['dni', 'historia_clinica', 'nombres_y_apellidos', 'fecha_toma', 'periodo'], $tests->pluck('name')->all()), ';');
             foreach ($patients as $patient) {
-                $results = $tests->map(function (Test $test) use ($patient, $period, $historicalResults, $legacyResults) {
-                    $previousValue = $historicalResults->get($patient->id.'-'.$test->id)?->result_value
-                        ?? $legacyResults->get($patient->id.'-'.$test->name);
+                $results = $tests->map(function (Test $test) use ($patient, $period, $historicalResults) {
+                    $previousValue = $historicalResults->get($patient->id.'-'.$test->id)?->result_value;
 
                     if ($period !== 'M' || ! in_array($test->name, [
                         'Cloro', 'Sodio', 'Potasio', 'Calcio total', 'Fósforo inorgánico (fosfato)',
