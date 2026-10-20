@@ -276,33 +276,82 @@ class LaboratoryOrderController extends Controller
                 ->keyBy(fn (LaboratoryOrderItem $item) => $item->order->patient_id.'-'.$item->test_id);
 
         $filename = 'plantilla_resultados_'.$period.'_'.str_replace('-', '', $date).'.csv';
+        $testsWithMonthlyVariation = [
+            'Cloro', 'Sodio', 'Potasio', 'Calcio total', 'Fósforo inorgánico (fosfato)',
+        ];
+        $currentOrders = LaboratoryOrder::query()
+            ->with('items')
+            ->whereIn('patient_id', $patientIds)
+            ->whereDate('sampled_at', $date)
+            ->where('period', $period)
+            ->orderBy('id')
+            ->get()
+            ->unique('patient_id')
+            ->keyBy('patient_id');
+        $exportRows = [];
 
-        return response()->streamDownload(function () use ($patients, $tests, $date, $period, $historicalResults) {
-            $output = fopen('php://output', 'w');
-            fwrite($output, "\xEF\xBB\xBF");
-            fputcsv($output, array_merge(['dni', 'historia_clinica', 'nombres_y_apellidos', 'fecha_toma', 'periodo'], $tests->pluck('name')->all()), ';');
+        DB::transaction(function () use ($patients, $tests, $date, $period, $historicalResults, $testsWithMonthlyVariation, $currentOrders, &$exportRows) {
             foreach ($patients as $patient) {
-                $results = $tests->map(function (Test $test) use ($patient, $period, $historicalResults) {
+                $order = $currentOrders->get($patient->id);
+                $itemsByTest = $order?->items->keyBy('test_id') ?? collect();
+
+                $results = $tests->map(function (Test $test) use ($patient, $order, $itemsByTest, $period, $historicalResults, $testsWithMonthlyVariation) {
                     $previousValue = $historicalResults->get($patient->id.'-'.$test->id)?->result_value;
-                    $testsWithMonthlyVariation = [
-                        'Cloro', 'Sodio', 'Potasio', 'Calcio total', 'Fósforo inorgánico (fosfato)',
-                    ];
 
                     if ($period !== 'M') {
                         return $previousValue ?? '';
                     }
 
-                    if (! in_array($test->name, $testsWithMonthlyVariation, true) || ! is_numeric($previousValue)) {
+                    if (! in_array($test->name, $testsWithMonthlyVariation, true)) {
                         return '';
                     }
 
-                    // Vary the historical value by a random 0.8–1.5 in either direction.
-                    $variation = random_int(8, 15) / 10;
-                    $direction = random_int(0, 1) === 0 ? -1 : 1;
+                    $item = $itemsByTest->get($test->id);
+                    if (filled($item?->result_value)) {
+                        return $item->result_value;
+                    }
 
-                    return number_format((float) $previousValue + ($variation * $direction), 1, '.', '');
+                    // Keep intentionally blank or otherwise touched items unchanged.
+                    if ($item && ($item->completed_at !== null || filled($item->result_notes))) {
+                        return '';
+                    }
+
+                    if (! is_numeric($previousValue)) {
+                        return '';
+                    }
+
+                    // Vary the historical value by a random 0.6–1.1 in either direction.
+                    $variation = random_int(6, 11) / 10;
+                    $direction = random_int(0, 1) === 0 ? -1 : 1;
+                    $generatedValue = number_format((float) $previousValue + ($variation * $direction), 1, '.', '');
+
+                    if ($order) {
+                        $item ??= $order->items()->create(['test_id' => $test->id]);
+                        $item->update(['result_value' => $generatedValue, 'completed_at' => now()]);
+                        $itemsByTest->put($test->id, $item);
+                    }
+
+                    return $generatedValue;
                 })->all();
-                fputcsv($output, array_merge([$patient->dni, $patient->medical_history_number, $patient->full_name, $date, $period], $results), ';');
+
+                if ($order) {
+                    $hasPendingItems = $order->items()->whereNull('completed_at')->exists();
+                    $order->update(['status' => $hasPendingItems ? 'pending' : 'completed']);
+                }
+
+                $exportRows[] = array_merge(
+                    [$patient->dni, $patient->medical_history_number, $patient->full_name, $date, $period],
+                    $results
+                );
+            }
+        });
+
+        return response()->streamDownload(function () use ($tests, $exportRows) {
+            $output = fopen('php://output', 'w');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, array_merge(['dni', 'historia_clinica', 'nombres_y_apellidos', 'fecha_toma', 'periodo'], $tests->pluck('name')->all()), ';');
+            foreach ($exportRows as $row) {
+                fputcsv($output, $row, ';');
             }
             fclose($output);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
