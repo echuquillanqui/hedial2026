@@ -249,14 +249,30 @@ class LaboratoryOrderController extends Controller
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')->get();
 
+        $historicalResults = LaboratoryOrderItem::query()
+            ->select('laboratory_order_items.*')
+            ->join('laboratory_orders', 'laboratory_orders.id', '=', 'laboratory_order_items.laboratory_order_id')
+            ->whereIn('laboratory_orders.patient_id', $patients->pluck('id'))
+            ->whereIn('laboratory_order_items.test_id', $tests->pluck('id'))
+            ->whereNotNull('laboratory_order_items.result_value')
+            ->where('laboratory_order_items.result_value', '<>', '')
+            ->with('order:id,patient_id,sampled_at,created_at')
+            ->orderByDesc('laboratory_orders.sampled_at')
+            ->orderByDesc('laboratory_orders.created_at')
+            ->orderByDesc('laboratory_order_items.id')
+            ->get()
+            ->unique(fn (LaboratoryOrderItem $item) => $item->order->patient_id.'-'.$item->test_id)
+            ->keyBy(fn (LaboratoryOrderItem $item) => $item->order->patient_id.'-'.$item->test_id);
+
         $filename = 'plantilla_resultados_'.$period.'_'.str_replace('-', '', $date).'.csv';
 
-        return response()->streamDownload(function () use ($patients, $tests, $date, $period) {
+        return response()->streamDownload(function () use ($patients, $tests, $date, $period, $historicalResults) {
             $output = fopen('php://output', 'w');
             fwrite($output, "\xEF\xBB\xBF");
             fputcsv($output, array_merge(['dni', 'historia_clinica', 'nombres_y_apellidos', 'fecha_toma', 'periodo'], $tests->pluck('name')->all()), ';');
             foreach ($patients as $patient) {
-                fputcsv($output, array_merge([$patient->dni, $patient->medical_history_number, $patient->full_name, $date, $period], array_fill(0, $tests->count(), '')), ';');
+                $results = $tests->map(fn (Test $test) => $historicalResults->get($patient->id.'-'.$test->id)?->result_value ?? '')->all();
+                fputcsv($output, array_merge([$patient->dni, $patient->medical_history_number, $patient->full_name, $date, $period], $results), ';');
             }
             fclose($output);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -292,11 +308,20 @@ class LaboratoryOrderController extends Controller
     public function export(Request $request, LaboratoryResultsXlsxExporter $exporter)
     {
         $data = $request->validate([
-            'month' => ['required', 'date_format:Y-m'],
+            'month' => ['nullable', 'required_without:from', 'date_format:Y-m'],
+            'from' => ['nullable', 'required_without:month', 'date_format:Y-m-d', 'required_with:to'],
+            'to' => ['nullable', 'required_with:from', 'date_format:Y-m-d', 'after_or_equal:from'],
         ]);
-        $month = CarbonImmutable::createFromFormat('!Y-m', $data['month']);
-        $from = $month->startOfMonth();
-        $to = $month->endOfMonth();
+        if (filled($data['month'] ?? null)) {
+            $month = CarbonImmutable::createFromFormat('!Y-m', $data['month']);
+            $from = $month->startOfMonth();
+            $to = $month->endOfMonth();
+            $filename = 'RESULTADOS_'.$month->format('Y_m').'.xlsx';
+        } else {
+            $from = CarbonImmutable::parse($data['from'])->startOfDay();
+            $to = CarbonImmutable::parse($data['to'])->endOfDay();
+            $filename = 'RESULTADOS_'.$from->format('Ymd').'_AL_'.$to->format('Ymd').'.xlsx';
+        }
 
         $orders = LaboratoryOrder::with(['patient', 'items.test.area'])
             ->where(function ($query) use ($from, $to) {
@@ -313,7 +338,7 @@ class LaboratoryOrderController extends Controller
             1 => 'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
             'JULIO', 'AGOSTO', 'SETIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE',
         ];
-        $filename = $monthNames[$month->month].'_'.$month->year.'.xlsx';
+        if (isset($month)) $filename = $monthNames[$month->month].'_'.$month->year.'.xlsx';
 
         return response()->download(
             $exporter->export($orders),
@@ -325,7 +350,19 @@ class LaboratoryOrderController extends Controller
     public function show(LaboratoryOrder $laboratoryOrder)
     {
         $laboratoryOrder->load(['patient', 'items.test.area', 'validator']);
-        return view('laboratory.results.show', ['order' => $laboratoryOrder]);
+        $excludedTests = ['HEMATOCRITO', 'HEMOGLOBINA', 'UREA PRE', 'UREA POST'];
+        $previousResults = LaboratoryOrderItem::query()
+            ->with(['test.area', 'order:id,patient_id,sampled_at,created_at'])
+            ->whereHas('order', fn ($query) => $query->where('patient_id', $laboratoryOrder->patient_id)
+                ->where('id', '<>', $laboratoryOrder->id))
+            ->whereNotNull('result_value')->where('result_value', '<>', '')
+            ->whereHas('test', fn ($query) => $query->whereNotIn(DB::raw('UPPER(name)'), $excludedTests))
+            ->get()
+            ->sortByDesc(fn (LaboratoryOrderItem $item) => ($item->order->sampled_at?->format('Y-m-d') ?? $item->order->created_at->format('Y-m-d')).'-'.str_pad((string) $item->id, 12, '0', STR_PAD_LEFT))
+            ->groupBy(fn (LaboratoryOrderItem $item) => $item->test_id)
+            ->map(fn ($items) => $items->first());
+
+        return view('laboratory.results.show', ['order' => $laboratoryOrder, 'previousResults' => $previousResults]);
     }
 
     public function pdf(LaboratoryOrder $laboratoryOrder, LaboratorySealResolver $sealResolver)
