@@ -61,12 +61,55 @@
    <button class="btn btn-light btn-sm" type="submit" formtarget="_blank"><i class="bi bi-printer me-2"></i>Imprimir en bloque</button>
   </div>
  </div>
- <div class="card table-card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th><input type="checkbox" @change="selected=$event.target.checked?@js($orders->pluck('id')->map(fn($id)=>(string)$id)):[]"></th><th>ID</th><th>Paciente</th><th>Control</th><th>Fecha</th><th>Avance</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
+ <div class="card table-card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th><input type="checkbox" @change="selected=$event.target.checked?@js($orders->pluck('id')->map(fn($id)=>(string)$id)):[]"></th><th>ID</th><th>Paciente</th><th>Control</th><th>Fecha</th><th>Avance</th><th>Hematocrito</th><th>Hemoglobina</th><th>Urea pre</th><th>Urea post</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
  @forelse($orders as $order) @php($done=$order->items->whereNotNull('completed_at')->count())
- <tr><td><input name="order_ids[]" value="{{ $order->id }}" type="checkbox" x-model="selected"></td><td><span class="order-id">#{{ $order->id }}</span></td><td><div class="patient-name">{{ $order->patient_name }}</div><small>DNI {{ $order->patient?->dni ?: '—' }} · H.C. {{ $order->patient?->medical_history_number ?: '—' }}</small></td><td><span class="period period-{{ strtolower($order->period) }}">{{ $order->period }}</span> {{ ['M'=>'Mensual','B'=>'Bimensual','T'=>'Trimestral','S'=>'Semestral'][$order->period] }}</td><td>{{ $order->sampled_at?->format('d/m/Y') ?: $order->created_at->format('d/m/Y') }}</td><td><strong>{{ $done }}/{{ $order->items->count() }}</strong><div class="progress"><div class="progress-bar" style="width:{{ $order->items->count() ? $done/$order->items->count()*100 : 0 }}%"></div></div></td><td><span class="status {{ $order->status }}">{{ $order->status==='completed'?'Completado':'Pendiente' }}</span></td><td class="text-end"><a href="{{ route('laboratory.results.show',$order) }}" class="btn btn-sm btn-outline-success" title="Ver y actualizar"><i class="bi bi-pencil-square"></i></a> <a target="_blank" href="{{ route('laboratory.results.pdf',$order) }}" class="btn btn-sm btn-outline-dark" title="PDF"><i class="bi bi-file-earmark-pdf"></i></a></td></tr>
+ <tr><td><input name="order_ids[]" value="{{ $order->id }}" type="checkbox" x-model="selected"></td><td><span class="order-id">#{{ $order->id }}</span></td><td><div class="patient-name">{{ $order->patient_name }}</div><small>DNI {{ $order->patient?->dni ?: '—' }} · H.C. {{ $order->patient?->medical_history_number ?: '—' }}</small></td><td><span class="period period-{{ strtolower($order->period) }}">{{ $order->period }}</span> {{ ['M'=>'Mensual','B'=>'Bimensual','T'=>'Trimestral','S'=>'Semestral'][$order->period] }}</td><td>{{ $order->sampled_at?->format('d/m/Y') ?: $order->created_at->format('d/m/Y') }}</td><td><strong>{{ $done }}/{{ $order->items->count() }}</strong><div class="progress"><div class="progress-bar" style="width:{{ $order->items->count() ? $done/$order->items->count()*100 : 0 }}%"></div></div></td>
+ @foreach(['Hematocrito','Hemoglobina','Urea pre diálisis','Urea post diálisis'] as $quickTestName)
+  @php($quickItem=$order->items->first(fn($item)=>$item->test?->name===$quickTestName))
+  <td>@if($quickItem)<div class="quick-result" data-url="{{ route('laboratory.results.quick-update',$order) }}" data-item="{{ $quickItem->id }}"><input class="form-control form-control-sm quick-result-input" type="text" inputmode="decimal" value="{{ $quickItem->result_value }}" aria-label="{{ $quickTestName }} para {{ $order->patient_name }}" title="Se guarda automáticamente al salir del campo"><span class="quick-result-status" aria-live="polite"></span></div>@else<span class="text-muted">—</span>@endif</td>
+ @endforeach
+ <td><span class="status {{ $order->status }}">{{ $order->status==='completed'?'Completado':'Pendiente' }}</span></td><td class="text-end"><a href="{{ route('laboratory.results.show',$order) }}" class="btn btn-sm btn-outline-success" title="Ver y actualizar"><i class="bi bi-pencil-square"></i></a> <a target="_blank" href="{{ route('laboratory.results.pdf',$order) }}" class="btn btn-sm btn-outline-dark" title="PDF"><i class="bi bi-file-earmark-pdf"></i></a></td></tr>
  @empty<tr><td colspan="8" class="text-center py-5 text-muted">No hay órdenes para mostrar.</td></tr>@endforelse
  </tbody></table></div></div></form><div class="mt-3">{{ $orders->links() }}</div>
 </div>
+<script>
+document.querySelectorAll('.quick-result-input').forEach((input) => {
+    let savedValue = input.value;
+    let timer;
+    const save = async () => {
+        if (input.value === savedValue) return;
+        const wrapper = input.closest('.quick-result');
+        const status = wrapper.querySelector('.quick-result-status');
+        status.textContent = 'Guardando…';
+        input.disabled = true;
+        try {
+            const response = await fetch(wrapper.dataset.url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({ item_id: wrapper.dataset.item, value: input.value }),
+            });
+            if (!response.ok) throw new Error('No se pudo guardar');
+            savedValue = input.value;
+            status.textContent = 'Guardado';
+            input.classList.remove('is-invalid');
+            input.classList.add('is-valid');
+            setTimeout(() => { status.textContent = ''; input.classList.remove('is-valid'); }, 1600);
+        } catch (error) {
+            status.textContent = 'Error al guardar';
+            input.classList.add('is-invalid');
+        } finally {
+            input.disabled = false;
+        }
+    };
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(save, 500); });
+    input.addEventListener('change', save);
+    input.addEventListener('blur', save);
+});
+</script>
 @can('laboratory.results.update')
 <form method="POST" action="{{ route('laboratory.results.remove-duplicates') }}" class="mb-3">
  @csrf
@@ -113,5 +156,5 @@
  </div></div>
 </div>
 @endcan
-<style>.fissal-index{--green:#087f5b}.overline{font-size:11px;letter-spacing:2px;color:var(--green);font-weight:800}.fissal-index h2{font-weight:800;color:#163d35}.filter-card,.table-card{border:0;border-radius:16px;box-shadow:0 8px 28px #183f3512}.filter-label{color:#52736c;font-size:10px;font-weight:800;letter-spacing:.06em;margin-bottom:4px;text-transform:uppercase}.table thead th{background:#f1f7f5;color:#52736c;font-size:11px;text-transform:uppercase;padding:14px;border:0}.table td{padding:15px 12px;border-color:#edf2f0}.patient-name{font-weight:750;color:#183f37}.table small{color:#82958f}.order-id{display:inline-block;padding:4px 8px;border-radius:7px;background:#eef2f1;color:#52635e;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums}.period{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#e0f4ed;color:var(--green);font-weight:800;margin-right:5px}.progress{height:4px;margin-top:5px;width:80px}.progress-bar{background:var(--green)}.status{padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700}.status.completed{background:#dff5e9;color:#18794e}.status.pending{background:#fff0d4;color:#9a6400}.bulkbar{background:linear-gradient(90deg,#07684c,#07966b);color:white;padding:12px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center}</style>
+<style>.fissal-index{--green:#087f5b}.overline{font-size:11px;letter-spacing:2px;color:var(--green);font-weight:800}.fissal-index h2{font-weight:800;color:#163d35}.filter-card,.table-card{border:0;border-radius:16px;box-shadow:0 8px 28px #183f3512}.filter-label{color:#52736c;font-size:10px;font-weight:800;letter-spacing:.06em;margin-bottom:4px;text-transform:uppercase}.table thead th{background:#f1f7f5;color:#52736c;font-size:11px;text-transform:uppercase;padding:14px;border:0}.table td{padding:15px 12px;border-color:#edf2f0}.patient-name{font-weight:750;color:#183f37}.table small{color:#82958f}.order-id{display:inline-block;padding:4px 8px;border-radius:7px;background:#eef2f1;color:#52635e;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums}.period{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#e0f4ed;color:var(--green);font-weight:800;margin-right:5px}.progress{height:4px;margin-top:5px;width:80px}.progress-bar{background:var(--green)}.status{padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700}.status.completed{background:#dff5e9;color:#18794e}.status.pending{background:#fff0d4;color:#9a6400}.quick-result{min-width:100px}.quick-result-input{min-width:80px;font-variant-numeric:tabular-nums}.quick-result-status{font-size:10px;white-space:nowrap;color:#52736c}.bulkbar{background:linear-gradient(90deg,#07684c,#07966b);color:white;padding:12px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center}</style>
 @endsection

@@ -29,7 +29,7 @@ class LaboratoryOrderController extends Controller
         $this->middleware('role:superadmin');
         $this->middleware('permission:laboratory.results.view')->only(['results', 'export', 'show', 'pdf', 'bulkPdf']);
         $this->middleware('permission:laboratory.orders.create')->only(['create', 'store', 'import']);
-        $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'bulkUpdate', 'bulkDestroyEmpty', 'removeDuplicates', 'removeWrongSequence']);
+        $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'quickUpdateResults', 'bulkUpdate', 'bulkDestroyEmpty', 'removeDuplicates', 'removeWrongSequence']);
     }
 
     public function create(Request $request)
@@ -837,6 +837,38 @@ class LaboratoryOrderController extends Controller
         ]);
 
         return back()->with('success', 'Resultados actualizados.');
+    }
+
+    public function quickUpdateResults(Request $request, LaboratoryOrder $laboratoryOrder)
+    {
+        $payload = $request->validate([
+            'item_id' => ['required', 'integer', 'exists:laboratory_order_items,id'],
+            'value' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $item = $laboratoryOrder->items()
+            ->whereKey($payload['item_id'])
+            ->whereHas('test', fn ($query) => $query->whereIn('name', [
+                'Hematocrito',
+                'Hemoglobina',
+                'Urea pre diálisis',
+                'Urea post diálisis',
+            ]))
+            ->firstOrFail();
+
+        $value = trim((string) ($payload['value'] ?? ''));
+        $item->update([
+            'result_value' => $value !== '' ? $value : null,
+            'completed_at' => $value !== '' ? now() : null,
+        ]);
+
+        $hasPending = $laboratoryOrder->items()->whereNull('completed_at')->exists();
+        $laboratoryOrder->update([
+            'status' => $hasPending ? 'pending' : 'completed',
+            'validated_by_user_id' => $request->user()->id,
+        ]);
+
+        return response()->json(['saved' => true, 'status' => $laboratoryOrder->status]);
     }
 
     public function updateDigitalSeal(Request $request)
