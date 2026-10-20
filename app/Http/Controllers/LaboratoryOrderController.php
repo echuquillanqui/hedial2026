@@ -291,8 +291,8 @@ class LaboratoryOrderController extends Controller
                         return $previousValue ?? '';
                     }
 
-                    // Vary the historical value by a random 0.5–1.7 in either direction.
-                    $variation = random_int(5, 17) / 10;
+                    // Vary the historical value by a random 0.8–1.5 in either direction.
+                    $variation = random_int(8, 15) / 10;
                     $direction = random_int(0, 1) === 0 ? -1 : 1;
 
                     return number_format((float) $previousValue + ($variation * $direction), 1, '.', '');
