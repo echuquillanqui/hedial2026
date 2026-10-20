@@ -13,6 +13,7 @@ class CatalogController extends Controller
 {
     public function __construct()
     {
+        $this->middleware('role:superadmin');
         $this->middleware('permission:laboratory.catalog.manage');
     }
 

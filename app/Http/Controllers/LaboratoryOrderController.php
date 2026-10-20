@@ -26,6 +26,7 @@ class LaboratoryOrderController extends Controller
 {
     public function __construct()
     {
+        $this->middleware('role:superadmin');
         $this->middleware('permission:laboratory.results.view')->only(['results', 'export', 'show', 'pdf', 'bulkPdf']);
         $this->middleware('permission:laboratory.orders.create')->only(['create', 'store', 'import']);
         $this->middleware('permission:laboratory.results.update')->only(['updateResults', 'bulkUpdate', 'bulkDestroyEmpty', 'removeDuplicates', 'removeWrongSequence']);

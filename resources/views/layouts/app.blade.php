@@ -88,9 +88,10 @@
                         $canViewNephrology = auth()->user()->can('nephrology.view');
                         $canViewFuas = auth()->user()->can('fua.view');
                         $canViewWarehouse = auth()->user()->can('warehouse.requests.view');
-                        $canViewCatalog = auth()->user()->can('laboratory.catalog.manage');
-                        $canViewLaboratoryResults = auth()->user()->can('laboratory.results.view');
-                        $canCreateLaboratoryOrders = auth()->user()->can('laboratory.orders.create');
+                        $isSuperAdmin = auth()->user()->hasRole('superadmin');
+                        $canViewCatalog = $isSuperAdmin && auth()->user()->can('laboratory.catalog.manage');
+                        $canViewLaboratoryResults = $isSuperAdmin && auth()->user()->can('laboratory.results.view');
+                        $canCreateLaboratoryOrders = $isSuperAdmin && auth()->user()->can('laboratory.orders.create');
                         $canSeeLaboratory = $canViewCatalog || $canCreateLaboratoryOrders;
                         $canViewAudit = auth()->user()->can('audit.view');
                         $canSeeReports = $canViewLaboratoryResults || $canViewAudit;
