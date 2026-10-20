@@ -857,7 +857,8 @@ class LaboratoryOrderController extends Controller
             ->firstOrFail();
 
         $value = trim((string) ($payload['value'] ?? ''));
-        DB::transaction(function () use ($item, $value, $laboratoryOrder) {
+        $savedHemoglobin = null;
+        DB::transaction(function () use ($item, $value, $laboratoryOrder, &$savedHemoglobin) {
             $item->update([
                 'result_value' => $value !== '' ? $value : null,
                 'completed_at' => $value !== '' ? now() : null,
@@ -878,6 +879,7 @@ class LaboratoryOrderController extends Controller
                         'result_value' => $hemoglobinValue !== '' ? $hemoglobinValue : null,
                         'completed_at' => $hemoglobinValue !== '' ? now() : null,
                     ]);
+                    $savedHemoglobin = $hemoglobin->fresh();
                 }
             }
         });
@@ -888,7 +890,15 @@ class LaboratoryOrderController extends Controller
             'validated_by_user_id' => $request->user()->id,
         ]);
 
-        return response()->json(['saved' => true, 'status' => $laboratoryOrder->status]);
+        return response()->json([
+            'saved' => true,
+            'status' => $laboratoryOrder->status,
+            'value' => $item->fresh()->result_value,
+            'hemoglobin' => $savedHemoglobin ? [
+                'item_id' => $savedHemoglobin->id,
+                'value' => $savedHemoglobin->result_value,
+            ] : null,
+        ]);
     }
 
     public function updateDigitalSeal(Request $request)

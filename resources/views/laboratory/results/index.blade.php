@@ -66,7 +66,7 @@
  <tr><td><input name="order_ids[]" value="{{ $order->id }}" type="checkbox" x-model="selected"></td><td><span class="order-id">#{{ $order->id }}</span></td><td><div class="patient-name">{{ $order->patient_name }}</div><small>DNI {{ $order->patient?->dni ?: '—' }} · H.C. {{ $order->patient?->medical_history_number ?: '—' }}</small></td><td><span class="period period-{{ strtolower($order->period) }}">{{ $order->period }}</span> {{ ['M'=>'Mensual','B'=>'Bimensual','T'=>'Trimestral','S'=>'Semestral'][$order->period] }}</td><td>{{ $order->sampled_at?->format('d/m/Y') ?: $order->created_at->format('d/m/Y') }}</td><td><strong>{{ $done }}/{{ $order->items->count() }}</strong><div class="progress"><div class="progress-bar" style="width:{{ $order->items->count() ? $done/$order->items->count()*100 : 0 }}%"></div></div></td>
  @foreach(['Hematocrito','Hemoglobina','Urea pre diálisis','Urea post diálisis'] as $quickTestName)
   @php($quickItem=$order->items->first(fn($item)=>$item->test?->name===$quickTestName))
-  <td>@if($quickItem)<div class="quick-result" data-url="{{ route('laboratory.results.quick-update',$order) }}" data-item="{{ $quickItem->id }}"><input class="form-control form-control-sm quick-result-input" type="text" inputmode="decimal" value="{{ $quickItem->result_value }}" aria-label="{{ $quickTestName }} para {{ $order->patient_name }}" title="Se guarda automáticamente al salir del campo"><span class="quick-result-status" aria-live="polite"></span></div>@else<span class="text-muted">—</span>@endif</td>
+ <td>@if($quickItem)<div class="quick-result" data-url="{{ route('laboratory.results.quick-update',$order) }}" data-item="{{ $quickItem->id }}" data-test="{{ $quickTestName }}"><input class="form-control form-control-sm quick-result-input" type="text" inputmode="decimal" value="{{ $quickItem->result_value }}" aria-label="{{ $quickTestName }} para {{ $order->patient_name }}" title="Se guarda automáticamente al salir del campo"><span class="quick-result-status" aria-live="polite"></span></div>@else<span class="text-muted">—</span>@endif</td>
  @endforeach
  <td><span class="status {{ $order->status }}">{{ $order->status==='completed'?'Completado':'Pendiente' }}</span></td><td class="text-end"><a href="{{ route('laboratory.results.show',$order) }}" class="btn btn-sm btn-outline-success" title="Ver y actualizar"><i class="bi bi-pencil-square"></i></a> <a target="_blank" href="{{ route('laboratory.results.pdf',$order) }}" class="btn btn-sm btn-outline-dark" title="PDF"><i class="bi bi-file-earmark-pdf"></i></a></td></tr>
  @empty<tr><td colspan="8" class="text-center py-5 text-muted">No hay órdenes para mostrar.</td></tr>@endforelse
@@ -74,6 +74,7 @@
 </div>
 <script>
 document.querySelectorAll('.quick-result-input').forEach((input) => {
+    if (input.closest('.quick-result')?.dataset.test === 'Hemoglobina') return;
     let savedValue = input.value;
     let timer;
     const save = async () => {
@@ -93,7 +94,13 @@ document.querySelectorAll('.quick-result-input').forEach((input) => {
                 body: JSON.stringify({ item_id: wrapper.dataset.item, value: input.value }),
             });
             if (!response.ok) throw new Error('No se pudo guardar');
-            savedValue = input.value;
+            const data = await response.json();
+            savedValue = data.value ?? '';
+            input.value = savedValue;
+            if (data.hemoglobin) {
+                const hemoglobinInput = document.querySelector(`.quick-result[data-item="${data.hemoglobin.item_id}"] .quick-result-input`);
+                if (hemoglobinInput) hemoglobinInput.value = data.hemoglobin.value ?? '';
+            }
             status.textContent = 'Guardado';
             input.classList.remove('is-invalid');
             input.classList.add('is-valid');
@@ -117,23 +124,19 @@ document.querySelectorAll('.quick-result').forEach((hematocritWrapper) => {
     const hemoglobinInput = hemoglobinWrapper?.querySelector('.quick-result-input');
     if (!hematocritInput || !hemoglobinInput) return;
 
-    let calculationTimer;
     const calculateHemoglobin = () => {
-        const hematocrit = Number(hematocritInput.value.trim().replace(',', '.'));
-        if (hematocritInput.value.trim() === '' || !Number.isFinite(hematocrit)) {
+        const rawHematocrit = hematocritInput.value.trim().replace(',', '.');
+        if (rawHematocrit === '') {
             hemoglobinInput.value = '';
+        } else if (Number.isFinite(Number(rawHematocrit))) {
+            hemoglobinInput.value = (Math.round((Number(rawHematocrit) / 3) * 10) / 10).toFixed(1);
         } else {
-            hemoglobinInput.value = (Math.round((hematocrit / 3) * 10) / 10).toFixed(1);
+            return;
         }
-        hemoglobinInput.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
-    hematocritInput.addEventListener('input', () => {
-        clearTimeout(calculationTimer);
-        calculationTimer = setTimeout(calculateHemoglobin, 350);
-    });
+    hematocritInput.addEventListener('input', calculateHemoglobin);
     hematocritInput.addEventListener('change', calculateHemoglobin);
-    hematocritInput.addEventListener('blur', calculateHemoglobin);
 });
 </script>
 @can('laboratory.results.update')
