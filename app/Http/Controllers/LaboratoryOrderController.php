@@ -245,7 +245,7 @@ class LaboratoryOrderController extends Controller
         $date = $sampledAt->toDateString();
         $tests = Test::query()->where('is_fissal', true)
             ->whereIn('frequency', $this->includedFrequencies($period))
-            ->orderBy('area_id')->orderBy('id')->get(['name']);
+            ->orderBy('area_id')->orderBy('id')->get(['id', 'name']);
         $patients = Patient::query()->active()
             ->whereHas('laboratoryOrders', fn ($orders) => $orders
                 ->whereDate('sampled_at', $date)
