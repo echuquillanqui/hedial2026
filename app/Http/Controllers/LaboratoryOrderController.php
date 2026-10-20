@@ -350,13 +350,11 @@ class LaboratoryOrderController extends Controller
     public function show(LaboratoryOrder $laboratoryOrder)
     {
         $laboratoryOrder->load(['patient', 'items.test.area', 'validator']);
-        $excludedTests = ['HEMATOCRITO', 'HEMOGLOBINA', 'UREA PRE', 'UREA POST'];
         $previousResults = LaboratoryOrderItem::query()
             ->with(['test.area', 'order:id,patient_id,sampled_at,created_at'])
             ->whereHas('order', fn ($query) => $query->where('patient_id', $laboratoryOrder->patient_id)
                 ->where('id', '<>', $laboratoryOrder->id))
             ->whereNotNull('result_value')->where('result_value', '<>', '')
-            ->whereHas('test', fn ($query) => $query->whereNotIn(DB::raw('UPPER(name)'), $excludedTests))
             ->get()
             ->sortByDesc(fn (LaboratoryOrderItem $item) => ($item->order->sampled_at?->format('Y-m-d') ?? $item->order->created_at->format('Y-m-d')).'-'.str_pad((string) $item->id, 12, '0', STR_PAD_LEFT))
             ->groupBy(fn (LaboratoryOrderItem $item) => $item->test_id)
