@@ -284,11 +284,16 @@ class LaboratoryOrderController extends Controller
             foreach ($patients as $patient) {
                 $results = $tests->map(function (Test $test) use ($patient, $period, $historicalResults) {
                     $previousValue = $historicalResults->get($patient->id.'-'.$test->id)?->result_value;
-
-                    if ($period !== 'M' || ! in_array($test->name, [
+                    $testsWithMonthlyVariation = [
                         'Cloro', 'Sodio', 'Potasio', 'Calcio total', 'Fósforo inorgánico (fosfato)',
-                    ], true) || ! is_numeric($previousValue)) {
+                    ];
+
+                    if ($period !== 'M') {
                         return $previousValue ?? '';
+                    }
+
+                    if (! in_array($test->name, $testsWithMonthlyVariation, true) || ! is_numeric($previousValue)) {
+                        return '';
                     }
 
                     // Vary the historical value by a random 0.8–1.5 in either direction.
