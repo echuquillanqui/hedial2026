@@ -252,20 +252,26 @@ class LaboratoryOrderController extends Controller
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')->get();
 
-        $historicalResults = LaboratoryOrderItem::query()
-            ->select('laboratory_order_items.*')
-            ->join('laboratory_orders', 'laboratory_orders.id', '=', 'laboratory_order_items.laboratory_order_id')
-            ->whereIn('laboratory_orders.patient_id', $patients->pluck('id'))
-            ->whereIn('laboratory_order_items.test_id', $tests->pluck('id'))
-            ->whereNotNull('laboratory_order_items.result_value')
-            ->where('laboratory_order_items.result_value', '<>', '')
-            ->with('order:id,patient_id,sampled_at,created_at')
-            ->orderByDesc('laboratory_orders.sampled_at')
-            ->orderByDesc('laboratory_orders.created_at')
-            ->orderByDesc('laboratory_order_items.id')
-            ->get()
-            ->unique(fn (LaboratoryOrderItem $item) => $item->order->patient_id.'-'.$item->test_id)
-            ->keyBy(fn (LaboratoryOrderItem $item) => $item->order->patient_id.'-'.$item->test_id);
+        $patientIds = $patients->pluck('id');
+        $testIds = $tests->pluck('id');
+        $historicalResults = $patientIds->isEmpty() || $testIds->isEmpty()
+            ? collect()
+            : LaboratoryOrderItem::query()
+                ->select('laboratory_order_items.*')
+                ->join('laboratory_orders', 'laboratory_orders.id', '=', 'laboratory_order_items.laboratory_order_id')
+                ->whereIn('laboratory_orders.patient_id', $patientIds)
+                ->whereIn('laboratory_order_items.test_id', $testIds)
+                ->whereNotNull('laboratory_order_items.result_value')
+                ->where('laboratory_order_items.result_value', '<>', '')
+                ->with('order:id,patient_id,sampled_at,created_at')
+                ->orderByRaw('COALESCE(laboratory_orders.sampled_at, DATE(laboratory_orders.created_at)) DESC')
+                ->orderByDesc('laboratory_orders.created_at')
+                ->orderByDesc('laboratory_orders.id')
+                ->orderByDesc('laboratory_order_items.id')
+                ->get()
+                ->filter(fn (LaboratoryOrderItem $item) => $item->order !== null)
+                ->unique(fn (LaboratoryOrderItem $item) => $item->order->patient_id.'-'.$item->test_id)
+                ->keyBy(fn (LaboratoryOrderItem $item) => $item->order->patient_id.'-'.$item->test_id);
 
         $filename = 'plantilla_resultados_'.$period.'_'.str_replace('-', '', $date).'.csv';
 
