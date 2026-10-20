@@ -245,7 +245,7 @@ class LaboratoryOrderController extends Controller
         $date = $sampledAt->toDateString();
         $tests = Test::query()->where('is_fissal', true)
             ->whereIn('frequency', $this->includedFrequencies($period))
-            ->orderBy('area_id')->orderBy('id')->get(['id', 'name']);
+            ->orderBy('area_id')->orderBy('id')->get(['id', 'name', 'reference_value']);
         $patients = Patient::query()->active()
             ->whereHas('laboratoryOrders', fn ($orders) => $orders
                 ->whereDate('sampled_at', $date)
@@ -320,10 +320,10 @@ class LaboratoryOrderController extends Controller
                         return '';
                     }
 
-                    // Vary the historical value by a random 0.6–1.1 in either direction.
-                    $variation = random_int(6, 11) / 10;
-                    $direction = random_int(0, 1) === 0 ? -1 : 1;
-                    $generatedValue = number_format((float) $previousValue + ($variation * $direction), 1, '.', '');
+                    $generatedValue = $this->monthlyVariation($test, (float) $previousValue);
+                    if ($generatedValue === null) {
+                        return '';
+                    }
 
                     if ($order) {
                         $item ??= $order->items()->create(['test_id' => $test->id]);
@@ -458,11 +458,14 @@ class LaboratoryOrderController extends Controller
                         continue;
                     }
 
-                    // Save the monthly variation the first time this result is viewed.
-                    $variation = random_int(6, 11) / 10;
-                    $direction = random_int(0, 1) === 0 ? -1 : 1;
+                    $generatedValue = $this->monthlyVariation($item->test, (float) $previousValue);
+                    if ($generatedValue === null) {
+                        continue;
+                    }
+
+                    // Save the range-aware monthly variation the first time this result is viewed.
                     $item->update([
-                        'result_value' => number_format((float) $previousValue + ($variation * $direction), 1, '.', ''),
+                        'result_value' => $generatedValue,
                         'completed_at' => now(),
                     ]);
                 }
@@ -473,6 +476,30 @@ class LaboratoryOrderController extends Controller
         }
 
         return view('laboratory.results.show', ['order' => $laboratoryOrder, 'previousResults' => $previousResults]);
+    }
+
+    private function monthlyVariation(Test $test, float $previousValue): ?string
+    {
+        if (! preg_match('/(-?\d+(?:[.,]\d+)?)\s*[-–]\s*(-?\d+(?:[.,]\d+)?)/u', (string) $test->reference_value, $matches)) {
+            return null;
+        }
+
+        $lowerBound = (float) str_replace(',', '.', $matches[1]);
+        $upperBound = (float) str_replace(',', '.', $matches[2]);
+        $variation = random_int(6, 11) / 10;
+
+        if ($previousValue < $lowerBound) {
+            $generated = $previousValue + $variation;
+        } elseif ($previousValue > $upperBound) {
+            $generated = $previousValue - $variation;
+        } else {
+            $direction = random_int(0, 1) === 0 ? -1 : 1;
+            $generated = $previousValue + ($variation * $direction);
+        }
+
+        $generated = min($upperBound, max($lowerBound, $generated));
+
+        return number_format($generated, 1, '.', '');
     }
 
     public function pdf(LaboratoryOrder $laboratoryOrder, LaboratorySealResolver $sealResolver)
