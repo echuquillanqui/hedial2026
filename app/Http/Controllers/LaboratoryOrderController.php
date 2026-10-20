@@ -439,6 +439,39 @@ class LaboratoryOrderController extends Controller
             ->groupBy(fn (LaboratoryOrderItem $item) => $item->test_id)
             ->map(fn ($items) => $items->first());
 
+        if ($laboratoryOrder->period === 'M') {
+            $testsWithMonthlyVariation = [
+                'Cloro', 'Sodio', 'Potasio', 'Calcio total', 'Fósforo inorgánico (fosfato)',
+            ];
+
+            DB::transaction(function () use ($laboratoryOrder, $previousResults, $testsWithMonthlyVariation) {
+                foreach ($laboratoryOrder->items as $item) {
+                    if (! in_array($item->test?->name, $testsWithMonthlyVariation, true)
+                        || filled($item->result_value)
+                        || $item->completed_at !== null
+                        || filled($item->result_notes)) {
+                        continue;
+                    }
+
+                    $previousValue = $previousResults->get($item->test_id)?->result_value;
+                    if (! is_numeric($previousValue)) {
+                        continue;
+                    }
+
+                    // Save the monthly variation the first time this result is viewed.
+                    $variation = random_int(6, 11) / 10;
+                    $direction = random_int(0, 1) === 0 ? -1 : 1;
+                    $item->update([
+                        'result_value' => number_format((float) $previousValue + ($variation * $direction), 1, '.', ''),
+                        'completed_at' => now(),
+                    ]);
+                }
+
+                $hasPendingItems = $laboratoryOrder->items()->whereNull('completed_at')->exists();
+                $laboratoryOrder->update(['status' => $hasPendingItems ? 'pending' : 'completed']);
+            });
+        }
+
         return view('laboratory.results.show', ['order' => $laboratoryOrder, 'previousResults' => $previousResults]);
     }
 
