@@ -246,6 +246,9 @@ class LaboratoryOrderController extends Controller
             ->whereIn('frequency', $this->includedFrequencies($period))
             ->orderBy('area_id')->orderBy('id')->get(['name']);
         $patients = Patient::query()->active()
+            ->whereHas('laboratoryOrders', fn ($query) => $query
+                ->whereDate('sampled_at', $date)
+                ->where('period', $period))
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')->get();
 
