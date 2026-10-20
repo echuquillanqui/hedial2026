@@ -857,10 +857,30 @@ class LaboratoryOrderController extends Controller
             ->firstOrFail();
 
         $value = trim((string) ($payload['value'] ?? ''));
-        $item->update([
-            'result_value' => $value !== '' ? $value : null,
-            'completed_at' => $value !== '' ? now() : null,
-        ]);
+        DB::transaction(function () use ($item, $value, $laboratoryOrder) {
+            $item->update([
+                'result_value' => $value !== '' ? $value : null,
+                'completed_at' => $value !== '' ? now() : null,
+            ]);
+
+            if ($item->test?->name === 'Hematocrito') {
+                $hemoglobin = $laboratoryOrder->items()
+                    ->whereHas('test', fn ($query) => $query->where('name', 'Hemoglobina'))
+                    ->first();
+
+                if ($hemoglobin) {
+                    $numericHematocrit = str_replace(',', '.', $value);
+                    $hemoglobinValue = $value !== '' && is_numeric($numericHematocrit)
+                        ? number_format(round(((float) $numericHematocrit) / 3, 1, PHP_ROUND_HALF_UP), 1, '.', '')
+                        : '';
+
+                    $hemoglobin->update([
+                        'result_value' => $hemoglobinValue !== '' ? $hemoglobinValue : null,
+                        'completed_at' => $hemoglobinValue !== '' ? now() : null,
+                    ]);
+                }
+            }
+        });
 
         $hasPending = $laboratoryOrder->items()->whereNull('completed_at')->exists();
         $laboratoryOrder->update([

@@ -109,6 +109,32 @@ document.querySelectorAll('.quick-result-input').forEach((input) => {
     input.addEventListener('change', save);
     input.addEventListener('blur', save);
 });
+
+document.querySelectorAll('.quick-result').forEach((hematocritWrapper) => {
+    const hematocritInput = hematocritWrapper.querySelector('.quick-result-input');
+    const row = hematocritWrapper.closest('tr');
+    const hemoglobinWrapper = row?.querySelectorAll('.quick-result')[1];
+    const hemoglobinInput = hemoglobinWrapper?.querySelector('.quick-result-input');
+    if (!hematocritInput || !hemoglobinInput) return;
+
+    let calculationTimer;
+    const calculateHemoglobin = () => {
+        const hematocrit = Number(hematocritInput.value.trim().replace(',', '.'));
+        if (hematocritInput.value.trim() === '' || !Number.isFinite(hematocrit)) {
+            hemoglobinInput.value = '';
+        } else {
+            hemoglobinInput.value = (Math.round((hematocrit / 3) * 10) / 10).toFixed(1);
+        }
+        hemoglobinInput.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    hematocritInput.addEventListener('input', () => {
+        clearTimeout(calculationTimer);
+        calculationTimer = setTimeout(calculateHemoglobin, 350);
+    });
+    hematocritInput.addEventListener('change', calculateHemoglobin);
+    hematocritInput.addEventListener('blur', calculateHemoglobin);
+});
 </script>
 @can('laboratory.results.update')
 <form method="POST" action="{{ route('laboratory.results.remove-duplicates') }}" class="mb-3">
