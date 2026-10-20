@@ -241,20 +241,17 @@ class LaboratoryOrderController extends Controller
             'sampled_at' => ['required', 'date'],
         ]);
         $period = $data['period'];
-        $date = CarbonImmutable::parse($data['sampled_at'])->toDateString();
+        $sampledAt = CarbonImmutable::parse($data['sampled_at']);
+        $date = $sampledAt->toDateString();
+        $previousMonthStart = $sampledAt->startOfMonth()->subMonth()->startOfMonth();
+        $previousMonthEnd = $previousMonthStart->endOfMonth();
         $tests = Test::query()->where('is_fissal', true)
             ->whereIn('frequency', $this->includedFrequencies($period))
             ->orderBy('area_id')->orderBy('id')->get(['name']);
         $patients = Patient::query()->active()
-            ->where(function ($query) use ($date, $period, $tests) {
-                $query->whereHas('laboratoryOrders', fn ($orders) => $orders
-                    ->whereDate('sampled_at', $date)
-                    ->where('period', $period))
-                    ->orWhereHas('laboratoryOrders.items', fn ($items) => $items
-                        ->whereIn('test_id', $tests->pluck('id'))
-                        ->whereNotNull('result_value')
-                        ->where('result_value', '<>', ''));
-            })
+            ->whereHas('laboratoryOrders', fn ($orders) => $orders
+                ->whereDate('sampled_at', $date)
+                ->where('period', $period))
             ->when(CurrentSede::id(), fn ($query, $sede) => $query->where('sede_id', $sede))
             ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')->get();
 
@@ -267,6 +264,10 @@ class LaboratoryOrderController extends Controller
                 ->join('laboratory_orders', 'laboratory_orders.id', '=', 'laboratory_order_items.laboratory_order_id')
                 ->whereIn('laboratory_orders.patient_id', $patientIds)
                 ->whereIn('laboratory_order_items.test_id', $testIds)
+                ->whereBetween(DB::raw('COALESCE(laboratory_orders.sampled_at, DATE(laboratory_orders.created_at))'), [
+                    $previousMonthStart->toDateString(),
+                    $previousMonthEnd->toDateString(),
+                ])
                 ->whereNotNull('laboratory_order_items.result_value')
                 ->where('laboratory_order_items.result_value', '<>', '')
                 ->with('order:id,patient_id,sampled_at,created_at')
