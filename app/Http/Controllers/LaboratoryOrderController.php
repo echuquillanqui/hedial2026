@@ -274,7 +274,21 @@ class LaboratoryOrderController extends Controller
             fwrite($output, "\xEF\xBB\xBF");
             fputcsv($output, array_merge(['dni', 'historia_clinica', 'nombres_y_apellidos', 'fecha_toma', 'periodo'], $tests->pluck('name')->all()), ';');
             foreach ($patients as $patient) {
-                $results = $tests->map(fn (Test $test) => $historicalResults->get($patient->id.'-'.$test->id)?->result_value ?? '')->all();
+                $results = $tests->map(function (Test $test) use ($patient, $period, $historicalResults) {
+                    $previousValue = $historicalResults->get($patient->id.'-'.$test->id)?->result_value;
+
+                    if ($period !== 'M' || ! in_array($test->name, [
+                        'Cloro', 'Sodio', 'Potasio', 'Calcio total', 'Fósforo inorgánico (fosfato)',
+                    ], true) || ! is_numeric($previousValue)) {
+                        return $previousValue ?? '';
+                    }
+
+                    // Vary the historical value by a random 0.5–1.7 in either direction.
+                    $variation = random_int(5, 17) / 10;
+                    $direction = random_int(0, 1) === 0 ? -1 : 1;
+
+                    return number_format((float) $previousValue + ($variation * $direction), 1, '.', '');
+                })->all();
                 fputcsv($output, array_merge([$patient->dni, $patient->medical_history_number, $patient->full_name, $date, $period], $results), ';');
             }
             fclose($output);
