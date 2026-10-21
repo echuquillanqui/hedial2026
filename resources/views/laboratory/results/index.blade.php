@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('content')
-<div class="container-fluid fissal-index" x-data="{selected:[], applyFilters() { this.$refs.filters.requestSubmit() }}">
+<div class="container-fluid fissal-index" x-data="{selected:[], selectAllFiltered:false, applyFilters() { this.$refs.filters.requestSubmit() }}">
  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4"><div><span class="overline">GESTIÓN CLÍNICA</span><h2>Laboratorio FISSAL</h2><p class="text-muted mb-0">Resultados, seguimiento e impresión por paciente.</p></div><div class="d-flex gap-2 flex-wrap align-items-center"><form method="GET" action="{{ route('laboratory.results.export') }}" class="d-flex gap-2 flex-wrap align-items-center" x-data="{range:false}" @submit="if(range){$refs.month.disabled=true}else{$refs.from.disabled=true;$refs.to.disabled=true}"><label class="small mb-0"><input type="checkbox" x-model="range"> Rango de fechas</label><label for="export-month" class="visually-hidden">Mes a exportar</label><input id="export-month" x-ref="month" type="month" name="month" value="{{ request('date') ? substr(request('date'), 0, 7) : now()->format('Y-m') }}" class="form-control" x-show="!range" required><label for="export-from" class="visually-hidden">Desde</label><input id="export-from" x-ref="from" type="date" name="from" class="form-control" x-show="range" :required="range"><label for="export-to" class="visually-hidden">Hasta</label><input id="export-to" x-ref="to" type="date" name="to" class="form-control" x-show="range" :required="range"><button class="btn btn-outline-success rounded-pill px-4 text-nowrap"><i class="bi bi-file-earmark-excel me-2"></i>Exportar Excel</button></form>@can('laboratory.results.update')<button type="button" class="btn btn-outline-success rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#digitalSealModal"><i class="bi bi-patch-check me-2"></i>Mi sello digital</button>@endcan @can('laboratory.orders.create')<a href="{{ route('laboratory.orders.create') }}" class="btn btn-success rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Nueva orden</a>@endcan</div></div>
  @if(session('success'))<div class="alert alert-success border-0">{{ session('success') }}</div>@endif
  @if($errors->any())<div class="alert alert-danger border-0"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
@@ -50,8 +50,12 @@
   </div>
  </div>
  <form method="POST" action="{{ route('laboratory.results.bulk-pdf') }}">@csrf
+ <template x-if="selectAllFiltered"><input type="hidden" name="select_all_filtered" value="1"></template>
+ @foreach(request()->only(['q', 'date', 'period', 'status', 'sequence']) as $key => $value)
+  <input type="hidden" name="{{ $key }}" value="{{ $value }}" :disabled="!selectAllFiltered">
+ @endforeach
  <div class="bulkbar mb-3 flex-wrap gap-2" x-show="selected.length" x-cloak>
-  <strong x-text="`${selected.length} órdenes seleccionadas`"></strong>
+  <strong x-text="selectAllFiltered ? `{{ $allFilteredOrderIds->count() }} órdenes seleccionadas (todas las páginas)` : `${selected.length} órdenes seleccionadas`"></strong>
   <div class="d-flex flex-wrap gap-2 align-items-center">
    @can('laboratory.results.update')
    <label for="bulkLaboratoryDate" class="small fw-bold mb-0">Nueva fecha</label>
@@ -61,7 +65,7 @@
    <button class="btn btn-light btn-sm" type="submit" formtarget="_blank"><i class="bi bi-printer me-2"></i>Imprimir en bloque</button>
   </div>
  </div>
- <div class="card table-card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th><input type="checkbox" @change="selected=$event.target.checked?@js($orders->pluck('id')->map(fn($id)=>(string)$id)):[]"></th><th>ID</th><th>Paciente</th><th>Control</th><th>Fecha</th><th>Avance</th><th>Hematocrito</th><th>Hemoglobina</th><th>Urea pre</th><th>Urea post</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
+ <div class="card table-card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th><input type="checkbox" aria-label="Seleccionar todos los resultados filtrados" :checked="selectAllFiltered || selected.length === {{ $orders->count() }}" @change="selectAllFiltered=$event.target.checked; selected=$event.target.checked?@js($orders->pluck('id')->map(fn($id)=>(string)$id)):[]"></th><th>ID</th><th>Paciente</th><th>Control</th><th>Fecha</th><th>Avance</th><th>Hematocrito</th><th>Hemoglobina</th><th>Urea pre</th><th>Urea post</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
  @forelse($orders as $order) @php($done=$order->items->whereNotNull('completed_at')->count())
  <tr><td><input name="order_ids[]" value="{{ $order->id }}" type="checkbox" x-model="selected"></td><td><span class="order-id">#{{ $order->id }}</span></td><td><div class="patient-name">{{ $order->patient_name }}</div><small>DNI {{ $order->patient?->dni ?: '—' }} · H.C. {{ $order->patient?->medical_history_number ?: '—' }}</small></td><td><span class="period period-{{ strtolower($order->period) }}">{{ $order->period }}</span> {{ ['M'=>'Mensual','B'=>'Bimensual','T'=>'Trimestral','S'=>'Semestral'][$order->period] }}</td><td>{{ $order->sampled_at?->format('d/m/Y') ?: $order->created_at->format('d/m/Y') }}</td><td><strong>{{ $done }}/{{ $order->items->count() }}</strong><div class="progress"><div class="progress-bar" style="width:{{ $order->items->count() ? $done/$order->items->count()*100 : 0 }}%"></div></div></td>
  @foreach(['Hematocrito','Hemoglobina','Urea pre diálisis','Urea post diálisis'] as $quickTestName)

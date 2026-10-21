@@ -360,7 +360,18 @@ class LaboratoryOrderController extends Controller
 
     public function results(Request $request)
     {
-        $orders = LaboratoryOrder::with(['patient', 'items.test.area'])
+        $orders = $this->filteredResultsQuery($request)
+            ->with(['patient', 'items.test.area'])
+            ->paginate(15)->withQueryString();
+
+        $allFilteredOrderIds = (clone $this->filteredResultsQuery($request))->pluck('laboratory_orders.id');
+
+        return view('laboratory.results.index', compact('orders', 'allFilteredOrderIds'));
+    }
+
+    private function filteredResultsQuery(Request $request)
+    {
+        return LaboratoryOrder::query()
             ->when($request->filled('q'), fn ($query) => $query->where('patient_name', 'like', '%'.$request->q.'%'))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
             ->when($request->filled('period'), fn ($query) => $query->where('period', $request->period))
@@ -379,10 +390,7 @@ class LaboratoryOrderController extends Controller
             ->orderBy(Patient::select('surname')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
             ->orderBy(Patient::select('last_name')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
             ->orderBy(Patient::select('first_name')->whereColumn('patients.id', 'laboratory_orders.patient_id'))
-            ->orderBy('laboratory_orders.id')
-            ->paginate(15)->withQueryString();
-
-        return view('laboratory.results.index', compact('orders'));
+            ->orderBy('laboratory_orders.id');
     }
 
     public function export(Request $request, LaboratoryResultsXlsxExporter $exporter)
@@ -515,8 +523,23 @@ class LaboratoryOrderController extends Controller
 
     public function bulkPdf(Request $request, LaboratorySealResolver $sealResolver)
     {
-        $data = $request->validate(['order_ids' => 'required|array|min:1', 'order_ids.*' => 'exists:laboratory_orders,id']);
-        $orders = LaboratoryOrder::with(['patient', 'items.test.area', 'validator'])->whereIn('id', $data['order_ids'])->get();
+        $data = $request->validate([
+            'select_all_filtered' => ['sometimes', 'boolean'],
+            'order_ids' => ['required_without:select_all_filtered', 'array', 'min:1'],
+            'order_ids.*' => ['integer', 'distinct', 'exists:laboratory_orders,id'],
+            'q' => ['nullable', 'string', 'max:255'],
+            'date' => ['nullable', 'date_format:Y-m-d'],
+            'period' => ['nullable', 'in:M,B,T,S'],
+            'status' => ['nullable', 'in:pending,completed'],
+            'sequence' => ['nullable', 'in:L-M-V,M-J-S'],
+        ]);
+
+        $query = $this->filteredResultsQuery($request);
+        if (empty($data['select_all_filtered'])) {
+            $query->whereIn('laboratory_orders.id', $data['order_ids']);
+        }
+        $orders = $query->with(['patient', 'items.test.area', 'validator'])->get();
+        abort_if($orders->isEmpty(), 422, 'No hay órdenes de laboratorio para imprimir.');
         $laboratoryProfessional = $sealResolver->resolve();
 
         return Pdf::loadView('laboratory.results.pdf', compact('orders', 'laboratoryProfessional'))
