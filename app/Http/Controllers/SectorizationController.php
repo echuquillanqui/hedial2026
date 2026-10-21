@@ -81,7 +81,8 @@ class SectorizationController extends Controller
                 ->first();
 
             abort_unless($latestOrder?->nurse, 422, 'El paciente no tiene una hoja de enfermería para actualizar el puesto o máquina.');
-            $latestOrder->nurse->{$validated['field']} = $validated['value'];
+            $latestOrder->nurse->puesto = $validated['value'];
+            $latestOrder->nurse->numero_maquina = $validated['value'];
             $latestOrder->nurse->save();
         }
 

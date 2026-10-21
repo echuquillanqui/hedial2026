@@ -335,6 +335,12 @@ class NurseController extends Controller
             'peso_final' => $finalWeight,
         ]);
 
+        // Puesto y número de máquina representan la misma ubicación física.
+        if ($request->exists('puesto') || $request->exists('numero_maquina')) {
+            $sharedStation = $request->input('puesto', $request->input('numero_maquina'));
+            $request->merge(['puesto' => $sharedStation, 'numero_maquina' => $sharedStation]);
+        }
+
         $isClosing = $request->filled('enfermero_que_finaliza_id');
         $requiredOnClosure = Rule::requiredIf($isClosing);
 
