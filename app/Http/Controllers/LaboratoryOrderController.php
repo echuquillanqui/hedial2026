@@ -876,6 +876,11 @@ class LaboratoryOrderController extends Controller
                 'Hemoglobina',
                 'Urea pre diálisis',
                 'Urea post diálisis',
+                'Cloro',
+                'Sodio',
+                'Potasio',
+                'Calcio total',
+                'Fósforo inorgánico (fosfato)',
             ]))
             ->firstOrFail();
 
