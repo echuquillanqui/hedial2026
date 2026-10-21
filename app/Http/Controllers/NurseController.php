@@ -110,7 +110,7 @@ class NurseController extends Controller
             });
         })
         ->when($moduleFilter, function ($query, $modulo) {
-            $query->whereHas('order.patient', fn ($q) => $q->where('modulo', $modulo));
+            $query->whereHas('order', fn ($q) => $q->where('sala', 'MODULO '.$modulo));
         })
         ->when($request->estado, function ($query, $estado) {
             if ($estado === 'finalizado') {
@@ -244,7 +244,7 @@ class NurseController extends Controller
             ->join('patients', 'patients.id', '=', 'orders.patient_id')
             ->whereDate('orders.fecha_orden', $order->fecha_orden)
             ->where('orders.id', '!=', $order->id)
-            ->where('patients.modulo', $module)
+            ->where('orders.sala', 'MODULO '.$module)
             ->where('orders.turno', $order->turno)
             ->when($order->sede_id, fn ($query) => $query->where('orders.sede_id', $order->sede_id))
             ->pluck('treatments.hora')
@@ -280,7 +280,7 @@ class NurseController extends Controller
             $occupied = DB::table('treatments')->join('orders', 'orders.id', '=', 'treatments.order_id')
                 ->join('patients', 'patients.id', '=', 'orders.patient_id')
                 ->whereDate('orders.fecha_orden', $order->fecha_orden)->where('orders.sede_id', $order->sede_id)
-                ->where('orders.turno', $order->turno)->where('patients.modulo', $module)
+                ->where('orders.turno', $order->turno)->where('orders.sala', 'MODULO '.$module)
                 ->where('orders.id', '!=', $order->id)->where('treatments.hora', $data['hora'])
                 ->lockForUpdate()->exists();
             abort_if($occupied, 409, 'La hora acaba de ser seleccionada por otra atención.');

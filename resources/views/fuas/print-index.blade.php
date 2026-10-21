@@ -269,7 +269,7 @@
                         <td>{{ $fua->order?->patient?->full_name ?: 'Sin paciente' }}</td>
                         <td>{{ $fua->order?->patient?->dni ?: '—' }}</td>
                         <td>{{ $fua->order?->fecha_orden ? \Carbon\Carbon::parse($fua->order->fecha_orden)->format('d/m/Y') : $fua->created_at->format('d/m/Y') }}</td>
-                        <td>{{ $fua->order?->patient?->modulo ? 'Módulo '.$fua->order->patient->modulo : ($fua->order?->sala ?: '—') }}</td>
+                        <td>{{ $fua->order?->dialysis_module ? 'Módulo '.$fua->order->dialysis_module : ($fua->order?->sala ?: '—') }}</td>
                         <td>{{ $fua->order?->turno ? 'Turno '.$fua->order->turno : '—' }}</td>
                         @if($isConsultation)
                         <td>

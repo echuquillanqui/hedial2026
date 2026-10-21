@@ -94,7 +94,9 @@ class Order extends Model
             return Patient::ISOLATED_MODULE;
         }
 
-        return $this->patient?->modulo;
+        // Do not fall back to the patient's current module for historical
+        // orders: it would misrepresent the module assigned on that date.
+        return null;
     }
 
     public function medical() 

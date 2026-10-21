@@ -1,7 +1,7 @@
 <tr>
  <td><span class="fw-semibold">{{ $order->codigo_unico }}</span><br><small class="text-muted">{{ $order->fecha_orden->format('d/m/Y') }}</small></td>
  <td>{{ $order->patient->full_name }}<br><small class="text-muted">HC {{ $order->patient->medical_history_number ?: '—' }}</small></td>
- <td><span class="badge bg-light text-dark border">T{{ $order->turno }}</span> <span class="badge bg-light text-dark border">M{{ $order->patient->modulo }}</span><br><small class="text-muted">{{ $order->patient->secuencia }}</small></td>
+ <td><span class="badge bg-light text-dark border">T{{ $order->turno }}</span> <span class="badge bg-light text-dark border">M{{ $order->dialysis_module }}</span><br><small class="text-muted">{{ $order->patient->secuencia }}</small></td>
  <td><strong>{{ $order->medical?->area_filtro ? $order->medical->area_filtro.' m²' : ($order->nurse?->filtro ?: 'Sin medida') }}</strong><br><small class="text-muted">{{ $dialyzerLot ? 'Lote '.$dialyzerLot->lot_number : 'Sin lote global vigente' }}</small></td>
  <td>
   @if($lines)

@@ -62,7 +62,7 @@ class MedicalController extends Controller
                 });
             })
             ->when($request->modulo, function ($query, $modulo) {
-                $query->whereHas('order.patient', fn ($q) => $q->where('modulo', $modulo));
+                $query->whereHas('order', fn ($q) => $q->where('sala', 'MODULO '.$modulo));
             })
             ->when($request->estado, function ($query, $estado) {
                 if ($estado === 'finalizado') {
@@ -101,7 +101,7 @@ class MedicalController extends Controller
 
         $moduleSchedule = MedicalModuleSchedule::query()
             ->where('sede_id', $order->sede_id)
-            ->where('module', (string) $order->patient->modulo)
+            ->where('module', (string) $order->dialysis_module)
             ->where('shift', $order->turno)
             ->first();
         $startSuggestions = $moduleSchedule?->startSlots() ?? collect();
