@@ -80,10 +80,10 @@
                             @foreach(['CVCLP','FAV','INJ','CVCL','CVCT'] as $opt)<option value="{{ $opt }}" {{ ($nurse->acceso_arterial ?? $order->patient->acceso_arterial) == $opt ? 'selected' : '' }}>{{ $opt }}</option>@endforeach
                         </select>
                     </div>
-                    <div class="col-md-2"><label>Peso Seco (kg)</label><input type="number" step="0.01" name="peso_seco" id="pesoSecoInput" class="form-control form-control-sm" value="{{ old('peso_seco', $order->medical?->peso_seco ?? $order->patient->peso_seco) }}"></div>
+                    <div class="col-md-2"><label>Peso Seco (kg)</label><input type="number" step="0.01" name="peso_seco" id="pesoSecoInput" class="form-control form-control-sm" value="{{ old('peso_seco', $order->patient->peso_seco ?? $order->medical?->peso_seco) }}"></div>
                     <div class="col-md-2"><label>PA Inicial</label><input type="text" name="pa_inicial" class="form-control form-control-sm" value="{{ old('pa_inicial', $nurse->pa_inicial ?? $order->medical->pa_inicial) }}"></div>
                     <div class="col-md-2"><label>Peso Inicial (kg)</label><input type="number" step="0.01" name="peso_inicial" id="pesoInicialInput" class="form-control form-control-sm" value="{{ $nurse->peso_inicial ?? $order->medical->peso_inicial }}"></div>
-                    <div class="col-md-2"><label>UF Prog (ml)</label><input type="number" step="1" min="0" name="uf" id="ufInput" class="form-control form-control-sm" value="{{ $nurse->uf ?? $order->medical->uf }}"></div>
+                    <div class="col-md-2"><label>UF Prog (ml)</label><input type="number" step="1" min="0" id="ufInput" class="form-control form-control-sm" value="{{ $order->medical?->uf }}" readonly></div>
                     <div class="col-md-4"><label>Aspecto Filtro</label><input type="text" name="aspecto_dializador" class="form-control form-control-sm" value="{{ $nurse->aspecto_dializador ?? '0' }}"></div>
                     <div class="col-md-8"><label>Enfermero que Inicia *</label>
                         <select name="enfermero_que_inicia_id" class="form-select form-select-sm completion-field">

@@ -303,6 +303,9 @@ class MedicalController extends Controller
 
         $previousMedications = $medical->only($this->nursingMedicationFields());
         $medical->update($validated);
+        if (array_key_exists('peso_seco', $validated)) {
+            $medical->order->patient->update(['peso_seco' => $validated['peso_seco']]);
+        }
         $this->syncMedicationToNurse($medical, $previousMedications);
         app(WarehouseConsumptionService::class)->consumeIfFinalized($medical->order->fresh());
 

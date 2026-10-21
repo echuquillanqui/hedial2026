@@ -320,11 +320,12 @@ class NurseController extends Controller
             ->map(fn ($value) => filled($value) ? -abs((int) $value) : $value)
             ->all();
 
+        $medicalUf = $nurse->order->medical?->uf;
         $finalWeight = $request->input('peso_final');
-        if (! $request->filled('peso_final') && $request->filled('peso_inicial') && $request->filled('uf')
-            && is_numeric($request->input('peso_inicial')) && is_numeric($request->input('uf'))) {
+        if (! $request->filled('peso_final') && $request->filled('peso_inicial') && is_numeric($medicalUf)
+            && is_numeric($request->input('peso_inicial'))) {
             $finalWeight = round(
-                (float) $request->input('peso_inicial') - ((float) $request->input('uf') / 1000),
+                (float) $request->input('peso_inicial') - ((float) $medicalUf / 1000),
                 2
             );
         }
@@ -342,7 +343,6 @@ class NurseController extends Controller
             't_cnd.*' => ['nullable', 'numeric'],
             'peso_seco' => ['nullable', 'numeric', 'between:0,999.99'],
             'peso_inicial' => ['nullable', 'numeric', 'between:0,999.99'],
-            'uf' => ['nullable', 'numeric', 'min:0'],
             'puesto' => [$requiredOnClosure],
             'numero_maquina' => [$requiredOnClosure],
             'acceso_arterial' => [$requiredOnClosure, 'nullable', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
@@ -430,10 +430,9 @@ class NurseController extends Controller
                 // Actualizamos la tabla nurses
                 $nurse->update($request->all());
 
-                // El peso seco es propio de la atención médica y compartido
-                // por las dos plantillas de esta misma orden.
-                if ($request->exists('peso_seco') && $nurse->order->medical) {
-                    $nurse->order->medical->update(['peso_seco' => $request->input('peso_seco')]);
+                // Peso seco es dato del paciente y se comparte entre atenciones.
+                if ($request->exists('peso_seco')) {
+                    $nurse->order->patient->update(['peso_seco' => $request->input('peso_seco')]);
                 }
 
                 if (! $isClosing) {

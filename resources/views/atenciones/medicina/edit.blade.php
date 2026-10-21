@@ -142,7 +142,7 @@
                     </div>
                     <div class="col-md-1">
                         <label>Peso Seco</label>
-                        <input type="number" step="0.1" name="peso_seco" class="form-control form-control-sm" value="{{ old('peso_seco', $medical->peso_seco) }}" placeholder=" ">
+                        <input type="number" step="0.1" name="peso_seco" class="form-control form-control-sm" value="{{ old('peso_seco', $order->patient->peso_seco ?? $medical->peso_seco) }}" placeholder=" ">
                     </div>
                     <div class="col-md-2">
                         <label>UF (L)</label>
