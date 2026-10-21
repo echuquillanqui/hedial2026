@@ -84,7 +84,6 @@
 document.querySelectorAll('.quick-result-input').forEach((input) => {
     if (input.closest('.quick-result')?.dataset.test === 'Hemoglobina') return;
     let savedValue = input.value;
-    let timer;
     const save = async () => {
         if (input.value === savedValue) return;
         const wrapper = input.closest('.quick-result');
@@ -120,8 +119,6 @@ document.querySelectorAll('.quick-result-input').forEach((input) => {
             input.disabled = false;
         }
     };
-    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(save, 500); });
-    input.addEventListener('change', save);
     input.addEventListener('blur', save);
 });
 
