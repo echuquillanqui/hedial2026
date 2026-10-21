@@ -541,6 +541,8 @@ class FissalLaboratoryTest extends TestCase
         $zip = new \ZipArchive();
         $this->assertTrue($zip->open($response->baseResponse->getFile()->getPathname()));
         $worksheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $missingWorksheet = $zip->getFromName('xl/worksheets/sheet2.xml');
+        $workbook = $zip->getFromName('xl/workbook.xml');
         $zip->close();
 
         $this->assertIsString($worksheet);
@@ -558,6 +560,10 @@ class FissalLaboratoryTest extends TestCase
         $this->assertStringNotContainsString('Historia clínica', $worksheet);
         $this->assertStringNotContainsString('Observaciones', $worksheet);
         $this->assertStringNotContainsString('PACIENTE DE OCTUBRE', $worksheet);
+        $this->assertStringContainsString('Completados', $workbook);
+        $this->assertStringContainsString('Faltantes', $workbook);
+        $this->assertIsString($missingWorksheet);
+        $this->assertStringContainsString('PACIENTE DE OCTUBRE', $missingWorksheet);
     }
 
     public function test_individual_dialysis_order_keeps_laboratory_period_for_fua_without_generating_laboratory_records(): void

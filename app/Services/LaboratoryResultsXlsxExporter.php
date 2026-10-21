@@ -15,13 +15,19 @@ class LaboratoryResultsXlsxExporter
             throw new RuntimeException('No se pudo crear el archivo temporal para la exportación.');
         }
 
+        $completed = $orders->filter(fn ($order) => $order->items->isNotEmpty()
+            && $order->items->every(fn ($item) => $item->completed_at !== null));
+        $missing = $orders->reject(fn ($order) => $order->items->isNotEmpty()
+            && $order->items->every(fn ($item) => $item->completed_at !== null));
+
         $archive = $this->createZipArchive([
             '[Content_Types].xml' => $this->contentTypes(),
             '_rels/.rels' => $this->rootRelationships(),
             'xl/workbook.xml' => $this->workbook(),
             'xl/_rels/workbook.xml.rels' => $this->workbookRelationships(),
             'xl/styles.xml' => $this->styles(),
-            'xl/worksheets/sheet1.xml' => $this->worksheet($orders),
+            'xl/worksheets/sheet1.xml' => $this->worksheet($completed),
+            'xl/worksheets/sheet2.xml' => $this->worksheet($missing),
         ]);
 
         if (file_put_contents($path, $archive) === false) {
@@ -187,6 +193,7 @@ class LaboratoryResultsXlsxExporter
             .'<Default Extension="xml" ContentType="application/xml"/>'
             .'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
             .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            .'<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
             .'<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
     }
 
@@ -199,14 +206,15 @@ class LaboratoryResultsXlsxExporter
     private function workbook(): string
     {
         return '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-            .'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Resultados" sheetId="1" r:id="rId1"/></sheets></workbook>';
+            .'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Completados" sheetId="1" r:id="rId1"/><sheet name="Faltantes" sheetId="2" r:id="rId2"/></sheets></workbook>';
     }
 
     private function workbookRelationships(): string
     {
         return '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
             .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
-            .'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+            .'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'
+            .'<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
     }
 
     private function styles(): string
