@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Patient;
+use App\Models\Nurse;
+use App\Support\DailyHemodialysisSequence;
 use App\Support\CurrentSede;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class SectorizationController extends Controller
@@ -84,8 +87,59 @@ class SectorizationController extends Controller
             $latestOrder->nurse->puesto = $validated['value'];
             $latestOrder->nurse->numero_maquina = $validated['value'];
             $latestOrder->nurse->save();
+
+            $nextDate = $this->nextScheduledDate($patient->secuencia);
+            if ($nextDate) {
+                Nurse::query()
+                    ->whereHas('order', fn ($query) => $query
+                        ->where('patient_id', $patient->id)
+                        ->where('sede_id', $sedeId)
+                        ->whereDate('fecha_orden', $nextDate))
+                    ->update([
+                        'puesto' => $validated['value'],
+                        'numero_maquina' => $validated['value'],
+                    ]);
+            }
         }
 
         return response()->json(['saved' => true]);
+    }
+
+    public function downloadTemplate()
+    {
+        abort_unless(CurrentSede::id(), 403, 'Seleccione una sede para descargar la plantilla.');
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="plantilla_sectorizacion.csv"',
+            'Cache-Control' => 'no-store, no-cache',
+        ];
+
+        return response()->stream(function () {
+            $output = fopen('php://output', 'w');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, ['secuencia', 'turno', 'dni', 'modulo', 'puesto_maquina', 'acceso_venoso', 'acceso_arterial'], ';');
+            fputcsv($output, ['L-M-V', '1', '12345678', '1', '1', 'FAV', 'FAV'], ';');
+            fclose($output);
+        }, 200, $headers);
+    }
+
+    private function nextScheduledDate(?string $sequence): ?string
+    {
+        if (! in_array($sequence, [
+            DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
+            DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
+        ], true)) {
+            return null;
+        }
+
+        $date = Carbon::tomorrow();
+        for ($day = 0; $day < 7; $day++, $date->addDay()) {
+            if (DailyHemodialysisSequence::forDate($date) === $sequence) {
+                return $date->toDateString();
+            }
+        }
+
+        return null;
     }
 }

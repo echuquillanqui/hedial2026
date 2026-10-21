@@ -53,6 +53,7 @@ Auth::routes();
 
 Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('sectorizacion', [SectorizationController::class, 'index'])->name('sectorization.index');
+    Route::get('sectorizacion/plantilla', [SectorizationController::class, 'downloadTemplate'])->middleware('permission:sectorization.view')->name('sectorization.template');
     Route::patch('sectorizacion/pacientes/{patient}', [SectorizationController::class, 'update'])->name('sectorization.update');
     Route::get('reportes/atenciones/exportar', [AttendanceReportController::class, 'export'])->name('reports.attendances.export');
     Route::get('reportes/atenciones', [AttendanceReportController::class, 'index'])->name('reports.attendances.index');

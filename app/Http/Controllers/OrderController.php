@@ -824,6 +824,17 @@ class OrderController extends Controller
 
     private function createRelatedRecords($order, $patient = null, $horasHD = null)
     {
+        $previousStation = Nurse::query()
+            ->whereNotNull('enfermero_que_finaliza_id')
+            ->whereHas('order', fn ($query) => $query
+                ->where('patient_id', $patient->id)
+                ->where('sede_id', $order->sede_id)
+                ->whereDate('fecha_orden', '<', $order->fecha_orden))
+            ->join('orders', 'orders.id', '=', 'nurses.order_id')
+            ->orderByDesc('orders.fecha_orden')
+            ->orderByDesc('nurses.id')
+            ->first(['nurses.puesto', 'nurses.numero_maquina']);
+
         $previousFilterArea = Medical::query()
             ->whereNotNull('area_filtro')
             ->whereHas('order', fn ($query) => $query
@@ -853,6 +864,8 @@ class OrderController extends Controller
         Nurse::create([
             'order_id' => $order->id,
             'frecuencia_hd' => $patient->secuencia ?? null,
+            'puesto' => $previousStation?->puesto,
+            'numero_maquina' => $previousStation?->numero_maquina ?? $previousStation?->puesto,
             'marca_modelo' => FuaConfiguration::global()->dialysis_equipment ?: 'FRESENIUS/4008S',
             'acceso_arterial' => $patient->acceso_arterial ?? null,
             'acceso_venoso' => $patient->acceso_venoso ?? null,

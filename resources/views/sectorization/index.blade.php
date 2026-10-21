@@ -4,8 +4,9 @@
 <div class="container-fluid py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
         <div><span class="text-uppercase text-primary fw-bold small">Gestión</span><h2 class="mb-1">Sectorización</h2><p class="text-muted mb-0">Edita puesto, máquina y acceso. Puesto y máquina se comparten con las atenciones de enfermería.</p></div>
-        <form method="GET" class="d-flex gap-2"><input name="search" value="{{ request('search') }}" class="form-control" placeholder="Buscar por nombre o DNI"><button class="btn btn-outline-primary">Buscar</button>@if(request('search'))<a class="btn btn-outline-secondary" href="{{ route('sectorization.index') }}">Limpiar</a>@endif</form>
+        <div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-success" href="{{ route('sectorization.template') }}"><i class="bi bi-file-earmark-arrow-down me-1"></i>Descargar plantilla</a><form method="GET" class="d-flex gap-2"><input name="search" value="{{ request('search') }}" class="form-control" placeholder="Buscar por nombre o DNI"><button class="btn btn-outline-primary">Buscar</button>@if(request('search'))<a class="btn btn-outline-secondary" href="{{ route('sectorization.index') }}">Limpiar</a>@endif</form></div>
     </div>
+    <div class="small text-muted mb-3">La plantilla incluye secuencia (L-M-V o M-J-S), turno (1–4), DNI, módulo (1–4 o AISLADO), puesto/máquina y accesos (CVCLP, FAV, INJ, CVCL o CVCT). Al importar, el puesto y la máquina se aplicarán con el mismo valor.</div>
     <div class="d-flex flex-wrap gap-2 mb-3 small">
         <span class="badge text-bg-danger">Módulo 1 · Puestos 1–5</span><span class="badge text-bg-warning">Módulo 2 · Puestos 6–10</span><span class="badge text-bg-success">Módulo 3 · Puestos 11–15</span>
         <span id="sectorizationStatus" class="text-muted align-self-center ms-auto" aria-live="polite"></span>
