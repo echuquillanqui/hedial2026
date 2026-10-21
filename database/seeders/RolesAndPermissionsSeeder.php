@@ -25,6 +25,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'permissions.create', 'permissions.edit',
 
             'patients.view', 'patients.create', 'patients.edit', 'patients.delete',
+            'sectorization.view', 'sectorization.edit',
             'initial_history.view', 'initial_history.create', 'initial_history.update', 'initial_history.print',
             'consents.view', 'consents.create', 'consents.print',
 
@@ -76,6 +77,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'users.view', 'users.create', 'users.edit', 'users.assign.individual', 'users.assign.massive',
                 'roles.create', 'roles.assign.permissions', 'permissions.create',
                 'patients.view', 'patients.create', 'patients.edit',
+                'sectorization.view', 'sectorization.edit',
                 'initial_history.view', 'initial_history.create', 'initial_history.update', 'initial_history.print',
                 'consents.view', 'consents.create', 'consents.print',
                 'referrals.view', 'referrals.create', 'referrals.edit', 'referrals.print',

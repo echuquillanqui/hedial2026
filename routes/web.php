@@ -32,6 +32,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AttendanceReportController;
 use App\Http\Controllers\MonthlyAttendanceReportController;
 use App\Http\Controllers\DialysisSupplyLotController;
+use App\Http\Controllers\SectorizationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,6 +52,8 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::middleware(['auth', 'ensure.sede'])->group(function () {
+    Route::get('sectorizacion', [SectorizationController::class, 'index'])->name('sectorization.index');
+    Route::patch('sectorizacion/pacientes/{patient}', [SectorizationController::class, 'update'])->name('sectorization.update');
     Route::get('reportes/atenciones/exportar', [AttendanceReportController::class, 'export'])->name('reports.attendances.export');
     Route::get('reportes/atenciones', [AttendanceReportController::class, 'index'])->name('reports.attendances.index');
     Route::get('reportes/control-atenciones/exportar', [MonthlyAttendanceReportController::class, 'export'])->name('reports.monthly-attendances.export');

@@ -73,11 +73,12 @@
                     @php
                         $canManageUsers = auth()->user()->can('users.view');
                         $canManagePatients = auth()->user()->can('patients.view');
+                        $canManageSectorization = auth()->user()->can('sectorization.view');
                         $canManageSedes = auth()->user()->can('users.view');
                         $canManageFuaConfiguration = auth()->user()->can('fua.configuration.manage');
                         $canManageMedicalSchedules = auth()->user()->can('medicals.edit');
                         $canManageNurseSchedules = auth()->user()->can('nurses.edit');
-                        $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSedes || $canManageFuaConfiguration || $canManageMedicalSchedules || $canManageNurseSchedules;
+                        $canSeeGestion = $canManageUsers || $canManagePatients || $canManageSectorization || $canManageSedes || $canManageFuaConfiguration || $canManageMedicalSchedules || $canManageNurseSchedules;
 
                         $canViewReferrals = auth()->user()->can('referrals.view');
 
@@ -113,7 +114,7 @@
                     <ul class="navbar-nav me-auto">
     @if($canSeeGestion)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sedes.*', 'operational-areas.*', 'fuas.configuration.*', 'dialysis-supply-lots.*', 'medicals.schedules.*', 'nurses.schedules.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('users.*', 'patients.*', 'sectorization.*', 'sedes.*', 'operational-areas.*', 'fuas.configuration.*', 'dialysis-supply-lots.*', 'medicals.schedules.*', 'nurses.schedules.*') ? 'active fw-bold' : '' }}"
            type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-people-fill me-1"></i> Gestión
         </button>
@@ -122,6 +123,13 @@
             <li>
                 <a class="dropdown-item {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
                     <i class="bi bi-person-badge me-2"></i> Usuarios
+                </a>
+            </li>
+            @endif
+            @if($canManageSectorization)
+            <li>
+                <a class="dropdown-item {{ request()->routeIs('sectorization.*') ? 'active' : '' }}" href="{{ route('sectorization.index') }}">
+                    <i class="bi bi-grid-3x3-gap me-2"></i> Sectorización
                 </a>
             </li>
             @endif
