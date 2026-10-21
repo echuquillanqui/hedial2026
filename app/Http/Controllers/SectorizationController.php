@@ -42,6 +42,15 @@ class SectorizationController extends Controller
 
         $patients = $query->get();
 
+        foreach ($patients as $patient) {
+            $nextDate = $this->nextScheduledDate($patient->secuencia);
+            $nextOrder = $nextDate ? $patient->orders()
+                ->where('sede_id', $sedeId)
+                ->whereDate('fecha_orden', $nextDate)
+                ->first() : null;
+            $patient->sectorization_module = $this->moduleFromOrderSala($nextOrder?->sala) ?? $patient->modulo;
+        }
+
         $patientsBySequence = collect([
             'L-M-V' => $patients->filter(fn ($patient) => $patient->modulo === Patient::ISOLATED_MODULE || $patient->secuencia === 'L-M-V')->values(),
             'M-J-S' => $patients->filter(fn ($patient) => $patient->modulo === Patient::ISOLATED_MODULE || $patient->secuencia === 'M-J-S')->values(),
@@ -70,8 +79,15 @@ class SectorizationController extends Controller
 
         if ($validated['field'] === 'modulo') {
             validator($validated, ['value' => ['required', 'in:1,2,3,4,AISLADO']])->validate();
-            $patient->modulo = $validated['value'] === 'AISLADO' ? null : $validated['value'];
-            $patient->save();
+            $nextDate = $this->nextScheduledDate($patient->secuencia);
+            $nextOrder = $nextDate ? $patient->orders()
+                ->where('sede_id', $sedeId)
+                ->whereDate('fecha_orden', $nextDate)
+                ->first() : null;
+
+            abort_unless($nextOrder, 422, 'Todavía no existe la orden de la próxima sesión. El módulo no se cambió para evitar modificar la asignación general del paciente.');
+            $nextOrder->sala = $validated['value'] === 'AISLADO' ? 'AISLADO' : 'MODULO '.$validated['value'];
+            $nextOrder->save();
         } elseif (in_array($validated['field'], ['acceso_venoso', 'acceso_arterial'], true)) {
             $patient->{$validated['field']} = $validated['value'];
             $patient->save();
@@ -141,5 +157,14 @@ class SectorizationController extends Controller
         }
 
         return null;
+    }
+
+    private function moduleFromOrderSala(?string $sala): ?string
+    {
+        if (preg_match('/^MODULO\s+(\d+)$/i', trim((string) $sala), $matches)) {
+            return $matches[1];
+        }
+
+        return strtoupper(trim((string) $sala)) === 'AISLADO' ? Patient::ISOLATED_MODULE : null;
     }
 }
