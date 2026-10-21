@@ -430,6 +430,12 @@ class NurseController extends Controller
                 // Actualizamos la tabla nurses
                 $nurse->update($request->all());
 
+                // El peso seco es propio de la atención médica y compartido
+                // por las dos plantillas de esta misma orden.
+                if ($request->exists('peso_seco') && $nurse->order->medical) {
+                    $nurse->order->medical->update(['peso_seco' => $request->input('peso_seco')]);
+                }
+
                 if (! $isClosing) {
                     // Una atención en borrador todavía no constituye una sesión.
                     $nurse->update(['numero_hd' => null]);
@@ -453,7 +459,7 @@ class NurseController extends Controller
                 // Se fijan una sola vez en la ficha del paciente, durante su
                 // primera atención, para precargar las sesiones posteriores.
                 $patient = $nurse->order->patient;
-                $initialData = collect(['peso_seco', 'acceso_arterial', 'acceso_venoso'])
+                $initialData = collect(['acceso_arterial', 'acceso_venoso'])
                     ->filter(fn ($field) => blank($patient->$field) && $request->filled($field))
                     ->mapWithKeys(fn ($field) => [$field => $request->input($field)])
                     ->all();
