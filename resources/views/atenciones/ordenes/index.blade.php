@@ -193,7 +193,7 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="text-center"><span class="badge bg-light text-success border border-success">MÓDULO {{ $order->patient->modulo ?: '—' }}</span></td>
+                            <td class="text-center"><span class="badge bg-light text-success border border-success">MÓDULO {{ $order->dialysis_module ?: '—' }}</span></td>
                             <td class="text-center"><span class="badge bg-light text-success border border-success">{{ $order->sala }}</span></td>
                             <td class="fw-bold small text-center">TURNO - {{ $order->turno }}</td>
                             <td class="fw-bold text-primary text-center">{{ number_format($order->horas_dialisis, 1) }}</td>

@@ -92,30 +92,19 @@ class SectorizationController extends Controller
             $patient->{$validated['field']} = $validated['value'];
             $patient->save();
         } else {
-            $latestOrder = $patient->orders()
-                ->where('sede_id', $sedeId)
-                ->whereHas('nurse', fn ($query) => $query->whereNotNull('enfermero_que_finaliza_id'))
-                ->with('nurse')
-                ->orderByDesc('fecha_orden')->orderByDesc('id')
+            $nextDate = $this->nextScheduledDate($patient->secuencia);
+            abort_unless($nextDate, 422, 'No se pudo determinar la próxima fecha de atención.');
+            $nextNurse = Nurse::query()
+                ->whereHas('order', fn ($query) => $query
+                    ->where('patient_id', $patient->id)
+                    ->where('sede_id', $sedeId)
+                    ->whereDate('fecha_orden', $nextDate))
                 ->first();
 
-            abort_unless($latestOrder?->nurse, 422, 'El paciente no tiene una hoja de enfermería para actualizar el puesto o máquina.');
-            $latestOrder->nurse->puesto = $validated['value'];
-            $latestOrder->nurse->numero_maquina = $validated['value'];
-            $latestOrder->nurse->save();
-
-            $nextDate = $this->nextScheduledDate($patient->secuencia);
-            if ($nextDate) {
-                Nurse::query()
-                    ->whereHas('order', fn ($query) => $query
-                        ->where('patient_id', $patient->id)
-                        ->where('sede_id', $sedeId)
-                        ->whereDate('fecha_orden', $nextDate))
-                    ->update([
-                        'puesto' => $validated['value'],
-                        'numero_maquina' => $validated['value'],
-                    ]);
-            }
+            abort_unless($nextNurse, 422, 'Todavía no existe la hoja de enfermería de la próxima sesión. El puesto y la máquina no se cambiaron en otras fechas.');
+            $nextNurse->puesto = $validated['value'];
+            $nextNurse->numero_maquina = $validated['value'];
+            $nextNurse->save();
         }
 
         return response()->json(['saved' => true]);

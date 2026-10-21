@@ -83,6 +83,20 @@ class Order extends Model
         return 'PENDIENTE';
     }
 
+    /** The module assigned to this specific hemodialysis order. */
+    public function getDialysisModuleAttribute(): ?string
+    {
+        if (preg_match('/^MODULO\s+(\d+)$/i', trim((string) $this->sala), $matches)) {
+            return $matches[1];
+        }
+
+        if (strtoupper(trim((string) $this->sala)) === 'AISLADO') {
+            return Patient::ISOLATED_MODULE;
+        }
+
+        return $this->patient?->modulo;
+    }
+
     public function medical() 
     {
         return $this->hasOne(Medical::class, 'order_id');

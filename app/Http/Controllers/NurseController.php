@@ -232,7 +232,7 @@ class NurseController extends Controller
             ->orderBy('name')
             ->get();
 
-        $module = (string) $order->patient->modulo;
+        $module = (string) $order->dialysis_module;
         $moduleSchedule = NurseModuleSchedule::query()
             ->where('sede_id', $order->sede_id)
             ->where('module', $module)
@@ -270,7 +270,7 @@ class NurseController extends Controller
         abort_if(CurrentSede::id() && (int) $order->sede_id !== (int) CurrentSede::id(), 403);
 
         $data = $request->validate(['hora' => ['required', 'date_format:H:i']]);
-        $module = (string) $order->patient->modulo;
+        $module = (string) $order->dialysis_module;
         $allowed = NurseModuleSchedule::query()
             ->where('sede_id', $order->sede_id)->where('module', $module)
             ->where('shift', $order->turno)->first()?->start_times ?? [];
