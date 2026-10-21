@@ -256,7 +256,7 @@
             actualizarHoraFormateada(event.target);
         }
     });
-    calcularPesoFinal();
+    if (!pesoFinalInput.value) calcularPesoFinal();
 
     function formatearHora12(hora) {
         if (!/^\d{2}:\d{2}$/.test(hora)) return '';

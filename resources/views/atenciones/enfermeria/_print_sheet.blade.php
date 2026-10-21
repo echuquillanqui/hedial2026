@@ -83,7 +83,7 @@
             <td class="bold">Na Final:</td><td class="border-bottom text-center">{{ $order->medical->na_final }} Meq/L</td>
             <td class="bold">Peso Inicial:</td><td class="border-bottom text-center">{{ $order->medical->peso_inicial }}</td>
             <td class="bold">Perfil de Na:</td><td class="border-bottom text-center">{{ $order->medical->perfil_na }}</td>
-            <td class="bold">Ultrafiltrado:</td><td class="border-bottom text-center">{{ $order->medical->uf }}</td>
+            <td class="bold">Ultrafiltrado:</td><td class="border-bottom text-center">{{ $order->medical?->uf }}</td>
         </tr>
 
         <tr>
@@ -165,7 +165,7 @@
     </tr>
     <tr>
         <td style="border: 1px solid #000;">Area/membrana de filtro: <span class="box-val">{{ $order->medical->area_filtro }} m2</span></td>
-        <td colspan="2" style="border: 1px solid #000;">Ultrafiltrado programado: <span class="box-val">{{ $order->medical->uf }} cc</span></td>
+        <td colspan="2" style="border: 1px solid #000;">Ultrafiltrado programado: <span class="box-val">{{ $order->medical?->uf }}</span></td>
         <td style="border: 1px solid #000;">Acceso Arterial: <span class="box-val">{{ $order->nurse->acceso_arterial }}</span></td>
         <td style="border: 1px solid #000;">Acceso Venoso: <span class="box-val">{{ $order->nurse->acceso_venoso }}</span></td>
     </tr>
