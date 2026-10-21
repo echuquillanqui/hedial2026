@@ -36,6 +36,18 @@
         </div>
     </div>
 
+    @if($errors->any())
+        <div class="alert alert-danger py-2" role="alert" aria-live="assertive">
+            <strong>No se pudo guardar la ficha médica:</strong>
+            <ul class="mb-0 mt-1">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <span class="small">Los datos ingresados se mantienen en el formulario; corrija los campos indicados y vuelva a guardar.</span>
+        </div>
+    @endif
+
     <form action="{{ route('medicals.update', $medical->id) }}" method="POST" id="medicalForm" class="needs-validation" novalidate>
         @csrf
         @method('PUT')
@@ -289,12 +301,23 @@
                 if (faltanDatos || !form.checkValidity()) {
                     event.preventDefault();
                     event.stopPropagation();
-                    
+                    var invalidField = form.querySelector(':invalid');
+                    var fieldLabel = invalidField
+                        ? (invalidField.closest('.col-md-1, .col-md-2, .col-md-3, .col-md-4, .col-md-7, .col-md-10')?.querySelector('label')?.textContent.trim() || invalidField.name)
+                        : 'los parámetros técnicos de cierre';
+
                     Swal.fire({
                         icon: 'warning',
-                        title: 'Faltan datos de cierre',
-                        text: 'Al finalizar la sesión, la HORA INICIAL y los parámetros técnicos son obligatorios.',
+                        title: 'No se pudo guardar la ficha',
+                        text: invalidField
+                            ? fieldLabel + ': ' + (invalidField.validationMessage || 'revise este campo.')
+                            : 'Al finalizar la sesión, la hora inicial y los parámetros técnicos son obligatorios.',
                         confirmButtonColor: '#198754'
+                    }).then(function () {
+                        if (invalidField) {
+                            invalidField.focus();
+                            invalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
                     });
                 }
             } else {
@@ -302,12 +325,23 @@
                 if (!form.checkValidity()) {
                     event.preventDefault();
                     event.stopPropagation();
-                    
+                    var invalidField = form.querySelector(':invalid');
+                    var fieldLabel = invalidField
+                        ? (invalidField.closest('.col-md-1, .col-md-2, .col-md-3, .col-md-4, .col-md-7, .col-md-10')?.querySelector('label')?.textContent.trim() || invalidField.name)
+                        : 'un campo obligatorio';
+
                     Swal.fire({
                         icon: 'error',
-                        title: 'Campos Obligatorios',
-                        text: 'Complete Peso Inicial, PA, UF, QB y Médico para guardar el avance.',
-                        timer: 3000
+                        title: 'No se pudo guardar la ficha',
+                        text: invalidField
+                            ? fieldLabel + ': ' + (invalidField.validationMessage || 'revise este campo.')
+                            : 'Revise los campos obligatorios para guardar el avance.',
+                        confirmButtonColor: '#198754'
+                    }).then(function () {
+                        if (invalidField) {
+                            invalidField.focus();
+                            invalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
                     });
                 }
             }
