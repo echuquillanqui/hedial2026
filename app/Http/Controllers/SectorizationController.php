@@ -68,9 +68,25 @@ class SectorizationController extends Controller
         }
 
         $patientsBySequence = collect([
-            'L-M-V' => $patients->filter(fn ($patient) => $patient->modulo === Patient::ISOLATED_MODULE || $patient->secuencia === 'L-M-V')->values(),
-            'M-J-S' => $patients->filter(fn ($patient) => $patient->modulo === Patient::ISOLATED_MODULE || $patient->secuencia === 'M-J-S')->values(),
-        ]);
+            DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
+            DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
+        ])->mapWithKeys(function ($sequence) use ($patients) {
+            $rows = $patients->filter(fn ($patient) =>
+                $patient->modulo === Patient::ISOLATED_MODULE || $patient->secuencia === $sequence
+            );
+
+            return [$sequence => $rows->sort(function ($left, $right) use ($sequence) {
+                $leftStation = $left->sectorization_by_sequence[$sequence]['puesto'] ?? $left->orders->first()?->nurse?->puesto;
+                $rightStation = $right->sectorization_by_sequence[$sequence]['puesto'] ?? $right->orders->first()?->nurse?->puesto;
+
+                if (($leftStation === null || $leftStation === '') !== ($rightStation === null || $rightStation === '')) {
+                    return ($leftStation === null || $leftStation === '') ? 1 : -1;
+                }
+
+                return strnatcmp((string) $leftStation, (string) $rightStation)
+                    ?: strnatcasecmp($left->full_name, $right->full_name);
+            })->values()];
+        });
 
         if ($request->boolean('partial')) {
             $sequence = $request->validate(['sequence' => ['required', 'in:L-M-V,M-J-S']])['sequence'];
