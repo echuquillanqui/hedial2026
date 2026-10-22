@@ -9,6 +9,7 @@ use App\Support\DailyHemodialysisSequence;
 use App\Support\CurrentSede;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SectorizationController extends Controller
 {
@@ -79,12 +80,16 @@ class SectorizationController extends Controller
             return view('sectorization._turn-table', compact('patients', 'sequence'));
         }
 
-        $sequenceCutoffs = collect([
+        $defaultCutoffs = collect([
             DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
             DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
         ])->mapWithKeys(fn ($sequence) => [$sequence => $this->nextScheduledDate($sequence)]);
+        $sequenceCutoffs = $defaultCutoffs->merge(
+            DB::table('sectorization_cutoffs')->where('sede_id', $sedeId)->pluck('effective_from', 'sequence')
+        );
+        $minimumCutoff = Carbon::today()->subDays(2)->toDateString();
 
-        return view('sectorization.index', compact('patientsBySequence', 'sequenceCutoffs'));
+        return view('sectorization.index', compact('patientsBySequence', 'sequenceCutoffs', 'minimumCutoff'));
     }
 
     public function update(Request $request, Patient $patient)
@@ -113,21 +118,43 @@ class SectorizationController extends Controller
         return response()->json(['saved' => true, 'effective_from' => $effectiveFrom]);
     }
 
+    public function saveCutoff(Request $request)
+    {
+        $data = $this->validatedCutoff($request);
+        $sedeId = CurrentSede::id();
+        abort_unless($sedeId, 403, 'Seleccione una sede para guardar la fecha de corte.');
+
+        DB::table('sectorization_cutoffs')->updateOrInsert(
+            ['sede_id' => $sedeId, 'sequence' => $data['sequence']],
+            ['effective_from' => $data['effective_from'], 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        return response()->json(['saved' => true, 'effective_from' => $data['effective_from']]);
+    }
+
     private function requestedCutoff(Request $request, Patient $patient): array
     {
-        $data = $request->validate([
-            'effective_from' => ['required', 'date', 'after_or_equal:tomorrow'],
-            'sequence' => ['required', 'in:L-M-V,M-J-S'],
-        ]);
-        $date = Carbon::parse($data['effective_from'])->toDateString();
-        abort_unless(DailyHemodialysisSequence::forDate($date) === $data['sequence'], 422, 'La fecha de corte debe coincidir con los días de la secuencia seleccionada.');
+        $data = $this->validatedCutoff($request);
         abort_unless(
             $patient->modulo === Patient::ISOLATED_MODULE || $patient->secuencia === $data['sequence'],
             422,
             'La secuencia elegida no corresponde al paciente.'
         );
 
-        return [$date, $data['sequence']];
+        return [$data['effective_from'], $data['sequence']];
+    }
+
+    private function validatedCutoff(Request $request): array
+    {
+        $data = $request->validate([
+            'effective_from' => ['required', 'date'],
+            'sequence' => ['required', 'in:L-M-V,M-J-S'],
+        ]);
+        $date = Carbon::parse($data['effective_from'])->toDateString();
+        abort_unless($date >= Carbon::today()->subDays(2)->toDateString(), 422, 'La fecha de corte no puede ser anterior a dos días atrás.');
+        abort_unless(DailyHemodialysisSequence::forDate($date) === $data['sequence'], 422, 'La fecha de corte debe coincidir con los días de la secuencia seleccionada.');
+
+        return ['effective_from' => $date, 'sequence' => $data['sequence']];
     }
 
     private function saveFutureAssignment(Patient $patient, string $field, ?string $value, string $effectiveFrom, string $sequence): string

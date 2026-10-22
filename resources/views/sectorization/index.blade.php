@@ -11,6 +11,11 @@
         <span class="badge text-bg-danger">Módulo 1 · Puestos 1–5</span><span class="badge text-bg-warning">Módulo 2 · Puestos 6–10</span><span class="badge text-bg-success">Módulo 3 · Puestos 11–15</span>
         <span id="sectorizationStatus" class="text-muted align-self-center ms-auto" aria-live="polite"></span>
     </div>
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100">
+        <div id="sectorizationToast" class="toast align-items-center text-bg-success border-0" role="status" aria-live="polite" aria-atomic="true">
+            <div class="d-flex"><div class="toast-body" id="sectorizationToastMessage"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button></div>
+        </div>
+    </div>
 
     <ul class="nav nav-tabs mb-3" role="tablist">
         <li class="nav-item" role="presentation"><button class="nav-link active fw-semibold" id="lmv-tab" data-bs-toggle="tab" data-bs-target="#lmv-panel" type="button" role="tab" aria-controls="lmv-panel" aria-selected="true"><i class="bi bi-calendar-week me-1"></i>Lunes · Miércoles · Viernes</button></li>
@@ -21,7 +26,7 @@
     @foreach(['L-M-V' => ['id' => 'lmv', 'label' => 'Lunes · Miércoles · Viernes'], 'M-J-S' => ['id' => 'mjs', 'label' => 'Martes · Jueves · Sábado']] as $sequence => $tab)
         <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}" id="{{ $tab['id'] }}-panel" role="tabpanel" aria-labelledby="{{ $tab['id'] }}-tab" tabindex="0">
             <div class="d-flex align-items-end gap-2 mb-3">
-                <div><label class="form-label fw-semibold mb-1" for="cutoff-{{ $tab['id'] }}">Fecha de corte para esta secuencia</label><input type="date" class="form-control form-control-sm sectorization-cutoff" id="cutoff-{{ $tab['id'] }}" data-cutoff-sequence="{{ $sequence }}" min="{{ now()->addDay()->toDateString() }}" value="{{ $sequenceCutoffs[$sequence] }}"></div>
+                <div><label class="form-label fw-semibold mb-1" for="cutoff-{{ $tab['id'] }}">Fecha de corte para esta secuencia</label><input type="date" class="form-control form-control-sm sectorization-cutoff" id="cutoff-{{ $tab['id'] }}" data-cutoff-sequence="{{ $sequence }}" min="{{ $minimumCutoff }}" value="{{ $sequenceCutoffs[$sequence] }}"></div>
                 <small class="text-muted pb-1">Se aplicará desde la fecha seleccionada en adelante.</small>
             </div>
             <div class="accordion" id="{{ $tab['id'] }}-turns">
@@ -50,6 +55,14 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const status = document.getElementById('sectorizationStatus');
+    const toastElement = document.getElementById('sectorizationToast');
+    const toast = bootstrap.Toast.getOrCreateInstance(toastElement, {delay: 3500});
+    const showToast = (message, type = 'success') => {
+        toastElement.classList.toggle('text-bg-success', type === 'success');
+        toastElement.classList.toggle('text-bg-danger', type === 'error');
+        document.getElementById('sectorizationToastMessage').textContent = message;
+        toast.show();
+    };
     const moduleColors = {'1': 'danger', '2': 'warning', '3': 'success', '4': 'primary', 'AISLADO': 'info', '': 'secondary'};
     const updateModuleColor = (select) => {
         Object.values(moduleColors).forEach((color) => select.classList.remove(`module-color-${color}`));
@@ -76,10 +89,12 @@ document.addEventListener('DOMContentLoaded', () => {
             status.textContent = result.effective_from
                 ? `Cambio guardado; rige desde ${new Date(`${result.effective_from}T00:00:00`).toLocaleDateString('es-PE')}.`
                 : 'Cambios guardados.';
+            showToast(status.textContent);
             input.classList.add('is-valid');
             setTimeout(() => input.classList.remove('is-valid'), 1200);
         } catch (error) {
             status.textContent = error.message;
+            showToast(error.message, 'error');
             input.classList.add('is-invalid');
         } finally { input.disabled = false; }
     };
@@ -93,6 +108,35 @@ document.addEventListener('DOMContentLoaded', () => {
         if (input.tagName === 'INPUT') input.addEventListener('blur', () => save(input));
     });
     bindFields();
+
+    document.querySelectorAll('.sectorization-cutoff').forEach((input) => {
+        input.dataset.savedValue = input.value;
+        input.addEventListener('change', async () => {
+            if (!input.value) return;
+            input.disabled = true;
+            try {
+                const response = await fetch(@json(route('sectorization.cutoff')), {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content},
+                    body: JSON.stringify({effective_from: input.value, sequence: input.dataset.cutoffSequence})
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'No se pudo guardar la fecha de corte.');
+                input.dataset.savedValue = input.value;
+                const dateLabel = new Date(`${result.effective_from}T00:00:00`).toLocaleDateString('es-PE');
+                status.textContent = `Fecha de corte guardada: ${dateLabel}.`;
+                showToast(status.textContent);
+                input.classList.add('is-valid');
+                setTimeout(() => input.classList.remove('is-valid'), 1200);
+            } catch (error) {
+                input.value = input.dataset.savedValue;
+                status.textContent = error.message;
+                showToast(error.message, 'error');
+            } finally {
+                input.disabled = false;
+            }
+        });
+    });
 
     document.querySelectorAll('.sectorization-refresh').forEach((button) => button.addEventListener('click', async () => {
         const content = button.closest('.accordion-body').querySelector('.sectorization-turn-content');
