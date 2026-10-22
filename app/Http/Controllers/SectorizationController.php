@@ -76,6 +76,14 @@ class SectorizationController extends Controller
             );
 
             return [$sequence => $rows->sort(function ($left, $right) use ($sequence) {
+                $leftModule = $left->sectorization_by_sequence[$sequence]['module'] ?? $left->modulo;
+                $rightModule = $right->sectorization_by_sequence[$sequence]['module'] ?? $right->modulo;
+                $moduleOrder = ['1' => 1, '2' => 2, '3' => 3, '4' => 4, Patient::ISOLATED_MODULE => 5];
+                $moduleComparison = ($moduleOrder[(string) $leftModule] ?? 6) <=> ($moduleOrder[(string) $rightModule] ?? 6);
+                if ($moduleComparison !== 0) {
+                    return $moduleComparison;
+                }
+
                 $leftStation = $left->sectorization_by_sequence[$sequence]['puesto'] ?? $left->orders->first()?->nurse?->puesto;
                 $rightStation = $right->sectorization_by_sequence[$sequence]['puesto'] ?? $right->orders->first()?->nurse?->puesto;
 
