@@ -824,6 +824,20 @@ class OrderController extends Controller
 
     private function createRelatedRecords($order, $patient = null, $horasHD = null)
     {
+        $sectorization = $patient->sectorizations()
+            ->where('sequence', \App\Support\DailyHemodialysisSequence::forDate($order->fecha_orden))
+            ->whereDate('effective_from', '<=', $order->fecha_orden)
+            ->orderByDesc('effective_from')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($sectorization?->module) {
+            $order->sala = $sectorization->module === 'AISLADO'
+                ? 'AISLADO'
+                : 'MODULO '.$sectorization->module;
+            $order->save();
+        }
+
         $previousStation = Nurse::query()
             ->whereNotNull('enfermero_que_finaliza_id')
             ->whereHas('order', fn ($query) => $query
@@ -864,8 +878,8 @@ class OrderController extends Controller
         Nurse::create([
             'order_id' => $order->id,
             'frecuencia_hd' => $patient->secuencia ?? null,
-            'puesto' => $previousStation?->puesto,
-            'numero_maquina' => $previousStation?->numero_maquina ?? $previousStation?->puesto,
+            'puesto' => $sectorization?->puesto ?? $previousStation?->puesto,
+            'numero_maquina' => $sectorization?->numero_maquina ?? $previousStation?->numero_maquina ?? $previousStation?->puesto,
             'marca_modelo' => FuaConfiguration::global()->dialysis_equipment ?: 'FRESENIUS/4008S',
             'acceso_arterial' => $patient->acceso_arterial ?? null,
             'acceso_venoso' => $patient->acceso_venoso ?? null,

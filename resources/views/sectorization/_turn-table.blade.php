@@ -4,13 +4,14 @@
         <tbody>
         @forelse($patients as $patient)
             @php($latestNurse = $patient->orders->first()?->nurse)
-            @php($module = $patient->sectorization_module ?? $patient->modulo)
+            @php($assignment = $patient->sectorization_by_sequence[$sequence] ?? [])
+            @php($module = $assignment['module'] ?? $patient->modulo)
             @php($moduleColor = ['1' => 'danger', '2' => 'warning', '3' => 'success'][$module] ?? 'secondary')
             <tr>
-                <td><input class="form-control form-control-sm text-center sectorization-field" value="{{ $latestNurse?->puesto }}" data-patient="{{ $patient->id }}" data-field="puesto" aria-label="Puesto de {{ $patient->full_name }}" placeholder="#" @disabled(!$latestNurse)></td>
+                <td><input class="form-control form-control-sm text-center sectorization-field" value="{{ $assignment['puesto'] ?? $latestNurse?->puesto }}" data-patient="{{ $patient->id }}" data-field="puesto" aria-label="Puesto de {{ $patient->full_name }}" placeholder="#"></td>
                 <td><select class="form-select form-select-sm sectorization-field module-color-{{ $moduleColor }}" data-patient="{{ $patient->id }}" data-field="modulo" aria-label="Módulo de {{ $patient->full_name }}"><option value="">Sin asignar</option>@foreach(['1' => 'Módulo 1','2' => 'Módulo 2','3' => 'Módulo 3','4' => 'Módulo 4','AISLADO' => 'Aislado'] as $moduleValue => $moduleLabel)<option value="{{ $moduleValue }}" @selected((string)$module === (string)$moduleValue)>{{ $moduleLabel }}</option>@endforeach</select></td>
                 <td class="fw-semibold">{{ $patient->full_name }}</td><td>{{ $patient->dni }}</td>
-                <td><input class="form-control form-control-sm sectorization-field" value="{{ $latestNurse?->numero_maquina }}" data-patient="{{ $patient->id }}" data-field="numero_maquina" aria-label="Máquina de {{ $patient->full_name }}" @disabled(!$latestNurse)></td>
+                <td><input class="form-control form-control-sm sectorization-field" value="{{ $assignment['numero_maquina'] ?? $latestNurse?->numero_maquina }}" data-patient="{{ $patient->id }}" data-field="numero_maquina" aria-label="Máquina de {{ $patient->full_name }}"></td>
                 @foreach(['acceso_venoso' => $patient->acceso_venoso, 'acceso_arterial' => $patient->acceso_arterial] as $field => $value)
                     <td><select class="form-select form-select-sm sectorization-field" data-patient="{{ $patient->id }}" data-field="{{ $field }}" aria-label="{{ str_replace('_', ' ', ucfirst($field)) }} de {{ $patient->full_name }}"><option value="">Sin especificar</option>@foreach(['CVCLP','FAV','INJ','CVCL','CVCT'] as $access)<option value="{{ $access }}" @selected($value === $access)>{{ $access }}</option>@endforeach</select></td>
                 @endforeach

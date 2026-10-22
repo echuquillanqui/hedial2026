@@ -66,6 +66,11 @@ class Patient extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function sectorizations()
+    {
+        return $this->hasMany(PatientSectorization::class);
+    }
+
     public function nephrologyConsultations(): HasMany
     {
         return $this->hasMany(NephrologyConsultation::class);

@@ -6,7 +6,7 @@
         <div><span class="text-uppercase text-primary fw-bold small">Gestión</span><h2 class="mb-1">Sectorización</h2><p class="text-muted mb-0">Edita puesto, máquina y acceso. Puesto y máquina se comparten con las atenciones de enfermería.</p></div>
         <div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-success" href="{{ route('sectorization.template') }}"><i class="bi bi-file-earmark-arrow-down me-1"></i>Descargar plantilla</a><form method="GET" class="d-flex gap-2"><input name="search" value="{{ request('search') }}" class="form-control" placeholder="Buscar por nombre o DNI"><button class="btn btn-outline-primary">Buscar</button>@if(request('search'))<a class="btn btn-outline-secondary" href="{{ route('sectorization.index') }}">Limpiar</a>@endif</form></div>
     </div>
-    <div class="small text-muted mb-3">La plantilla incluye secuencia (L-M-V o M-J-S), turno (1–4), DNI, módulo (1–4 o AISLADO), puesto/máquina y accesos (CVCLP, FAV, INJ, CVCL o CVCT). Al importar, el puesto y la máquina se aplicarán con el mismo valor.</div>
+    <div class="small text-muted mb-3">La plantilla incluye secuencia (L-M-V o M-J-S), turno (1–4), DNI, módulo (1–4 o AISLADO), puesto/máquina y accesos (CVCLP, FAV, INJ, CVCL o CVCT). Al importar, el puesto y la máquina se aplicarán con el mismo valor. Elige la fecha de corte en cada secuencia: los cambios de módulo, puesto y máquina rigen desde esa fecha; las atenciones anteriores se conservan.</div>
     <div class="d-flex flex-wrap gap-2 mb-3 small">
         <span class="badge text-bg-danger">Módulo 1 · Puestos 1–5</span><span class="badge text-bg-warning">Módulo 2 · Puestos 6–10</span><span class="badge text-bg-success">Módulo 3 · Puestos 11–15</span>
         <span id="sectorizationStatus" class="text-muted align-self-center ms-auto" aria-live="polite"></span>
@@ -20,6 +20,10 @@
     <div class="tab-content">
     @foreach(['L-M-V' => ['id' => 'lmv', 'label' => 'Lunes · Miércoles · Viernes'], 'M-J-S' => ['id' => 'mjs', 'label' => 'Martes · Jueves · Sábado']] as $sequence => $tab)
         <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}" id="{{ $tab['id'] }}-panel" role="tabpanel" aria-labelledby="{{ $tab['id'] }}-tab" tabindex="0">
+            <div class="d-flex align-items-end gap-2 mb-3">
+                <div><label class="form-label fw-semibold mb-1" for="cutoff-{{ $tab['id'] }}">Fecha de corte para esta secuencia</label><input type="date" class="form-control form-control-sm sectorization-cutoff" id="cutoff-{{ $tab['id'] }}" data-cutoff-sequence="{{ $sequence }}" min="{{ now()->addDay()->toDateString() }}" value="{{ $sequenceCutoffs[$sequence] }}"></div>
+                <small class="text-muted pb-1">Se aplicará desde la fecha seleccionada en adelante.</small>
+            </div>
             <div class="accordion" id="{{ $tab['id'] }}-turns">
             @foreach(['1' => 'danger', '2' => 'warning', '3' => 'success', '4' => 'primary'] as $turn => $turnColor)
                 @php($turnPatients = $patientsBySequence[$sequence]->where('turno', $turn)->values())
@@ -33,7 +37,7 @@
                     <div id="{{ $turnCollapseId }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ $turnCollapseId }}" data-bs-parent="#{{ $tab['id'] }}-turns">
                         <div class="accordion-body bg-light">
                             <div class="d-flex justify-content-end mb-2"><button type="button" class="btn btn-sm btn-outline-primary sectorization-refresh" data-sequence="{{ $sequence }}" data-turn="{{ $turn }}"><i class="bi bi-arrow-clockwise me-1"></i>Recargar este turno</button></div>
-                            <div class="sectorization-turn-content" data-sequence="{{ $sequence }}" data-turn="{{ $turn }}">@include('sectorization._turn-table', ['patients' => $turnPatients])</div>
+                            <div class="sectorization-turn-content" data-sequence="{{ $sequence }}" data-turn="{{ $turn }}">@include('sectorization._turn-table', ['patients' => $turnPatients, 'sequence' => $sequence])</div>
                         </div>
                     </div>
                 </section>
@@ -59,11 +63,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(@json(route('sectorization.update', ['patient' => '__PATIENT__'])).replace('__PATIENT__', input.dataset.patient), {
                 method: 'PATCH',
                 headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content},
-                body: JSON.stringify({field: input.dataset.field, value: input.value})
+                body: JSON.stringify({
+                    field: input.dataset.field,
+                    value: input.value,
+                    effective_from: input.closest('.tab-pane')?.querySelector('.sectorization-cutoff')?.value,
+                    sequence: input.closest('.tab-pane')?.querySelector('.sectorization-cutoff')?.dataset.cutoffSequence
+                })
             });
-            if (!response.ok) throw new Error((await response.json()).message || 'No se pudo guardar.');
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'No se pudo guardar.');
             input.dataset.savedValue = input.value;
-            status.textContent = 'Cambios guardados.';
+            status.textContent = result.effective_from
+                ? `Cambio guardado; rige desde ${new Date(`${result.effective_from}T00:00:00`).toLocaleDateString('es-PE')}.`
+                : 'Cambios guardados.';
             input.classList.add('is-valid');
             setTimeout(() => input.classList.remove('is-valid'), 1200);
         } catch (error) {

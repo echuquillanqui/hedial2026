@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Patient;
 use App\Models\Nurse;
+use App\Models\PatientSectorization;
 use App\Support\DailyHemodialysisSequence;
 use App\Support\CurrentSede;
 use Carbon\Carbon;
@@ -43,12 +44,26 @@ class SectorizationController extends Controller
         $patients = $query->get();
 
         foreach ($patients as $patient) {
-            $nextDate = $this->nextScheduledDate($patient->secuencia);
-            $nextOrder = $nextDate ? $patient->orders()
-                ->where('sede_id', $sedeId)
-                ->whereDate('fecha_orden', $nextDate)
-                ->first() : null;
-            $patient->sectorization_module = $this->moduleFromOrderSala($nextOrder?->sala) ?? $patient->modulo;
+            $sectorizationBySequence = [];
+            foreach ([DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY, DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY] as $sequence) {
+                $nextDate = $this->nextScheduledDate($sequence);
+                $assignment = $patient->sectorizations()->where('sequence', $sequence)
+                    ->orderByDesc('effective_from')->orderByDesc('id')->first();
+                $nextOrder = $patient->orders()->where('sede_id', $sedeId)
+                    ->whereDate('fecha_orden', $nextDate)->first();
+                $latestNurse = $patient->orders()->where('sede_id', $sedeId)
+                    ->whereHas('nurse', fn ($query) => $query->whereNotNull('enfermero_que_finaliza_id'))
+                    ->join('nurses', 'nurses.order_id', '=', 'orders.id')->orderByDesc('orders.fecha_orden');
+
+                $sectorizationBySequence[$sequence] = [
+                    'module' => $this->moduleFromOrderSala($nextOrder?->sala) ?? $assignment?->module ?? $patient->modulo,
+                    'puesto' => $assignment?->puesto ?? (clone $latestNurse)->value('nurses.puesto'),
+                    'numero_maquina' => $assignment?->numero_maquina ?? (clone $latestNurse)->value('nurses.numero_maquina'),
+                    'effective_from' => $assignment?->effective_from?->toDateString() ?? $nextDate,
+                ];
+            }
+
+            $patient->setAttribute('sectorization_by_sequence', $sectorizationBySequence);
         }
 
         $patientsBySequence = collect([
@@ -61,10 +76,15 @@ class SectorizationController extends Controller
             $turn = $request->validate(['turn' => ['required', 'in:1,2,3,4']])['turn'];
             $patients = $patientsBySequence[$sequence]->where('turno', $turn)->values();
 
-            return view('sectorization._turn-table', compact('patients'));
+            return view('sectorization._turn-table', compact('patients', 'sequence'));
         }
 
-        return view('sectorization.index', compact('patientsBySequence'));
+        $sequenceCutoffs = collect([
+            DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
+            DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
+        ])->mapWithKeys(fn ($sequence) => [$sequence => $this->nextScheduledDate($sequence)]);
+
+        return view('sectorization.index', compact('patientsBySequence', 'sequenceCutoffs'));
     }
 
     public function update(Request $request, Patient $patient)
@@ -77,37 +97,73 @@ class SectorizationController extends Controller
             'value' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $effectiveFrom = null;
         if ($validated['field'] === 'modulo') {
             validator($validated, ['value' => ['required', 'in:1,2,3,4,AISLADO']])->validate();
-            $nextDate = $this->nextScheduledDate($patient->secuencia);
-            $nextOrder = $nextDate ? $patient->orders()
-                ->where('sede_id', $sedeId)
-                ->whereDate('fecha_orden', $nextDate)
-                ->first() : null;
-
-            abort_unless($nextOrder, 422, 'Todavía no existe la orden de la próxima sesión. El módulo no se cambió para evitar modificar la asignación general del paciente.');
-            $nextOrder->sala = $validated['value'] === 'AISLADO' ? 'AISLADO' : 'MODULO '.$validated['value'];
-            $nextOrder->save();
+            [$effectiveFrom, $sequence] = $this->requestedCutoff($request, $patient);
+            $effectiveFrom = $this->saveFutureAssignment($patient, $validated['field'], $validated['value'], $effectiveFrom, $sequence);
         } elseif (in_array($validated['field'], ['acceso_venoso', 'acceso_arterial'], true)) {
             $patient->{$validated['field']} = $validated['value'];
             $patient->save();
         } else {
-            $nextDate = $this->nextScheduledDate($patient->secuencia);
-            abort_unless($nextDate, 422, 'No se pudo determinar la próxima fecha de atención.');
-            $nextNurse = Nurse::query()
-                ->whereHas('order', fn ($query) => $query
-                    ->where('patient_id', $patient->id)
-                    ->where('sede_id', $sedeId)
-                    ->whereDate('fecha_orden', $nextDate))
-                ->first();
-
-            abort_unless($nextNurse, 422, 'Todavía no existe la hoja de enfermería de la próxima sesión. El puesto y la máquina no se cambiaron en otras fechas.');
-            $nextNurse->puesto = $validated['value'];
-            $nextNurse->numero_maquina = $validated['value'];
-            $nextNurse->save();
+            [$effectiveFrom, $sequence] = $this->requestedCutoff($request, $patient);
+            $effectiveFrom = $this->saveFutureAssignment($patient, $validated['field'], $validated['value'], $effectiveFrom, $sequence);
         }
 
-        return response()->json(['saved' => true]);
+        return response()->json(['saved' => true, 'effective_from' => $effectiveFrom]);
+    }
+
+    private function requestedCutoff(Request $request, Patient $patient): array
+    {
+        $data = $request->validate([
+            'effective_from' => ['required', 'date', 'after_or_equal:tomorrow'],
+            'sequence' => ['required', 'in:L-M-V,M-J-S'],
+        ]);
+        $date = Carbon::parse($data['effective_from'])->toDateString();
+        abort_unless(DailyHemodialysisSequence::forDate($date) === $data['sequence'], 422, 'La fecha de corte debe coincidir con los días de la secuencia seleccionada.');
+        abort_unless(
+            $patient->modulo === Patient::ISOLATED_MODULE || $patient->secuencia === $data['sequence'],
+            422,
+            'La secuencia elegida no corresponde al paciente.'
+        );
+
+        return [$date, $data['sequence']];
+    }
+
+    private function saveFutureAssignment(Patient $patient, string $field, ?string $value, string $effectiveFrom, string $sequence): string
+    {
+        $assignment = PatientSectorization::query()->firstOrNew([
+            'patient_id' => $patient->id,
+            'sequence' => $sequence,
+            'effective_from' => $effectiveFrom,
+        ]);
+        $column = match ($field) {
+            'modulo' => 'module',
+            'puesto' => 'puesto',
+            'numero_maquina' => 'numero_maquina',
+        };
+        $assignment->{$column} = $value;
+        $assignment->save();
+
+        $orders = $patient->orders()->where('sede_id', $patient->sede_id)
+            ->whereDate('fecha_orden', '>=', $effectiveFrom)->get()
+            ->filter(fn ($order) => DailyHemodialysisSequence::forDate($order->fecha_orden) === $sequence);
+        foreach ($orders as $order) {
+            if ($field === 'modulo') {
+                $order->sala = $value === 'AISLADO' ? 'AISLADO' : 'MODULO '.$value;
+                $order->save();
+            } elseif ($nurse = $order->nurse) {
+                $nurse->{$column} = $value;
+                if ($field === 'puesto') {
+                    $nurse->numero_maquina = $value;
+                } elseif ($field === 'numero_maquina') {
+                    $nurse->puesto = $value;
+                }
+                $nurse->save();
+            }
+        }
+
+        return $effectiveFrom;
     }
 
     public function downloadTemplate()
