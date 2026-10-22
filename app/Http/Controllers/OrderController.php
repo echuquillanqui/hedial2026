@@ -878,8 +878,8 @@ class OrderController extends Controller
         Nurse::create([
             'order_id' => $order->id,
             'frecuencia_hd' => $patient->secuencia ?? null,
-            'puesto' => $sectorization?->puesto ?? $previousStation?->puesto,
-            'numero_maquina' => $sectorization?->numero_maquina ?? $previousStation?->numero_maquina ?? $previousStation?->puesto,
+            'puesto' => $sectorization?->puesto ?? $sectorization?->numero_maquina ?? $previousStation?->puesto ?? $previousStation?->numero_maquina,
+            'numero_maquina' => $sectorization?->puesto ?? $sectorization?->numero_maquina ?? $previousStation?->puesto ?? $previousStation?->numero_maquina,
             'marca_modelo' => FuaConfiguration::global()->dialysis_equipment ?: 'FRESENIUS/4008S',
             'acceso_arterial' => $patient->acceso_arterial ?? null,
             'acceso_venoso' => $patient->acceso_venoso ?? null,

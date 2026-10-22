@@ -55,11 +55,14 @@ class SectorizationController extends Controller
                 $latestNurse = $patient->orders()->where('sede_id', $sedeId)
                     ->whereHas('nurse', fn ($query) => $query->whereNotNull('enfermero_que_finaliza_id'))
                     ->join('nurses', 'nurses.order_id', '=', 'orders.id')->orderByDesc('orders.fecha_orden');
+                $previousPuesto = (clone $latestNurse)->value('nurses.puesto');
+                $previousMachine = (clone $latestNurse)->value('nurses.numero_maquina');
+                $station = $assignment?->puesto ?? $assignment?->numero_maquina ?? $previousPuesto ?? $previousMachine;
 
                 $sectorizationBySequence[$sequence] = [
                     'module' => $this->moduleFromOrderSala($nextOrder?->sala) ?? $assignment?->module ?? $patient->modulo,
-                    'puesto' => $assignment?->puesto ?? (clone $latestNurse)->value('nurses.puesto'),
-                    'numero_maquina' => $assignment?->numero_maquina ?? (clone $latestNurse)->value('nurses.numero_maquina'),
+                    'puesto' => $station,
+                    'numero_maquina' => $station,
                     'effective_from' => $assignment?->effective_from?->toDateString() ?? $nextDate,
                 ];
             }
@@ -194,6 +197,10 @@ class SectorizationController extends Controller
             'numero_maquina' => 'numero_maquina',
         };
         $assignment->{$column} = $value;
+        if ($field === 'puesto' || $field === 'numero_maquina') {
+            $assignment->puesto = $value;
+            $assignment->numero_maquina = $value;
+        }
         $assignment->save();
 
         $orders = $patient->orders()->where('sede_id', $patient->sede_id)
