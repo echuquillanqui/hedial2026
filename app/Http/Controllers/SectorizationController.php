@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Patient;
 use App\Models\Nurse;
 use App\Models\PatientSectorization;
+use App\Models\Order;
 use App\Support\DailyHemodialysisSequence;
 use App\Support\CurrentSede;
 use Carbon\Carbon;
@@ -44,23 +45,51 @@ class SectorizationController extends Controller
 
         $patients = $query->get();
 
+        $patientIds = $patients->modelKeys();
+        $sequences = [
+            DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
+            DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
+        ];
+        $assignments = PatientSectorization::query()
+            ->whereIn('patient_id', $patientIds)
+            ->whereIn('sequence', $sequences)
+            ->orderByDesc('effective_from')
+            ->orderByDesc('id')
+            ->get()
+            ->unique(fn (PatientSectorization $assignment) => $assignment->patient_id.'|'.$assignment->sequence)
+            ->keyBy(fn (PatientSectorization $assignment) => $assignment->patient_id.'|'.$assignment->sequence);
+        $nextDates = collect($sequences)->mapWithKeys(fn ($sequence) => [$sequence => $this->nextScheduledDate($sequence)]);
+        $nextOrders = Order::query()
+            ->where('sede_id', $sedeId)
+            ->whereIn('patient_id', $patientIds)
+            ->whereIn('fecha_orden', $nextDates->values())
+            ->get(['id', 'patient_id', 'fecha_orden', 'sala'])
+            ->keyBy(fn ($order) => $order->patient_id.'|'.$order->fecha_orden->toDateString());
+        $latestNurses = Order::query()
+            ->join('nurses', 'nurses.order_id', '=', 'orders.id')
+            ->where('orders.sede_id', $sedeId)
+            ->whereIn('orders.patient_id', $patientIds)
+            ->whereNotNull('nurses.enfermero_que_finaliza_id')
+            ->orderByDesc('orders.fecha_orden')
+            ->orderByDesc('orders.id')
+            ->get(['orders.patient_id', 'nurses.puesto', 'nurses.numero_maquina'])
+            ->unique('patient_id')
+            ->keyBy('patient_id');
+
         foreach ($patients as $patient) {
             $sectorizationBySequence = [];
-            foreach ([DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY, DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY] as $sequence) {
-                $nextDate = $this->nextScheduledDate($sequence);
-                $assignment = $patient->sectorizations()->where('sequence', $sequence)
-                    ->orderByDesc('effective_from')->orderByDesc('id')->first();
-                $nextOrder = $patient->orders()->where('sede_id', $sedeId)
-                    ->whereDate('fecha_orden', $nextDate)->first();
-                $latestNurse = $patient->orders()->where('sede_id', $sedeId)
-                    ->whereHas('nurse', fn ($query) => $query->whereNotNull('enfermero_que_finaliza_id'))
-                    ->join('nurses', 'nurses.order_id', '=', 'orders.id')->orderByDesc('orders.fecha_orden');
-                $previousPuesto = (clone $latestNurse)->value('nurses.puesto');
-                $previousMachine = (clone $latestNurse)->value('nurses.numero_maquina');
-                $station = $assignment?->puesto ?? $assignment?->numero_maquina ?? $previousPuesto ?? $previousMachine;
+            foreach ($sequences as $sequence) {
+                $nextDate = $nextDates->get($sequence);
+                $assignment = $assignments->get($patient->id.'|'.$sequence);
+                $nextOrder = $nextOrders->get($patient->id.'|'.$nextDate);
+                $latestNurse = $latestNurses->get($patient->id);
+                $station = $assignment?->puesto ?? $assignment?->numero_maquina
+                    ?? $latestNurse?->puesto ?? $latestNurse?->numero_maquina;
 
                 $sectorizationBySequence[$sequence] = [
-                    'module' => $this->moduleFromOrderSala($nextOrder?->sala) ?? $assignment?->module ?? $patient->modulo,
+                    // The explicit sectorization assignment is authoritative, including
+                    // on the cutoff day when an existing order may still have old data.
+                    'module' => $assignment?->module ?? $this->moduleFromOrderSala($nextOrder?->sala) ?? $patient->modulo,
                     'puesto' => $station,
                     'numero_maquina' => $station,
                     'effective_from' => $assignment?->effective_from?->toDateString() ?? $nextDate,
@@ -204,13 +233,15 @@ class SectorizationController extends Controller
         $assignment->save();
 
         $orders = $patient->orders()->where('sede_id', $patient->sede_id)
-            ->whereDate('fecha_orden', '>=', $effectiveFrom)->get()
+            ->whereDate('fecha_orden', '>=', $effectiveFrom)->with('nurse')->get()
             ->filter(fn ($order) => DailyHemodialysisSequence::forDate($order->fecha_orden) === $sequence);
         foreach ($orders as $order) {
             if ($field === 'modulo') {
                 $order->sala = $value === 'AISLADO' ? 'AISLADO' : 'MODULO '.$value;
                 $order->save();
-            } elseif ($nurse = $order->nurse) {
+            }
+
+            if ($field !== 'modulo' && ($nurse = $order->nurse)) {
                 $nurse->{$column} = $value;
                 if ($field === 'puesto') {
                     $nurse->numero_maquina = $value;

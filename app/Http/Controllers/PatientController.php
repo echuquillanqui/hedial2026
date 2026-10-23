@@ -24,6 +24,14 @@ class PatientController extends Controller
         $patients = Patient::with('sede')
             ->when($currentSedeId, fn ($q) => $q->where('sede_id', $currentSedeId))
             ->orderBy('surname', 'asc')
+            ->select([
+                'id', 'sede_id', 'dni', 'affiliation_code', 'medical_history_number',
+                'first_name', 'other_names', 'surname', 'last_name', 'is_insured',
+                'insurance_type', 'insurance_regime', 'gender', 'birth_date', 'age',
+                'address', 'district', 'province', 'department', 'phone',
+                'secuencia', 'turno', 'modulo', 'is_active', 'fua_non_signature_reason',
+                'peso_seco', 'acceso_arterial', 'acceso_venoso',
+            ])
             ->get();
 
         $sedes = Sede::where('is_active', true)->orderBy('name')->get();
@@ -147,7 +155,17 @@ class PatientController extends Controller
             $patientsQuery->where('insurance_type', '!=', 'SIS');
         }
 
-        $patients = $patientsQuery->get()
+        $patients = $patientsQuery
+            ->select([
+                'id', 'dni', 'affiliation_code', 'medical_history_number',
+                'first_name', 'other_names', 'surname', 'last_name', 'is_insured',
+                'insurance_regime', 'gender', 'age', 'birth_date', 'address',
+                'district', 'province', 'department', 'phone', 'sede_id',
+            ])
+            ->orderBy('surname')
+            ->orderBy('first_name')
+            ->limit(50)
+            ->get()
             ->map(function ($p) {
                 return [
                     'id' => $p->id,
