@@ -50,9 +50,20 @@ class SectorizationController extends Controller
             DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
             DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
         ];
+        $defaultCutoffs = collect($sequences)->mapWithKeys(fn ($sequence) => [$sequence => $this->nextScheduledDate($sequence)]);
+        $sequenceCutoffs = $defaultCutoffs->merge(
+            DB::table('sectorization_cutoffs')->where('sede_id', $sedeId)->pluck('effective_from', 'sequence')
+        );
         $assignments = PatientSectorization::query()
             ->whereIn('patient_id', $patientIds)
-            ->whereIn('sequence', $sequences)
+            ->where(function ($query) use ($sequenceCutoffs) {
+                foreach ($sequenceCutoffs as $sequence => $cutoff) {
+                    $query->orWhere(function ($sequenceQuery) use ($sequence, $cutoff) {
+                        $sequenceQuery->where('sequence', $sequence)
+                            ->whereDate('effective_from', '<=', $cutoff);
+                    });
+                }
+            })
             ->orderByDesc('effective_from')
             ->orderByDesc('id')
             ->get()
@@ -136,13 +147,6 @@ class SectorizationController extends Controller
             return view('sectorization._turn-table', compact('patients', 'sequence'));
         }
 
-        $defaultCutoffs = collect([
-            DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
-            DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
-        ])->mapWithKeys(fn ($sequence) => [$sequence => $this->nextScheduledDate($sequence)]);
-        $sequenceCutoffs = $defaultCutoffs->merge(
-            DB::table('sectorization_cutoffs')->where('sede_id', $sedeId)->pluck('effective_from', 'sequence')
-        );
         $minimumCutoff = Carbon::today()->subDays(2)->toDateString();
 
         return view('sectorization.index', compact('patientsBySequence', 'sequenceCutoffs', 'minimumCutoff'));
