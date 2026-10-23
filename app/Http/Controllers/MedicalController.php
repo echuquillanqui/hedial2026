@@ -273,7 +273,11 @@ class MedicalController extends Controller
                     ->whereNotNull('hora')
                     ->orderBy('id')->pluck('hora')
                     ->map(fn ($time) => substr((string) $time, 0, 5));
-                $referenceTime = $initialTime ?: $treatmentTimes->first();
+                // Use the first treatment entry as the timeline anchor, matching
+                // the edit form. The medical start time can be a few minutes
+                // later than the first monitoring entry, which would otherwise
+                // make that first entry appear to belong to the following day.
+                $referenceTime = $treatmentTimes->first() ?: $initialTime;
                 $toMinutes = static function (string $time): int {
                     [$hours, $minutes] = array_map('intval', explode(':', $time));
                     return ($hours * 60) + $minutes;
