@@ -138,7 +138,7 @@ class ReferralController extends Controller
             $referral->patient->calculated_age = Carbon::parse($referral->patient->birth_date)
                 ->diffInYears($referral->created_at);
         } else {
-            $referral->patient->calculated_age = 'N/A';
+            $referral->patient->calculated_age = $referral->patient->age ?: 'N/A';
         }
 
         $branding = app(PdfBrandingService::class)->data();
@@ -164,7 +164,7 @@ class ReferralController extends Controller
             $referral->patient->calculated_age = Carbon::parse($referral->patient->birth_date)
                 ->diffInYears($referral->created_at);
         } else {
-            $referral->patient->calculated_age = 'N/A';
+            $referral->patient->calculated_age = $referral->patient->age ?: 'N/A';
         }
 
         $branding = app(PdfBrandingService::class)->data();
