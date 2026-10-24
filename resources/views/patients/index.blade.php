@@ -218,6 +218,10 @@
                 if (patient) {
                     // Clonamos el objeto para evitar edición en tiempo real en la tabla
                     this.currentPatient = { ...patient };
+                    // Los campos HTML type="date" requieren el formato YYYY-MM-DD.
+                    this.currentPatient.birth_date = patient.birth_date
+                        ? String(patient.birth_date).slice(0, 10)
+                        : '';
                     
                     // IMPORTANTE: Forzamos el cálculo al abrir si existe fecha de nacimiento
                     if (this.currentPatient.birth_date) {
