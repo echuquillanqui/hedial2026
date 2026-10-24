@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use App\Services\PdfBrandingService;
 
 class ReferralController extends Controller
 {
@@ -140,8 +141,10 @@ class ReferralController extends Controller
             $referral->patient->calculated_age = 'N/A';
         }
 
-        $originFacility = FuaConfiguration::global()->referralFacilityName();
-        $pdf = Pdf::loadView('referrals.pdf', compact('referral', 'originFacility'));
+        $branding = app(PdfBrandingService::class)->data();
+        $originFacility = $branding['configuration']->referralFacilityName();
+        $logoData = $branding['logoData'];
+        $pdf = Pdf::loadView('referrals.pdf', compact('referral', 'originFacility', 'logoData'));
         $pdf->setPaper('a4', 'portrait');
 
         return $pdf->stream('Referencia_' . $referral->referral_code . '.pdf');
@@ -164,8 +167,10 @@ class ReferralController extends Controller
             $referral->patient->calculated_age = 'N/A';
         }
 
-        $originFacility = FuaConfiguration::global()->referralFacilityName();
-        $pdf = Pdf::loadView('referrals.pdf_essalud', compact('referral', 'originFacility'));
+        $branding = app(PdfBrandingService::class)->data();
+        $originFacility = $branding['configuration']->referralFacilityName();
+        $logoData = $branding['logoData'];
+        $pdf = Pdf::loadView('referrals.pdf_essalud', compact('referral', 'originFacility', 'logoData'));
         $pdf->setPaper('a4', 'portrait');
 
         return $pdf->stream("Referencia_EsSalud_{$referral->referral_code}.pdf");

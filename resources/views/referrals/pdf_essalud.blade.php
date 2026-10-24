@@ -18,8 +18,7 @@
     <table style="width: 100%; border: none; margin-bottom: 5px;">
         <tr>
             <td style="border: none; width: 30%;">
-                <img src="{{ public_path('logo/logo_03.jpeg') }}" 
-                    style="height: 60px;">
+                @if($logoData)<img src="{{ $logoData }}" style="height: 60px; max-width: 100%; object-fit: contain;">@endif
             </td>
             <td style="border: none; width: 40%; text-align: center;"><div class="header-title">HOJA DE REFERENCIA</div></td>
             <td style="border: none; width: 30%; text-align: right;">
