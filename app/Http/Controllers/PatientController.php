@@ -100,6 +100,7 @@ class PatientController extends Controller
             'surname'                => 'required|string|max:100',
             'last_name'              => 'required|string|max:100',
             'insurance_type'         => ['nullable', Rule::in(['ESSALUD', 'SIS', 'SALUDPOL'])],
+            'birth_date'             => 'nullable|date|before:today',
             'province'               => 'nullable|string|max:100',
             'phone'                  => 'nullable|string|max:30',
             'modulo'                 => ['nullable', Rule::in(Patient::MODULES)],

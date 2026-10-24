@@ -105,7 +105,7 @@
                             </td>
                             <td>
                                 <div class="small text-dark fw-bold" x-text="getRealAge(p.birth_date) + ' años'"></div>
-                                <div class="extra-small text-muted" x-text="p.birth_date || 'No registra fecha'"></div>
+                                <div class="extra-small text-muted" x-text="formatBirthDate(p.birth_date)"></div>
                             </td>
                             <td><span class="badge bg-primary bg-opacity-10 text-primary" x-text="p.modulo ? 'Módulo ' + p.modulo : '—'"></span></td>
                             <td><span class="fw-semibold" x-text="p.secuencia || '—'"></span></td>
@@ -168,7 +168,8 @@
             // Cálculo de edad dinámico (reutilizable)
             getRealAge(birthDate) {
                 if (!birthDate) return '--';
-                const birth = new Date(birthDate);
+                const birth = this.parseBirthDate(birthDate);
+                if (!birth || Number.isNaN(birth.getTime())) return '--';
                 const today = new Date();
                 let age = today.getFullYear() - birth.getFullYear();
                 const monthDiff = today.getMonth() - birth.getMonth();
@@ -176,6 +177,20 @@
                     age--;
                 }
                 return age >= 0 ? age : 0;
+            },
+
+            parseBirthDate(birthDate) {
+                if (!birthDate) return null;
+                const datePart = String(birthDate).slice(0, 10);
+                const parts = datePart.split('-').map(Number);
+                if (parts.length !== 3 || parts.some(Number.isNaN)) return new Date(birthDate);
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            },
+
+            formatBirthDate(birthDate) {
+                const birth = this.parseBirthDate(birthDate);
+                if (!birth || Number.isNaN(birth.getTime())) return 'No registra fecha';
+                return new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(birth);
             },
 
             get filteredPatients() {
