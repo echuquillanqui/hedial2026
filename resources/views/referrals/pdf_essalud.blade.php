@@ -66,7 +66,7 @@
     </table>
     <table class="table" style="margin-top: -1px;">
         <tr>
-            <td style="width: 20%;"><span class="label">Sexo</span><span class="data-text">{{ strtoupper($referral->patient->gender ?: '—') }}</span></td>
+            <td style="width: 20%;"><span class="label">Sexo</span><span class="data-text">{{ match (strtoupper((string) $referral->patient->gender)) { 'F' => 'FEMENINO', 'M' => 'MASCULINO', default => 'NO REGISTRADO' } }}</span></td>
             <td style="width: 20%;"><span class="label">Edad (Años)</span><span class="data-text">{{ $referral->patient->calculated_age }}</span></td>
             <td style="width: 60%;"><span class="label">Dirección</span><span class="data-text">{{ strtoupper($referral->patient->address) }}</span></td>
         </tr>

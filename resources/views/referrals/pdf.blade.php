@@ -54,7 +54,7 @@
             <td style="width: 25%;"><span class="label">Codgio de Afliciación al SIS</span><span class="data-text">{{ $referral->patient->affiliation_code }}</span></td>
             <td style="width: 20%;"><span class="label">N° Historia Clínica</span><span class="data-text">{{ strtoupper($referral->patient->medical_history_number) }}</span></td>
             <td style="width: 10%;"><span class="label">Edad</span><span class="data-text">{{ $referral->patient->calculated_age }}</span></td>
-            <td style="width: 10%;"><span class="label">Sexo</span><span class="data-text">{{ strtoupper($referral->patient->gender) }}</span></td>
+            <td style="width: 10%;"><span class="label">Sexo</span><span class="data-text">{{ match (strtoupper((string) $referral->patient->gender)) { 'F' => 'FEMENINO', 'M' => 'MASCULINO', default => 'NO REGISTRADO' } }}</span></td>
         </tr>
 
         <tr>
