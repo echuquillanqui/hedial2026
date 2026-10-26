@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Patient;
+use App\Models\PatientSectorization;
 use App\Models\Sede;
+use App\Support\DailyHemodialysisSequence;
 use App\Support\CurrentSede;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class PatientController extends Controller
@@ -21,7 +25,8 @@ class PatientController extends Controller
     public function index()
     {
         $currentSedeId = CurrentSede::id();
-        $patients = Patient::with('sede')
+        $patients = Patient::with(['sede', 'sectorizations' => fn ($query) => $query
+                ->orderByDesc('effective_from')->orderByDesc('id')])
             ->when($currentSedeId, fn ($q) => $q->where('sede_id', $currentSedeId))
             ->orderBy('surname', 'asc')
             ->select([
@@ -33,6 +38,12 @@ class PatientController extends Controller
                 'peso_seco', 'acceso_arterial', 'acceso_venoso',
             ])
             ->get();
+
+        $patients->each(function (Patient $patient) {
+            $assignment = $patient->sectorizations->firstWhere('sequence', $patient->secuencia);
+            $patient->setAttribute('sectorization_module', $assignment?->module);
+            $patient->setAttribute('sectorization_puesto', $assignment?->puesto ?? $assignment?->numero_maquina);
+        });
 
         $sedes = Sede::where('is_active', true)->orderBy('name')->get();
 
@@ -104,6 +115,12 @@ class PatientController extends Controller
             'province'               => 'nullable|string|max:100',
             'phone'                  => 'nullable|string|max:30',
             'modulo'                 => ['nullable', Rule::in(Patient::MODULES)],
+            'puesto'                 => ['nullable', 'string', 'max:255'],
+            'secuencia'              => ['sometimes', 'nullable', Rule::in([
+                DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
+                DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
+            ])],
+            'turno'                  => ['sometimes', 'nullable', Rule::in(['1', '2', '3', '4'])],
             'fua_non_signature_reason' => 'nullable|string|max:500',
             'sede_id'                => ['required', 'exists:sedes,id'],
             'is_active'              => 'required|boolean',
@@ -113,7 +130,67 @@ class PatientController extends Controller
             return redirect()->back()->withErrors(['sede_id' => 'Solo puede mantener pacientes en la sede activa.'])->withInput();
         }
 
-        $patient->update($request->all());
+        $data = $request->all();
+        unset($data['modulo'], $data['puesto'], $data['_token'], $data['_method']);
+
+        DB::transaction(function () use ($patient, $data, $request) {
+            $patient->update($data);
+
+            if (! $request->hasAny(['modulo', 'puesto'])) {
+                return;
+            }
+
+            $sequence = $request->input('secuencia', $patient->secuencia);
+            if (! in_array($sequence, [
+                DailyHemodialysisSequence::MONDAY_WEDNESDAY_FRIDAY,
+                DailyHemodialysisSequence::TUESDAY_THURSDAY_SATURDAY,
+            ], true)) {
+                $sequence = $patient->secuencia;
+            }
+
+            $effectiveFrom = $this->nextScheduledDate($sequence);
+            $configuredCutoff = DB::table('sectorization_cutoffs')
+                ->where('sede_id', $patient->sede_id)
+                ->where('sequence', $sequence)
+                ->value('effective_from');
+            if ($configuredCutoff && $configuredCutoff > $effectiveFrom) {
+                $effectiveFrom = $configuredCutoff;
+            }
+
+            $assignment = PatientSectorization::query()->firstOrNew([
+                'patient_id' => $patient->id,
+                'sequence' => $sequence,
+                'effective_from' => $effectiveFrom,
+            ]);
+            if ($request->exists('modulo')) {
+                $assignment->module = $request->input('modulo');
+                $patient->modulo = $request->input('modulo');
+                $patient->save();
+            }
+            if ($request->exists('puesto')) {
+                $assignment->puesto = $request->input('puesto');
+                $assignment->numero_maquina = $request->input('puesto');
+            }
+            $assignment->save();
+
+            $orders = $patient->orders()->where('sede_id', $patient->sede_id)
+                ->whereDate('fecha_orden', '>=', $effectiveFrom)->with('nurse')->get()
+                ->filter(fn ($order) => DailyHemodialysisSequence::forDate($order->fecha_orden) === $sequence);
+            foreach ($orders as $order) {
+                if ($request->exists('modulo')) {
+                    $module = $request->input('modulo');
+                    if ($module) {
+                        $order->sala = $module === Patient::ISOLATED_MODULE ? 'AISLADO' : 'MODULO '.$module;
+                        $order->save();
+                    }
+                }
+                if ($request->exists('puesto') && $order->nurse) {
+                    $order->nurse->puesto = $request->input('puesto');
+                    $order->nurse->numero_maquina = $request->input('puesto');
+                    $order->nurse->save();
+                }
+            }
+        });
 
         return redirect()->back()->with('success', 'Historial actualizado correctamente.');
     }
@@ -191,5 +268,17 @@ class PatientController extends Controller
                 ];
             });
         return response()->json(['results' => $patients]);
+    }
+
+    private function nextScheduledDate(string $sequence): string
+    {
+        $date = Carbon::tomorrow();
+        for ($day = 0; $day < 7; $day++, $date->addDay()) {
+            if (DailyHemodialysisSequence::forDate($date) === $sequence) {
+                return $date->toDateString();
+            }
+        }
+
+        return Carbon::tomorrow()->toDateString();
     }
 }

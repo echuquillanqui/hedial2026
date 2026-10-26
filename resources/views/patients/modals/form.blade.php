@@ -139,6 +139,11 @@
                         </div>
 
                         <div class="col-md-4">
+                            <label class="form-label small fw-bold">Puesto / máquina</label>
+                            <input type="text" name="puesto" x-model="currentPatient.puesto" class="form-control border-0 shadow-sm" maxlength="255" placeholder="Número de puesto">
+                        </div>
+
+                        <div class="col-md-4">
                             <label class="form-label small fw-bold d-block">Estado del paciente</label>
                             <input type="hidden" name="is_active" :value="currentPatient.is_active ? '1' : '0'">
                             <div class="form-check form-switch pt-2">

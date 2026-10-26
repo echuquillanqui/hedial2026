@@ -229,6 +229,14 @@ class SectorizationController extends Controller
         }
         $assignment->save();
 
+        // Keep the patient master record aligned with the current sectorization.
+        // Historical orders remain unchanged; only orders on/after the effective
+        // date are synchronized below.
+        if ($field === 'modulo') {
+            $patient->modulo = $value;
+            $patient->save();
+        }
+
         $orders = $patient->orders()->where('sede_id', $patient->sede_id)
             ->whereDate('fecha_orden', '>=', $effectiveFrom)->with('nurse')->get()
             ->filter(fn ($order) => DailyHemodialysisSequence::forDate($order->fecha_orden) === $sequence);

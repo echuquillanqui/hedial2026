@@ -67,6 +67,7 @@
                         <th>SEGURO / RÉGIMEN</th>
                         <th>EDAD ACTUAL</th>
                         <th>MÓDULO</th>
+                        <th>PUESTO / MÁQUINA</th>
                         <th>SECUENCIA</th>
                         <th>TURNO</th>
                         <th>SEDE</th>
@@ -107,7 +108,8 @@
                                 <div class="small text-dark fw-bold" x-text="getRealAge(p.birth_date) + ' años'"></div>
                                 <div class="extra-small text-muted" x-text="formatBirthDate(p.birth_date)"></div>
                             </td>
-                            <td><span class="badge bg-primary bg-opacity-10 text-primary" x-text="p.modulo ? 'Módulo ' + p.modulo : '—'"></span></td>
+                            <td><span class="badge bg-primary bg-opacity-10 text-primary" x-text="(p.sectorization_module || p.modulo) ? 'Módulo ' + (p.sectorization_module || p.modulo) : '—'"></span></td>
+                            <td><span class="badge bg-secondary bg-opacity-10 text-secondary" x-text="p.sectorization_puesto || '—'"></span></td>
                             <td><span class="fw-semibold" x-text="p.secuencia || '—'"></span></td>
                             <td><span class="badge bg-dark" x-text="p.turno ? 'Turno ' + p.turno : '—'"></span></td>
                             <td>
@@ -218,6 +220,8 @@
                 if (patient) {
                     // Clonamos el objeto para evitar edición en tiempo real en la tabla
                     this.currentPatient = { ...patient };
+                    this.currentPatient.modulo = patient.sectorization_module || patient.modulo || '';
+                    this.currentPatient.puesto = patient.sectorization_puesto || '';
                     // Los campos HTML type="date" requieren el formato YYYY-MM-DD.
                     this.currentPatient.birth_date = patient.birth_date
                         ? String(patient.birth_date).slice(0, 10)
@@ -230,7 +234,7 @@
                 } else {
                     // Reset para nuevo paciente
                     this.currentPatient = { 
-                        id: null, dni: '', affiliation_code: '', medical_history_number: '', 
+                        id: null, dni: '', affiliation_code: '', medical_history_number: '', puesto: '',
                         first_name: '', other_names: '', surname: '', last_name: '', 
                         is_insured: true, insurance_type: 'ESSALUD', insurance_regime: 'SUBSIDIADO', 
                         gender: 'M', birth_date: '', age: '', address: '', district: '', province: '', department: '', phone: '', secuencia:'L-M-V', turno: "1", modulo: "1", sede_id: this.currentSedeId, is_active: true
