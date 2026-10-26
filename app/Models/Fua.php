@@ -30,7 +30,7 @@ class Fua extends Model
 
     public function corrections(): HasMany
     {
-        return $this->hasMany(self::class, 'corrects_fua_id');
+        return $this->hasMany(FuaCorrection::class, 'original_fua_id');
     }
 
     public function responsibleUser(): BelongsTo

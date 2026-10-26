@@ -48,6 +48,10 @@
 
       <div id="procedimientos" class="collapse hide" aria-labelledby="headingOne" data-parent="#atenciones">
 
+        <a class="nav-link" href="{{ route('fuas.corrections.index') }}">
+          <ul class="text-gray"><i class="ni ni-bold-right text-secondary"></i> SUBSANACIÓN</ul>
+        </a>
+
         <a class="nav-link" href="/orders">
           <ul class="text-gray">
             <i class="ni ni-bold-right text-Secondary"></i> Generar Historia

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Fua;
+use App\Models\FuaCorrection;
 use App\Models\FuaConfiguration;
 use App\Models\NephrologyConsultation;
 use App\Models\Test;
@@ -200,9 +201,204 @@ class FuaController extends Controller
             throw ValidationException::withMessages(['fua' => 'La FUA ya tiene una subsanación registrada.']);
         }
 
-        $correction = $numbers->create(Fua::CORRECTION, $fua->order, $fua);
+        $correction = $numbers->createCorrection($fua);
 
-        return redirect()->route('fuas.pdf', $correction)->with('success', 'FUA de subsanación generada correctamente.');
+        return redirect()->route('fuas.corrections.pdf', $correction)->with('success', 'FUA de subsanación generada correctamente.');
+    }
+
+    public function correctionIndex(Request $request)
+    {
+        abort_unless($request->user()->can('fua.view') && $request->user()->can('fua.correction.create'), 403);
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'generated_from' => ['nullable', 'date'], 'generated_to' => ['nullable', 'date', 'after_or_equal:generated_from'],
+        ]);
+        $corrections = $this->correctionListQuery($filters)
+            ->with(['order.patient', 'originalFua'])
+            ->latest('id')->paginate(20)->withQueryString();
+
+        return view('fuas.corrections-index', compact('corrections'));
+    }
+
+    public function correctionCreate(Request $request)
+    {
+        abort_unless($request->user()->can('fua.view') && $request->user()->can('fua.correction.create'), 403);
+        return view('fuas.corrections-create');
+    }
+
+    public function correctionSearch(Request $request)
+    {
+        abort_unless($request->user()->can('fua.view') && $request->user()->can('fua.correction.create'), 403);
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'date' => ['nullable', 'date'],
+            'type' => ['nullable', Rule::in(ClinicalService::ORDINARY_TYPES)],
+        ]);
+        $term = trim($filters['search'] ?? '');
+        $numberParts = array_values(array_filter(
+            preg_split('/\s+/', $term, -1, PREG_SPLIT_NO_EMPTY) ?: [],
+            fn (string $part) => preg_match('/\d/', $part) === 1,
+        ));
+        $fuas = Fua::query()->with(['order.patient', 'order.sede', 'corrections'])
+            ->whereIn('type', ClinicalService::ORDINARY_TYPES)
+            ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('type', $type))
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->whereHas('order', fn (Builder $order) => $order->where('sede_id', $sede)))
+            ->when($filters['date'] ?? null, fn (Builder $query, string $date) => $query->whereHas('order', fn (Builder $order) => $order->whereDate('fecha_orden', $date)))
+            ->when($term !== '', fn (Builder $query) => $query->where(function (Builder $query) use ($term, $numberParts) {
+                if ($numberParts) {
+                    $query->where(function (Builder $numbers) use ($numberParts) {
+                        foreach ($numberParts as $part) {
+                            $digits = preg_replace('/\D+/', '', $part);
+                            $digits = ltrim($digits, '0') ?: '0';
+                            $numbers->orWhere('number', 'like', "%{$part}%")->orWhere('number', 'like', "%{$digits}%");
+                        }
+                    });
+                }
+                $query->orWhereHas('order.patient', fn (Builder $patient) => $patient->where('dni', 'like', "%{$term}%")
+                        ->orWhere('surname', 'like', "%{$term}%")->orWhere('last_name', 'like', "%{$term}%")
+                        ->orWhere('first_name', 'like', "%{$term}%")->orWhere('other_names', 'like', "%{$term}%"));
+            }))
+            ->latest('id')->paginate(20)->withQueryString();
+        return view('fuas.corrections-create', compact('fuas'));
+    }
+
+    public function correctionBulkPdf(Request $request)
+    {
+        abort_unless($request->user()->can('fua.view') && $request->user()->can('fua.correction.create'), 403);
+        $data = $request->validate([
+            'scope' => ['nullable', Rule::in(['selected', 'current_page', 'all_filtered'])],
+            'corrections' => ['nullable', 'array', 'min:1'], 'corrections.*' => ['integer', 'distinct'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'generated_from' => ['nullable', 'date'], 'generated_to' => ['nullable', 'date', 'after_or_equal:generated_from'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $scope = $data['scope'] ?? 'selected';
+        if ($scope === 'selected' && empty($data['corrections'])) {
+            throw ValidationException::withMessages(['corrections' => 'Selecciona al menos una subsanación para imprimir.']);
+        }
+
+        $query = $this->correctionListQuery($data);
+        if ($scope === 'selected') {
+            $query->whereIn('fua_corrections.id', $data['corrections']);
+        } elseif ($scope === 'current_page') {
+            $query->latest('fua_corrections.id')->forPage((int) ($data['page'] ?? 1), 20);
+        }
+        $correctionIds = $query->pluck('fua_corrections.id');
+        abort_if($correctionIds->isEmpty(), 404, 'No hay subsanaciones para imprimir con estos filtros.');
+
+        $corrections = FuaCorrection::query()->whereIn('id', $correctionIds)
+            ->with(['order.patient', 'order.sede', 'originalFua.order.patient', 'originalFua.order.sede', 'originalFua.order.medical.usuarioInicia', 'originalFua.order.nurse', 'originalFua.order.laboratoryOrder.items.test', 'originalFua.order.nephrologyConsultation.doctor', 'originalFua.order.nephrologyConsultation.medications', 'originalFua.order.nutritionAssessment', 'originalFua.responsibleUser'])
+            ->orderBy('created_at')->orderBy('id')->get();
+
+        $documents = $corrections->map(function (FuaCorrection $correction) {
+            $original = $correction->originalFua;
+            abort_unless($original, 422);
+            return [
+                'fua' => $original, 'correctionFua' => $correction,
+                'correctionOptions' => $this->correctionOptions($correction),
+                'responsible' => $this->responsible($original), 'medications' => $this->medications($original),
+                'procedures' => $this->procedures($original), 'diagnoses' => $this->diagnoses($original),
+            ];
+        });
+        return Pdf::loadView('fuas.pdf', [
+            'documents' => $documents, 'configuration' => FuaConfiguration::global(), 'logoData' => $this->fuaLogoData(),
+        ])->setPaper('a4')->stream('subsanaciones-bloque.pdf');
+    }
+
+    private function correctionListQuery(array $filters): Builder
+    {
+        $term = trim($filters['search'] ?? '');
+
+        return FuaCorrection::query()
+            ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query->whereHas('order', fn (Builder $order) => $order->where('sede_id', $sede)))
+            ->when($filters['generated_from'] ?? null, fn (Builder $query, string $date) => $query->whereDate('created_at', '>=', $date))
+            ->when($filters['generated_to'] ?? null, fn (Builder $query, string $date) => $query->whereDate('created_at', '<=', $date))
+            ->when($term !== '', fn (Builder $query) => $query->where(function (Builder $query) use ($term) {
+                $query->where('number', 'like', "%{$term}%")
+                    ->orWhereHas('originalFua', fn (Builder $original) => $original->where('number', 'like', "%{$term}%"))
+                    ->orWhereHas('order.patient', fn (Builder $patient) => $patient->where('dni', 'like', "%{$term}%")
+                        ->orWhere('surname', 'like', "%{$term}%")->orWhere('last_name', 'like', "%{$term}%")
+                        ->orWhere('first_name', 'like', "%{$term}%")->orWhere('other_names', 'like', "%{$term}%"));
+            }));
+    }
+
+    public function generateCorrection(Request $request, Fua $fua, FuaNumberService $numbers)
+    {
+        abort_unless($request->user()->can('fua.view') && $request->user()->can('fua.correction.create'), 403);
+        abort_if($fua->type === Fua::CORRECTION || ! in_array($fua->type, ClinicalService::ORDINARY_TYPES, true), 422);
+        $this->authorizeOrderSede($fua->order);
+        if ($fua->corrections()->exists()) {
+            throw ValidationException::withMessages(['fua' => 'La FUA ya tiene una subsanación registrada.']);
+        }
+        $data = $request->validate([
+            'reason' => ['required', Rule::in(['FALTA MEDICAMENTOS', 'FALTA DATOS DEL MEDICO', 'FALTA PROCEDIMIENTO', 'OTRO'])],
+            'show_doctor' => ['nullable', 'boolean'], 'show_stamp' => ['nullable', 'boolean'],
+            'show_medications' => ['nullable', 'boolean'], 'show_hemodialysis' => ['nullable', 'boolean'],
+            'show_laboratories' => ['nullable', 'boolean'], 'show_diagnoses' => ['nullable', 'boolean'],
+            'observations' => ['nullable', 'string', 'max:500'],
+            'observation_preset' => ['nullable', Rule::in(['PACIENTE NO INDICA MOTIVO DE NO FIRMA'])],
+        ]);
+        $correction = $numbers->createCorrection($fua);
+        $correction->update([
+            'reason' => $data['reason'],
+            'observation_preset' => $data['observation_preset'] ?? null,
+            'observations' => $data['observations'] ?? '',
+            'show_doctor' => $request->boolean('show_doctor'), 'show_stamp' => $request->boolean('show_stamp'),
+            'show_medications' => $request->boolean('show_medications'),
+            'show_hemodialysis' => $request->boolean('show_hemodialysis'), 'show_laboratories' => $request->boolean('show_laboratories'),
+            'show_diagnoses' => $request->boolean('show_diagnoses'),
+        ]);
+        return redirect()->route('fuas.corrections.pdf', $correction);
+    }
+
+    public function correctionUpdate(Request $request, FuaCorrection $correction)
+    {
+        abort_unless($request->user()->can('fua.view') && $request->user()->can('fua.correction.create'), 403);
+        $this->authorizeOrderSede($correction->order);
+        $data = $request->validate([
+            'reason' => ['required', Rule::in(['FALTA MEDICAMENTOS', 'FALTA DATOS DEL MEDICO', 'FALTA PROCEDIMIENTO', 'OTRO'])],
+            'observation_preset' => ['nullable', Rule::in(['PACIENTE NO INDICA MOTIVO DE NO FIRMA'])],
+            'observations' => ['nullable', 'string', 'max:500'],
+            'show_doctor' => ['nullable', 'boolean'], 'show_stamp' => ['nullable', 'boolean'],
+            'show_medications' => ['nullable', 'boolean'], 'show_hemodialysis' => ['nullable', 'boolean'],
+            'show_laboratories' => ['nullable', 'boolean'],
+            'show_diagnoses' => ['nullable', 'boolean'],
+        ]);
+        foreach (['show_doctor', 'show_stamp', 'show_medications', 'show_hemodialysis', 'show_laboratories', 'show_diagnoses'] as $field) {
+            $data[$field] = $request->boolean($field);
+        }
+        $correction->update($data);
+        return redirect()->route('fuas.corrections.index')->with('success', 'La subsanación fue actualizada.');
+    }
+
+    public function correctionPdf(Request $request, FuaCorrection $correction)
+    {
+        abort_unless($request->user()->can('fua.view') && $request->user()->can('fua.correction.create'), 403);
+        $this->authorizeOrderSede($correction->order);
+        $correction->load(['order.patient', 'order.sede', 'originalFua']);
+        $original = $correction->originalFua;
+        abort_unless($original, 404);
+        $original->load($this->pdfRelations());
+        $options = $this->correctionOptions($correction);
+        $view = $original->effectiveType() === Fua::NEPHROLOGY ? 'fuas.pdf_nephrology' : 'fuas.pdf';
+        return Pdf::loadView($view, [
+            'fua' => $original, 'correctionFua' => $correction, 'correctionOptions' => $options,
+            'configuration' => FuaConfiguration::global(), 'logoData' => $this->fuaLogoData(),
+            'medications' => $this->medications($original), 'responsible' => $this->responsible($original),
+            'procedures' => $this->procedures($original), 'diagnoses' => $this->diagnoses($original),
+        ])->setPaper('a4')->stream('subsanacion-'.$correction->number.'.pdf');
+    }
+
+    private function correctionOptions(FuaCorrection $correction): array
+    {
+        return [
+            'reason' => $correction->reason, 'show_doctor' => $correction->show_doctor,
+            'show_stamp' => $correction->show_stamp, 'show_medications' => $correction->show_medications,
+            'show_hemodialysis' => $correction->show_hemodialysis, 'show_laboratories' => $correction->show_laboratories,
+            'show_diagnoses' => $correction->show_diagnoses,
+            'observation_preset' => $correction->observation_preset ?? '',
+            'observations' => trim(($correction->observation_preset ?? '').' '.($correction->observations ?? '')),
+        ];
     }
 
     private function bulkPdfForType(Request $request, string $type)
@@ -315,6 +511,7 @@ class FuaController extends Controller
     public function index(Request $request)
     {
         $fuas = Fua::with(['order.patient', 'order.sede', 'corrections'])
+            ->whereIn('type', ClinicalService::ORDINARY_TYPES)
             ->when(CurrentSede::id(), fn (Builder $query, int $sede) => $query
                 ->whereHas('order', fn (Builder $order) => $order->where('sede_id', $sede)))
             ->when($request->filled('search'), function ($query) use ($request) {
@@ -422,7 +619,7 @@ class FuaController extends Controller
     private function pdfRelations(): array
     {
         return [
-            'order.patient', 'order.sede', 'order.medical.usuarioInicia',
+            'order.patient', 'order.sede', 'order.medical.usuarioInicia', 'order.nurse',
             'order.laboratoryOrder.items.test', 'order.nephrologyConsultation.doctor',
             'order.nephrologyConsultation.medications',
             'order.nutritionAssessment',
@@ -443,16 +640,34 @@ class FuaController extends Controller
         }
 
         $medical = $fua->order?->medical;
+        $nurse = $fua->order?->nurse;
+        $catalog = [
+            ['code' => '3107', 'description' => 'Epoetina alfa (eritropoyetina) 2 000 UI/ml, inyectable', 'field' => 'epo2000'],
+            ['code' => '3113', 'description' => 'Epoetina alfa (eritropoyetina) 4 000 UI/ml, inyectable', 'field' => 'epo4000'],
+            ['code' => '3979', 'description' => 'Vitamina B12 (hidroxicobalamina) 1 mg/ml, inyectable', 'field' => 'vitamina_b12'],
+            ['code' => '19238', 'description' => 'Hierro (como sacarato) 20 mg Fe/ml, inyectable', 'field' => 'hierro'],
+            ['code' => '01502', 'description' => 'Calcitriol 1 mcg/ml, inyectable', 'field' => 'calcitriol'],
+        ];
 
-        return collect([
-            ['code' => '3107', 'description' => 'Epoetina alfa (eritropoyetina) 2 000 UI/ml, inyectable', 'quantity' => $medical?->epo2000],
-            ['code' => '3113', 'description' => 'Epoetina alfa (eritropoyetina) 4 000 UI/ml, inyectable', 'quantity' => $medical?->epo4000],
-            ['code' => '3979', 'description' => 'Vitamina B12 (hidroxicobalamina) 1 mg/ml, inyectable', 'quantity' => $medical?->vitamina_b12],
-            ['code' => '19238', 'description' => 'Hierro (como sacarato) 20 mg Fe/ml, inyectable', 'quantity' => $medical?->hierro],
-            ['code' => '01502', 'description' => 'Calcitriol 1 mcg/ml, inyectable', 'quantity' => $medical?->calcitriol],
-        ])->filter(fn (array $medication) => is_numeric($medication['quantity']) && (float) $medication['quantity'] > 0)
-            ->values()
-            ->all();
+        $rows = collect($catalog)->map(function (array $item) use ($medical, $nurse) {
+            $prescribed = $medical?->{$item['field']};
+            $delivered = $nurse?->{$item['field']};
+            $quantity = is_numeric($prescribed) && (float) $prescribed > 0 ? $prescribed : $delivered;
+
+            return [
+                'code' => $item['code'], 'description' => $item['description'],
+                'prescribed_quantity' => $quantity,
+                'delivered_quantity' => is_numeric($delivered) ? $delivered : $quantity,
+            ];
+        })->filter(fn (array $medication) => is_numeric($medication['prescribed_quantity']) && (float) $medication['prescribed_quantity'] > 0)
+            ->values();
+
+        $otherMedications = trim((string) ($nurse?->otros_medicamentos ?? ''));
+        if ($otherMedications !== '') {
+            $rows->push(['code' => '', 'description' => $otherMedications, 'prescribed_quantity' => '', 'delivered_quantity' => '']);
+        }
+
+        return $rows->all();
     }
 
     private function diagnoses(Fua $fua): array

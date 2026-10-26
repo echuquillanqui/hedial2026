@@ -100,6 +100,13 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::get('impresiones/fuas-consultas', [FuaController::class, 'nephrologyIndex'])->name('fuas.nephrology.index');
     Route::post('impresiones/fuas-consultas/imprimir', [FuaController::class, 'nephrologyBulkPdf'])->name('fuas.nephrology.bulk-pdf');
     Route::get('impresiones/fuas-multisectoriales', [FuaController::class, 'multisectorialIndex'])->name('fuas.multisectorial.index');
+    Route::get('impresiones/subsanacion', [FuaController::class, 'correctionIndex'])->name('fuas.corrections.index');
+    Route::get('impresiones/subsanacion/nueva', [FuaController::class, 'correctionCreate'])->name('fuas.corrections.create');
+    Route::get('impresiones/subsanacion/buscar', [FuaController::class, 'correctionSearch'])->name('fuas.corrections.search');
+    Route::post('impresiones/subsanacion/imprimir-bloque', [FuaController::class, 'correctionBulkPdf'])->name('fuas.corrections.bulk-pdf');
+    Route::post('impresiones/subsanacion/{fua}/generar', [FuaController::class, 'generateCorrection'])->name('fuas.corrections.generate');
+    Route::put('impresiones/subsanacion/{correction}', [FuaController::class, 'correctionUpdate'])->name('fuas.corrections.update');
+    Route::get('impresiones/subsanacion/{correction}/pdf', [FuaController::class, 'correctionPdf'])->name('fuas.corrections.pdf');
     Route::post('impresiones/fuas-multisectoriales/imprimir', [FuaController::class, 'multisectorialBulkPdf'])->name('fuas.multisectorial.bulk-pdf');
     Route::post('fuas/generar-multisectorial', [FuaController::class, 'bulkGenerate'])->name('fuas.multisectorial.generate-bulk');
     Route::post('orders/{order}/fua', [FuaController::class, 'generateForOrder'])->name('fuas.orders.generate');

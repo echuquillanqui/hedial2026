@@ -116,7 +116,7 @@ class Order extends Model
 
     public function fuaCorrections()
     {
-        return $this->hasMany(Fua::class)->where('type', Fua::CORRECTION);
+        return $this->hasMany(FuaCorrection::class);
     }
 
     public function nephrologyConsultation()

@@ -79,7 +79,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-dark text-white fw-bold">Series y correlativos</div>
             <div class="card-body">
-                <div class="alert alert-warning small">Hemodiálisis y consulta nefrológica comparten la misma serie y el mismo próximo correlativo. Cada número se reserva dentro de una transacción, incluso al generar órdenes en bloque. Solo subsanación usa una numeración independiente.</div>
+                <div class="alert alert-warning small">Hemodiálisis y consulta nefrológica comparten serie y correlativo. Subsanación tiene serie y correlativo independientes. Su formato es <strong>00035001-26-S0000000</strong>: el tramo final siempre tiene ocho caracteres, contando la S, seguida por siete dígitos.</div>
                 <div class="row g-3">
                     @foreach([
                         'hemodialysis' => 'FUA de hemodiálisis y consulta nefrológica',
@@ -88,7 +88,7 @@
                         <div class="col-12"><h6 class="text-primary mb-0">{{ $label }}</h6></div>
                         <div class="col-md-7">
                             <label class="form-label">Serie</label>
-                            <input name="{{ $prefix }}_series" class="form-control" value="{{ old($prefix.'_series', $configuration->{$prefix.'_series'}) }}" required>
+                            <input name="{{ $prefix }}_series" class="form-control" value="{{ old($prefix.'_series', $configuration->{$prefix.'_series'}) }}" {{ $prefix === 'correction' ? 'placeholder="00035001-26 o 00035001-26-S" pattern="[0-9]{8}-[0-9]{2}(-S[0-9]*)?"' : '' }} required>
                         </div>
                         <div class="col-md-5">
                             <label class="form-label">Próximo correlativo</label>
@@ -98,6 +98,7 @@
                     <div class="col-md-5">
                         <label class="form-label">Cantidad de dígitos del correlativo</label>
                         <input type="number" min="1" max="12" name="number_length" class="form-control" value="{{ old('number_length', $configuration->number_length) }}" required>
+                        <small class="form-text text-muted">Se aplica a FUAs ordinarias. Subsanación mantiene fijo el tramo S + 7 dígitos.</small>
                     </div>
                 </div>
             </div>

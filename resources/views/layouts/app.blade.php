@@ -235,7 +235,7 @@
 
     @if($canViewFuas)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('fuas.hemodialysis.*', 'fuas.nephrology.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('fuas.hemodialysis.*', 'fuas.nephrology.*', 'fuas.corrections.*') ? 'active fw-bold' : '' }}"
                 type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-printer me-1"></i> Impresiones
         </button>
@@ -246,6 +246,11 @@
             <li><a class="dropdown-item {{ request()->routeIs('fuas.nephrology.*') ? 'active' : '' }}" href="{{ route('fuas.nephrology.index') }}">
                 <i class="bi bi-journal-medical me-2"></i> FUA de consultas
             </a></li>
+            @if(auth()->user()->can('fua.correction.create') && $canViewFuas)
+            <li><a class="dropdown-item {{ request()->routeIs('fuas.corrections.*') ? 'active' : '' }}" href="{{ route('fuas.corrections.index') }}">
+                <i class="bi bi-file-earmark-check me-2"></i> Subsanación
+            </a></li>
+            @endif
         </ul>
     </li>
     @endif

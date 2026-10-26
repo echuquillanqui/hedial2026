@@ -22,7 +22,6 @@
                         <option value="NUTRITION" @selected(request('type') === 'NUTRITION')>Nutrición</option>
                         <option value="PSYCHOLOGY" @selected(request('type') === 'PSYCHOLOGY')>Psicología</option>
                         <option value="SOCIAL_WORK" @selected(request('type') === 'SOCIAL_WORK')>Trabajo Social</option>
-                        <option value="CORRECTION" @selected(request('type') === 'CORRECTION')>Subsanación</option>
                     </select>
                 </div>
                 <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Buscar</button></div>
@@ -46,7 +45,7 @@
                             <button type="button" @click="openPdf('{{ route('fuas.pdf', $fua) }}', 'FUA {{ $fua->number }}')" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>Vista previa</button>
                             <a href="{{ route('fuas.pdf', [$fua, 'download' => 1]) }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-download"></i></a>
                             @can('fua.correction.create')
-                                @if($fua->type !== \App\Models\Fua::CORRECTION && $fua->corrections->isEmpty())<form class="d-inline" method="POST" action="{{ route('fuas.corrections.store', $fua) }}">@csrf<button class="btn btn-sm btn-outline-warning" title="Generar subsanación"><i class="bi bi-arrow-counterclockwise"></i></button></form>@endif
+                        @if($fua->corrections->isEmpty())<form class="d-inline" method="POST" action="{{ route('fuas.corrections.store', $fua) }}">@csrf<button class="btn btn-sm btn-outline-warning" title="Generar subsanación"><i class="bi bi-arrow-counterclockwise"></i></button></form>@endif
                             @endcan
                         </td>
                     </tr>

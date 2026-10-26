@@ -56,14 +56,7 @@ class SectorizationController extends Controller
         );
         $assignments = PatientSectorization::query()
             ->whereIn('patient_id', $patientIds)
-            ->where(function ($query) use ($sequenceCutoffs) {
-                foreach ($sequenceCutoffs as $sequence => $cutoff) {
-                    $query->orWhere(function ($sequenceQuery) use ($sequence, $cutoff) {
-                        $sequenceQuery->where('sequence', $sequence)
-                            ->whereDate('effective_from', '<=', $cutoff);
-                    });
-                }
-            })
+            ->whereIn('sequence', $sequences)
             ->orderByDesc('effective_from')
             ->orderByDesc('id')
             ->get()

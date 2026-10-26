@@ -45,10 +45,14 @@ class FuaConfigurationController extends Controller
             'responsible_specialty' => ['required', 'string', 'max:100'],
             'hemodialysis_series' => ['required', 'string', 'max:30'],
             'hemodialysis_next_number' => ['required', 'integer', 'min:1'],
-            'correction_series' => ['required', 'string', 'max:30'],
+            'correction_series' => ['required', 'string', 'max:30', 'regex:/^\d{8}-\d{2}(?:-S\d*)?-?$/i'],
             'correction_next_number' => ['required', 'integer', 'min:1'],
             'number_length' => ['required', 'integer', 'between:1,12'],
         ]);
+
+        // Subsanación siempre usa ocho caracteres en su tramo final: S + siete dígitos.
+        $data['correction_series'] = rtrim(preg_replace('/-S\d*$/i', '', $data['correction_series']), '-');
+        $data['number_length'] = 7;
 
         $configuration = FuaConfiguration::global();
 
