@@ -81,7 +81,8 @@ class PatientController extends Controller
             return redirect()->back()->withErrors(['sede_id' => 'Solo puede registrar pacientes en la sede activa.'])->withInput();
         }
 
-        Patient::create($request->all());
+        // The station belongs to patient_sectorizations, not the patients table.
+        Patient::create($request->except(['puesto', '_token', '_method']));
 
         return redirect()->back()->with('success', 'Paciente registrado exitosamente.');
     }

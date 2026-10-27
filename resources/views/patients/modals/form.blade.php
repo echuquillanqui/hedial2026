@@ -138,9 +138,9 @@
                             </select>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-4" x-show="currentPatient.id">
                             <label class="form-label small fw-bold">Puesto / máquina</label>
-                            <input type="text" name="puesto" x-model="currentPatient.puesto" class="form-control border-0 shadow-sm" maxlength="255" placeholder="Número de puesto">
+                            <input type="text" name="puesto" x-model="currentPatient.puesto" :disabled="!currentPatient.id" class="form-control border-0 shadow-sm" maxlength="255" placeholder="Número de puesto">
                         </div>
 
                         <div class="col-md-4">
