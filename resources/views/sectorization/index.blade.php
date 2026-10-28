@@ -104,8 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateModuleColor(input);
             input.addEventListener('change', () => updateModuleColor(input));
         }
-        input.addEventListener('change', () => save(input));
-        if (input.tagName === 'INPUT') input.addEventListener('blur', () => save(input));
+        input.addEventListener('change', () => input.classList.add('sectorization-pending'));
     });
     bindFields();
 
@@ -142,8 +141,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = button.closest('.accordion-body').querySelector('.sectorization-turn-content');
         const originalHtml = button.innerHTML;
         button.disabled = true;
-        button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Cargando…';
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Guardando…';
         try {
+            const cutoff = button.closest('.tab-pane').querySelector('.sectorization-cutoff');
+            const patients = [...content.querySelectorAll('tbody tr')].map((row) => {
+                const fields = [...row.querySelectorAll('.sectorization-field')];
+                if (!fields.length) return null;
+                return fields.reduce((patient, input) => {
+                    patient.id = Number(input.dataset.patient);
+                    patient[input.dataset.field] = input.value || null;
+                    return patient;
+                }, {});
+            }).filter(Boolean);
+            const saveResponse = await fetch(@json(route('sectorization.turn.update')), {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content},
+                body: JSON.stringify({sequence: button.dataset.sequence, turn: button.dataset.turn, effective_from: cutoff.value, patients})
+            });
+            const saveResult = await saveResponse.json();
+            if (!saveResponse.ok) throw new Error(saveResult.message || 'No se pudo guardar el turno.');
+            status.textContent = `${saveResult.count} pacientes guardados; los datos de Paciente y las atenciones desde ${new Date(`${saveResult.effective_from}T00:00:00`).toLocaleDateString('es-PE')} están sincronizados.`;
+            showToast(status.textContent);
+
             const url = new URL(window.location.href);
             url.searchParams.set('partial', '1');
             url.searchParams.set('sequence', button.dataset.sequence);
@@ -152,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('No se pudo recargar este turno.');
             content.innerHTML = await response.text();
             bindFields(content);
-            status.textContent = `Turno ${button.dataset.turn} actualizado.`;
+            status.textContent = `Turno ${button.dataset.turn} guardado y actualizado.`;
         } catch (error) {
             status.textContent = error.message;
         } finally {

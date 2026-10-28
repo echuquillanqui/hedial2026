@@ -17,7 +17,7 @@ class SectorizationController extends Controller
     public function __construct()
     {
         $this->middleware('permission:sectorization.view')->only('index');
-        $this->middleware('permission:sectorization.edit')->only('update');
+        $this->middleware('permission:sectorization.edit')->only(['update', 'updateTurn']);
     }
 
     public function index(Request $request)
@@ -161,14 +161,92 @@ class SectorizationController extends Controller
             [$effectiveFrom, $sequence] = $this->requestedCutoff($request, $patient);
             $effectiveFrom = $this->saveFutureAssignment($patient, $validated['field'], $validated['value'], $effectiveFrom, $sequence);
         } elseif (in_array($validated['field'], ['acceso_venoso', 'acceso_arterial'], true)) {
-            $patient->{$validated['field']} = $validated['value'];
-            $patient->save();
+            DB::transaction(function () use ($patient, $validated) {
+                $patient->update([$validated['field'] => $validated['value']]);
+                $patient->orders()->where('sede_id', $patient->sede_id)->with('nurse')->get()
+                    ->each(function ($order) use ($validated) {
+                        if ($order->nurse) {
+                            $order->nurse->update([$validated['field'] => $validated['value']]);
+                        }
+                    });
+            });
         } else {
             [$effectiveFrom, $sequence] = $this->requestedCutoff($request, $patient);
             $effectiveFrom = $this->saveFutureAssignment($patient, $validated['field'], $validated['value'], $effectiveFrom, $sequence);
         }
 
         return response()->json(['saved' => true, 'effective_from' => $effectiveFrom]);
+    }
+
+    public function updateTurn(Request $request)
+    {
+        $sedeId = CurrentSede::id();
+        abort_unless($sedeId, 403, 'Seleccione una sede para guardar la sectorización.');
+
+        $data = $request->validate([
+            'sequence' => ['required', 'in:L-M-V,M-J-S'],
+            'turn' => ['required', 'in:1,2,3,4'],
+            'effective_from' => ['required', 'date'],
+            'patients' => ['required', 'array'],
+            'patients.*.id' => ['required', 'integer', 'distinct'],
+            'patients.*.modulo' => ['nullable', 'in:1,2,3,4,AISLADO'],
+            'patients.*.puesto' => ['nullable', 'string', 'max:255'],
+            'patients.*.numero_maquina' => ['nullable', 'string', 'max:255'],
+            'patients.*.acceso_venoso' => ['nullable', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
+            'patients.*.acceso_arterial' => ['nullable', 'in:CVCLP,FAV,INJ,CVCL,CVCT'],
+        ]);
+        $cutoff = $this->validatedCutoff($request);
+        abort_unless($cutoff['sequence'] === $data['sequence'] && $cutoff['effective_from'] === Carbon::parse($data['effective_from'])->toDateString(), 422, 'La fecha de corte cambió. Actualice la página e intente de nuevo.');
+
+        DB::transaction(function () use ($data, $sedeId, $cutoff) {
+            $patients = Patient::query()->where('sede_id', $sedeId)->where('is_active', true)
+                ->where('turno', $data['turn'])->where(function ($query) use ($data) {
+                    $query->where('secuencia', $data['sequence'])->orWhere('modulo', Patient::ISOLATED_MODULE);
+                })->whereIn('id', collect($data['patients'])->pluck('id'))->get()->keyBy('id');
+            abort_unless($patients->count() === count($data['patients']), 422, 'La lista incluye pacientes que no pertenecen a este turno. Recargue el turno.');
+
+            foreach ($data['patients'] as $row) {
+                $patient = $patients->get($row['id']);
+                abort_unless($patient, 422, 'Paciente fuera del turno.');
+                $assignment = PatientSectorization::query()->firstOrNew([
+                    'patient_id' => $patient->id,
+                    'sequence' => $data['sequence'],
+                    'effective_from' => $cutoff['effective_from'],
+                ]);
+                $assignment->module = $row['modulo'] ?? null;
+                $assignment->puesto = $row['puesto'] ?? null;
+                $assignment->numero_maquina = $row['numero_maquina'] ?? null;
+                $assignment->save();
+
+                if (array_key_exists('modulo', $row)) {
+                    $patient->modulo = $row['modulo'];
+                }
+                foreach (['acceso_venoso', 'acceso_arterial'] as $field) {
+                    if (array_key_exists($field, $row)) {
+                        $patient->{$field} = $row[$field];
+                    }
+                }
+                $patient->save();
+
+                $orders = $patient->orders()->where('sede_id', $sedeId)
+                    ->whereDate('fecha_orden', '>=', $cutoff['effective_from'])->with('nurse')->get()
+                    ->filter(fn ($order) => DailyHemodialysisSequence::forDate($order->fecha_orden) === $data['sequence']);
+                foreach ($orders as $order) {
+                    $order->sala = $patient->modulo === Patient::ISOLATED_MODULE ? 'AISLADO' : 'MODULO '.$patient->modulo;
+                    $order->save();
+                    if ($order->nurse) {
+                        $order->nurse->update([
+                            'puesto' => $row['puesto'] ?? null,
+                            'numero_maquina' => $row['numero_maquina'] ?? null,
+                            'acceso_venoso' => $row['acceso_venoso'] ?? null,
+                            'acceso_arterial' => $row['acceso_arterial'] ?? null,
+                        ]);
+                    }
+                }
+            }
+        });
+
+        return response()->json(['saved' => true, 'count' => count($data['patients']), 'effective_from' => $cutoff['effective_from']]);
     }
 
     public function saveCutoff(Request $request)
