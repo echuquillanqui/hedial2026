@@ -287,10 +287,23 @@ class OrderController extends Controller
                 ->when(CurrentSede::id(), fn ($q) => $q->where('sede_id', CurrentSede::id()))
                 ->when($request->filled('secuencia'), fn ($q) => $q->where('secuencia', $request->secuencia))
                 ->when($request->filled('turno'), fn ($q) => $q->where('turno', $request->turno))
-                ->when($request->filled('modulo'), fn ($q) => $q->where('modulo', $request->modulo))
+                // The patient registry displays the latest module assignment for
+                // the selected sequence. Filter against that same value so a
+                // stale patients.modulo value cannot hide a correctly sectorized patient.
+                ->when($request->filled('secuencia'), fn ($q) => $q->with(['sectorizations' => fn ($sectorizations) => $sectorizations
+                    ->where('sequence', $request->secuencia)
+                    ->orderByDesc('effective_from')->orderByDesc('id')]))
                 ->orderBy('surname')
                 ->orderBy('last_name')
                 ->get();
+
+            if ($request->filled('modulo')) {
+                $patients = $patients->filter(function (Patient $patient) use ($request) {
+                    $module = $patient->sectorizations->first()?->module ?? $patient->modulo;
+
+                    return (string) $module === (string) $request->modulo;
+                })->values();
+            }
         }
 
         // Flujo general para buscar cualquier paciente y generar orden individual.
