@@ -13,6 +13,7 @@ use App\Http\Controllers\SedeSessionController;
 use App\Http\Controllers\OperationalAreaController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\LaboratoryOrderController;
+use App\Http\Controllers\LaboratoryEvolutionController;
 use App\Http\Controllers\FuaConfigurationController;
 use App\Http\Controllers\FuaController;
 use App\Http\Controllers\NephrologyConsultationController;
@@ -131,6 +132,8 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('laboratory/orders/import', [LaboratoryOrderController::class, 'import'])->name('laboratory.orders.import');
     Route::get('laboratory/orders/import/template', [LaboratoryOrderController::class, 'downloadImportTemplate'])->name('laboratory.orders.import-template');
     Route::get('laboratory/results', [LaboratoryOrderController::class, 'results'])->name('laboratory.results.index');
+    Route::get('laboratory/evolution', [LaboratoryEvolutionController::class, 'index'])->name('laboratory.evolution.index');
+    Route::get('laboratory/evolution/export', [LaboratoryEvolutionController::class, 'export'])->name('laboratory.evolution.export');
     Route::get('laboratory/results/export/excel', [LaboratoryOrderController::class, 'export'])->name('laboratory.results.export');
     Route::get('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'show'])->name('laboratory.results.show');
     Route::get('laboratory/results/{laboratoryOrder}/pdf', [LaboratoryOrderController::class, 'pdf'])->name('laboratory.results.pdf');

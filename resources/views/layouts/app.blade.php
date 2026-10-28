@@ -209,7 +209,7 @@
 
     @if($canSeeReports)
     <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
-        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('laboratory.results.*', 'reports.*') ? 'active fw-bold' : '' }}"
+        <button class="nav-link dropdown-toggle px-3 border-0 bg-transparent {{ request()->routeIs('laboratory.results.*', 'laboratory.evolution.*', 'reports.*') ? 'active fw-bold' : '' }}"
                 type="button" @click="open = !open" :aria-expanded="open.toString()">
             <i class="bi bi-bar-chart-line-fill me-1"></i> Reportes
         </button>
@@ -217,6 +217,11 @@
             @if($canViewLaboratoryResults)<li>
                 <a class="dropdown-item {{ request()->routeIs('laboratory.results.*') ? 'active' : '' }}" href="{{ route('laboratory.results.index') }}">
                     <i class="bi bi-file-earmark-medical me-2"></i> Reporte Lab
+                </a>
+            </li>@endif
+            @if($canViewLaboratoryResults)<li>
+                <a class="dropdown-item {{ request()->routeIs('laboratory.evolution.*') ? 'active' : '' }}" href="{{ route('laboratory.evolution.index') }}">
+                    <i class="bi bi-graph-up-arrow me-2"></i> Evolución de exámenes
                 </a>
             </li>@endif
             @if($canViewAudit)<li>
