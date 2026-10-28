@@ -53,7 +53,13 @@ class LaboratoryEvolutionXlsxExporter
             ['PACIENTE: '.mb_strtoupper($patient->full_name), 'DNI '.($patient->dni ?? '—')],
             ['EXÁMENES', ...$monthLabels],
         ];
+        $frequencyLabels = ['M' => 'MENSUAL', 'B' => 'BIMESTRAL', 'T' => 'TRIMESTRAL', 'S' => 'SEMESTRAL'];
+        $lastFrequency = null;
         foreach ($tests as $test) {
+            if ($test->frequency !== $lastFrequency) {
+                $rows[] = [$frequencyLabels[$test->frequency] ?? 'OTROS'];
+                $lastFrequency = $test->frequency;
+            }
             $rows[] = [$test->name.($test->unit ? ' ('.$test->unit.')' : ''), ...array_map(fn ($month) => $data[$test->id][$month->format('Y-m')] ?? '', $months)];
         }
 
@@ -72,14 +78,15 @@ class LaboratoryEvolutionXlsxExporter
             $cells = '';
             foreach ($row as $c => $value) {
                 $ref = $this->columnName($c + 1).($r + 1);
-                $style = $r < 2 ? ' s="1"' : '';
+                $style = ($r < 2 || count($row) === 1) ? ' s="1"' : '';
                 $safe = htmlspecialchars((string) ($value ?? ''), ENT_XML1 | ENT_QUOTES, 'UTF-8');
                 $cells .= '<c r="'.$ref.'" t="inlineStr"'.$style.'><is><t xml:space="preserve">'.$safe.'</t></is></c>';
             }
             $xml .= '<row r="'.($r + 1).'">'.$cells.'</row>';
         }
         $last = $this->columnName($columns);
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane xSplit="1" ySplit="2" topLeftCell="B3" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="38" customWidth="1"/><col min="2" max="'.$columns.'" width="16" customWidth="1"/></cols><sheetData>'.$xml.'</sheetData><mergeCells count="1"><mergeCell ref="A1:'.$last.'1"/></mergeCells><autoFilter ref="A2:'.$last.count($rows).'"/></worksheet>';
+        $monthColumns = $columns > 1 ? '<col min="2" max="'.$columns.'" width="16" customWidth="1"/>' : '';
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane xSplit="1" ySplit="2" topLeftCell="B3" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="38" customWidth="1"/>'.$monthColumns.'</cols><sheetData>'.$xml.'</sheetData><autoFilter ref="A2:'.$last.count($rows).'"/></worksheet>';
     }
 
     private function workbook(Collection $patients): string

@@ -65,19 +65,23 @@
         @endphp
         <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-2">
             <div><h4 class="mb-1">{{ $selectedPatient->full_name }}</h4><div class="text-muted small">DNI: {{ $selectedPatient->dni ?: '—' }} · Secuencia {{ $selectedPatient->secuencia }}</div></div>
-            <span class="badge text-bg-light border">{{ count($months) }} meses · {{ $tests->count() }} exámenes</span>
+            <span class="badge text-bg-light border">{{ count($months) }} meses · {{ $tests->sum(fn ($group) => $group['tests']->count()) }} exámenes</span>
         </div>
         <div class="card border-0 shadow-sm">
             <div class="table-responsive">
                 <table class="table table-bordered table-sm align-middle mb-0" style="min-width: 1000px">
                     <thead class="table-light"><tr><th class="position-sticky start-0" style="min-width:260px">EXÁMENES</th>@foreach($months as $month)<th class="text-center text-nowrap">{{ $monthLabel($month) }}</th>@endforeach</tr></thead>
                     <tbody>
-                        @foreach($tests as $test)
-                            <tr><th class="position-sticky start-0 bg-white">{{ $test->name }} <small class="text-muted fw-normal">{{ $test->unit }}</small></th>
-                                @foreach($months as $month)<td class="text-center">{{ $resultMap[$test->id][$month->format('Y-m')] ?? '—' }}</td>@endforeach
-                            </tr>
+                        @foreach($tests as $group)
+                            <tr class="table-success"><th colspan="{{ count($months) + 1 }}" class="small fw-bold">{{ $group['label'] }}</th></tr>
+                            @foreach($group['tests'] as $test)
+                                <tr><th class="position-sticky start-0 bg-white">{{ $test->name }} <small class="text-muted fw-normal">{{ $test->unit }}</small></th>
+                                    @foreach($months as $month)<td class="text-center">{{ $resultMap[$test->id][$month->format('Y-m')] ?? '—' }}</td>@endforeach
+                                </tr>
+                            @endforeach
                         @endforeach
                         @if($tests->isEmpty())<tr><td colspan="{{ count($months) + 1 }}" class="text-center text-muted py-4">No hay exámenes FISSAL configurados.</td></tr>@endif
+                        @if(count($months) === 0)<tr><td colspan="{{ $tests->sum(fn ($group) => $group['tests']->count()) + 1 }}" class="text-center text-muted py-4">No hay resultados registrados en el rango seleccionado.</td></tr>@endif
                     </tbody>
                 </table>
             </div>

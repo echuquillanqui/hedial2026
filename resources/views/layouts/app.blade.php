@@ -220,7 +220,7 @@
                 </a>
             </li>@endif
             @if($canViewLaboratoryResults)<li>
-                <a class="dropdown-item {{ request()->routeIs('laboratory.evolution.*') ? 'active' : '' }}" href="{{ route('laboratory.evolution.index') }}">
+                <a class="dropdown-item {{ request()->routeIs('laboratory.evolution.*') ? 'active' : '' }}" href="{{ route('laboratory.evolution.index', ['sequence' => in_array(now()->dayOfWeekIso, [2, 4, 6], true) ? 'M-J-S' : 'L-M-V']) }}">
                     <i class="bi bi-graph-up-arrow me-2"></i> Evolución de exámenes
                 </a>
             </li>@endif
