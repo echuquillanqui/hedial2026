@@ -49,8 +49,9 @@ class LaboratoryEvolutionXlsxExporter
             }
         }
         $monthLabels = array_map(fn (CarbonImmutable $month) => $this->monthLabel($month), $months);
+        $patientCode = $this->patientCode((int) $patient->id);
         $rows = [
-            ['PACIENTE: '.mb_strtoupper($patient->full_name), 'DNI '.($patient->dni ?? '—')],
+            ['PACIENTE:', $patientCode],
             ['EXÁMENES', ...$monthLabels],
         ];
         $frequencyLabels = ['M' => 'MENSUAL', 'B' => 'BIMESTRAL', 'T' => 'TRIMESTRAL', 'S' => 'SEMESTRAL'];
@@ -93,7 +94,7 @@ class LaboratoryEvolutionXlsxExporter
     {
         $names = []; $sheets = '';
         foreach ($patients as $i => $patient) {
-            $name = preg_replace('/[\\\\\/\?\*\[\]:]/u', ' ', $patient->full_name) ?: 'Paciente';
+            $name = $this->patientCode((int) $patient->id);
             $name = mb_substr(trim($name), 0, 31);
             $base = $name; $suffix = 2;
             while (in_array(mb_strtolower($name), $names, true)) {
@@ -105,6 +106,11 @@ class LaboratoryEvolutionXlsxExporter
         }
         if ($sheets === '') $sheets = '<sheet name="Sin pacientes" sheetId="1" r:id="rId1"/>';
         return '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'.$sheets.'</sheets></workbook>';
+    }
+
+    private function patientCode(int $patientId): string
+    {
+        return 'COD'.str_pad((string) $patientId, 5, '0', STR_PAD_LEFT);
     }
 
     private function relationships(int $count): string
