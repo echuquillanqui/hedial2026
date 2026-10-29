@@ -375,6 +375,15 @@ class LaboratoryOrderController extends Controller
             ->when($request->filled('q'), fn ($query) => $query->where('patient_name', 'like', '%'.$request->q.'%'))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
             ->when($request->filled('period'), fn ($query) => $query->where('period', $request->period))
+            ->when($request->filled('month'), function ($query) use ($request) {
+                $month = CarbonImmutable::createFromFormat('!Y-m', $request->month);
+                $query->where(function ($query) use ($month) {
+                    $query->whereBetween('sampled_at', [$month->startOfMonth()->toDateString(), $month->endOfMonth()->toDateString()])
+                        ->orWhere(function ($query) use ($month) {
+                            $query->whereNull('sampled_at')->whereBetween('created_at', [$month->startOfMonth(), $month->endOfMonth()]);
+                        });
+                });
+            })
             ->when($request->filled('date'), function ($query) use ($request) {
                 $query->where(function ($query) use ($request) {
                     $query->whereDate('sampled_at', $request->date)

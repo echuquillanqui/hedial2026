@@ -27,7 +27,11 @@
     </div>
     <div class="col-xl-2 col-md-3">
      <label for="laboratory-date" class="form-label filter-label">Fecha</label>
-     <input id="laboratory-date" type="date" name="date" value="{{ request('date') }}" class="form-control" @change="applyFilters()">
+      <input id="laboratory-date" x-ref="exactDate" type="date" name="date" value="{{ request('date') }}" class="form-control" @change="if($event.target.value) $refs.month.value=''; applyFilters()">
+    </div>
+    <div class="col-xl-2 col-md-3">
+     <label for="laboratory-month" class="form-label filter-label">Mes</label>
+     <input id="laboratory-month" x-ref="month" type="month" name="month" value="{{ request('month') }}" class="form-control" @change="if($event.target.value) $refs.exactDate.value=''; applyFilters()">
     </div>
     <div class="col-xl-2 col-md-3">
      <label for="laboratory-sequence" class="form-label filter-label">Secuencia</label>
@@ -51,7 +55,7 @@
  </div>
  <form method="POST" action="{{ route('laboratory.results.bulk-pdf') }}">@csrf
  <template x-if="selectAllFiltered"><input type="hidden" name="select_all_filtered" value="1"></template>
- @foreach(request()->only(['q', 'date', 'period', 'status', 'sequence']) as $key => $value)
+ @foreach(request()->only(['q', 'date', 'month', 'period', 'status', 'sequence']) as $key => $value)
   <input type="hidden" name="{{ $key }}" value="{{ $value }}" :disabled="!selectAllFiltered">
  @endforeach
  <div class="bulkbar mb-3 flex-wrap gap-2" x-show="selected.length" x-cloak>
@@ -148,7 +152,7 @@ document.querySelectorAll('.quick-result').forEach((hematocritWrapper) => {
 <form method="POST" action="{{ route('laboratory.results.remove-duplicates') }}" class="mb-3">
  @csrf
  @method('DELETE')
- @foreach(request()->only(['date', 'period', 'sequence']) as $key => $value)
+ @foreach(request()->only(['date', 'month', 'period', 'sequence']) as $key => $value)
   <input type="hidden" name="{{ $key }}" value="{{ $value }}">
  @endforeach
  <button class="btn btn-outline-danger rounded-pill px-4" onclick="return confirm('Se buscarán órdenes repetidas por paciente, fecha de toma y periodo en el alcance indicado. Si no elegiste fecha, se limitará al mes actual. Se eliminarán solo copias vacías sin vínculos. ¿Continuar?')">
