@@ -108,6 +108,8 @@ class HomeController extends Controller
     private function buildDashboardData(string $fecha): array
     {
         $ordenes = Order::with(['patient', 'medical', 'nurse', 'treatments'])
+            ->where('attention_type', 'HEMODIALYSIS')
+            ->finalizedHemodialysis()
             ->when(CurrentSede::id(), fn ($q) => $q->where('sede_id', CurrentSede::id()))
             ->whereDate('fecha_orden', $fecha)
             ->orderBy('turno')
