@@ -10,14 +10,15 @@ use App\Support\CurrentSede;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class PatientController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:patients.view')->only(['index', 'show', 'search']);
-        $this->middleware('permission:patients.create')->only(['create', 'store']);
+        $this->middleware('permission:patients.view')->only(['index', 'show', 'search', 'export']);
+        $this->middleware('permission:patients.create')->only(['create', 'store', 'import']);
         $this->middleware('permission:patients.edit')->only(['edit', 'update']);
         $this->middleware('permission:patients.delete')->only(['destroy']);
     }
@@ -48,6 +49,146 @@ class PatientController extends Controller
         $sedes = Sede::where('is_active', true)->orderBy('name')->get();
 
         return view('patients.index', compact('patients', 'sedes', 'currentSedeId'));
+    }
+
+    public function downloadImportTemplate()
+    {
+        $headers = [
+            'dni', 'apellido_paterno', 'apellido_materno', 'primer_nombre', 'otros_nombres',
+            'codigo_afiliacion', 'numero_historia_clinica', 'tipo_seguro', 'regimen_seguro',
+            'asegurado', 'sexo', 'fecha_nacimiento', 'edad', 'direccion', 'distrito',
+            'provincia', 'departamento', 'telefono', 'secuencia', 'turno', 'modulo', 'activo',
+        ];
+        $example = ['12345678', 'PEREZ', 'GARCIA', 'JUAN', 'CARLOS', 'SIS-001', 'HC-001', 'SIS', 'SUBSIDIADO', 'SI', 'M', '1980-05-20', '46', 'AV. EJEMPLO 123', 'LIMA', 'LIMA', 'LIMA', '999888777', 'L-M-V', '1', '1', 'SI'];
+
+        return response()->streamDownload(function () use ($headers, $example) {
+            $output = fopen('php://output', 'w');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, $headers, ';');
+            fputcsv($output, $example, ';');
+            fclose($output);
+        }, 'plantilla_importacion_pacientes.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function export()
+    {
+        $patients = Patient::query()
+            ->with('sede')
+            ->when(CurrentSede::id(), fn ($query, $sedeId) => $query->where('sede_id', $sedeId))
+            ->orderBy('surname')->orderBy('last_name')->orderBy('first_name')->get();
+
+        return response()->streamDownload(function () use ($patients) {
+            $output = fopen('php://output', 'w');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, [
+                'DNI', 'Apellido paterno', 'Apellido materno', 'Primer nombre', 'Otros nombres',
+                'Historia clínica', 'Código de afiliación', 'Tipo de seguro', 'Régimen', 'Asegurado',
+                'Sexo', 'Fecha de nacimiento', 'Edad', 'Dirección', 'Distrito', 'Provincia',
+                'Departamento', 'Teléfono', 'Secuencia', 'Turno', 'Módulo', 'Sede', 'Estado',
+            ], ';');
+
+            foreach ($patients as $patient) {
+                $values = [
+                    $patient->dni, $patient->surname, $patient->last_name, $patient->first_name,
+                    $patient->other_names, $patient->medical_history_number, $patient->affiliation_code,
+                    $patient->insurance_type, $patient->insurance_regime,
+                    $patient->is_insured ? 'Sí' : 'No', $patient->gender,
+                    optional($patient->birth_date)->format('Y-m-d'), $patient->age, $patient->address,
+                    $patient->district, $patient->province, $patient->department, $patient->phone,
+                    $patient->secuencia, $patient->turno, $patient->modulo, $patient->sede?->name,
+                    $patient->is_active ? 'Activo' : 'Inactivo',
+                ];
+                $values = array_map(function ($value) {
+                    $value = (string) ($value ?? '');
+                    return preg_match('/^[\s]*[=+@\\-]/u', $value) ? "'".$value : $value;
+                }, $values);
+                fputcsv($output, $values, ';');
+            }
+
+            fclose($output);
+        }, 'pacientes_'.now()->format('Ymd_His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+        ]);
+
+        $sedeId = CurrentSede::id();
+        abort_unless($sedeId, 403, 'Seleccione una sede antes de importar pacientes.');
+
+        $handle = fopen($request->file('file')->getRealPath(), 'r');
+        if ($handle === false) {
+            return back()->with('error', 'No se pudo leer el archivo.');
+        }
+
+        $headers = fgetcsv($handle, 0, ';');
+        if (! $headers) {
+            fclose($handle);
+            return back()->with('error', 'El archivo está vacío o no tiene encabezados válidos.');
+        }
+        $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', $headers[0]);
+        $expected = ['dni', 'apellido_paterno', 'apellido_materno', 'primer_nombre', 'otros_nombres', 'codigo_afiliacion', 'numero_historia_clinica', 'tipo_seguro', 'regimen_seguro', 'asegurado', 'sexo', 'fecha_nacimiento', 'edad', 'direccion', 'distrito', 'provincia', 'departamento', 'telefono', 'secuencia', 'turno', 'modulo', 'activo'];
+        if ($headers !== $expected) {
+            fclose($handle);
+            return back()->with('error', 'Los encabezados no coinciden con la plantilla. Descargue la plantilla actualizada y vuelva a intentarlo.');
+        }
+
+        $inserted = 0;
+        $skipped = 0;
+        $issues = [];
+        $rowNumber = 1;
+        $availableColumns = Schema::getColumnListing('patients');
+
+        DB::transaction(function () use ($handle, $sedeId, &$inserted, &$skipped, &$issues, &$rowNumber, $availableColumns) {
+            while (($row = fgetcsv($handle, 0, ';')) !== false) {
+                $rowNumber++;
+                if (count($row) === 1 && trim((string) $row[0]) === '') continue;
+                if (count($row) !== 22) {
+                    $skipped++;
+                    $issues[] = "Fila {$rowNumber}: cantidad de columnas incorrecta.";
+                    continue;
+                }
+                $data = array_combine(['dni', 'surname', 'last_name', 'first_name', 'other_names', 'affiliation_code', 'medical_history_number', 'insurance_type', 'insurance_regime', 'is_insured', 'gender', 'birth_date', 'age', 'address', 'district', 'province', 'department', 'phone', 'secuencia', 'turno', 'modulo', 'is_active'], array_map(fn ($value) => trim((string) $value), $row));
+                foreach ($data as $key => $value) if ($value === '') $data[$key] = null;
+                $data['dni'] = $data['dni'] ? preg_replace('/\D/', '', $data['dni']) : null;
+                $data['gender'] = $data['gender'] ? strtoupper($data['gender']) : null;
+                $data['insurance_type'] = $data['insurance_type'] ? strtoupper($data['insurance_type']) : null;
+                $data['insurance_regime'] = $data['insurance_regime'] ? strtoupper($data['insurance_regime']) : 'SUBSIDIADO';
+                $data['secuencia'] = $data['secuencia'] ? strtoupper($data['secuencia']) : null;
+                $data['turno'] = $data['turno'] ? (string) $data['turno'] : null;
+                $data['modulo'] = $data['modulo'] ? strtoupper($data['modulo']) : null;
+                $data['is_insured'] = in_array(strtoupper((string) $data['is_insured']), ['SI', 'SÍ', '1', 'TRUE', 'YES'], true);
+                $data['is_active'] = in_array(strtoupper((string) $data['is_active']), ['SI', 'SÍ', '1', 'TRUE', 'YES', 'ACTIVO'], true);
+                $data['sede_id'] = $sedeId;
+
+                $errors = [];
+                if (! $data['first_name'] || ! $data['surname'] || ! $data['last_name']) $errors[] = 'apellidos y primer nombre son obligatorios';
+                if ($data['dni'] !== null && ! preg_match('/^\d{8}$/', $data['dni'])) $errors[] = 'el DNI debe tener 8 dígitos';
+                if ($data['dni'] && Patient::where('dni', $data['dni'])->exists()) $errors[] = 'el DNI ya está registrado';
+                if ($data['gender'] !== null && ! in_array($data['gender'], ['F', 'M'], true)) $errors[] = 'sexo debe ser F o M';
+                if ($data['insurance_type'] !== null && ! in_array($data['insurance_type'], ['ESSALUD', 'SIS', 'SALUDPOL'], true)) $errors[] = 'tipo de seguro inválido';
+                if (! in_array($data['insurance_regime'], ['SUBSIDIADO', 'SEMICONTRIBUTIVO'], true)) $errors[] = 'régimen de seguro inválido';
+                if ($data['secuencia'] !== null && ! in_array($data['secuencia'], ['L-M-V', 'M-J-S'], true)) $errors[] = 'secuencia debe ser L-M-V o M-J-S';
+                if ($data['turno'] !== null && ! in_array($data['turno'], ['1', '2', '3', '4'], true)) $errors[] = 'turno debe ser 1, 2, 3 o 4';
+                if ($data['modulo'] !== null && ! in_array($data['modulo'], Patient::MODULES, true)) $errors[] = 'módulo inválido';
+                if ($data['birth_date'] !== null && ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['birth_date'])) $errors[] = 'fecha de nacimiento debe tener formato AAAA-MM-DD';
+                if ($data['age'] !== null && ! ctype_digit((string) $data['age'])) $errors[] = 'edad debe ser numérica';
+                if ($errors) {
+                    $skipped++;
+                    $issues[] = "Fila {$rowNumber}: ".implode(', ', $errors).'.';
+                    continue;
+                }
+                $data = array_intersect_key($data, array_flip($availableColumns));
+                Patient::create($data);
+                $inserted++;
+            }
+        });
+        fclose($handle);
+
+        $message = "Importación completada: {$inserted} pacientes registrados y {$skipped} filas omitidas.";
+        return back()->with($skipped ? 'error' : 'success', $message)->with('import_issues', array_slice($issues, 0, 20));
     }
 
     public function create()

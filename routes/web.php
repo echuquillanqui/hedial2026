@@ -156,7 +156,10 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::post('/users/permisos/usuario', [UserController::class, 'updateUserPermissions'])->name('users.permissions-manager.update-user');
     Route::post('/users/permisos/masivo', [UserController::class, 'bulkUpdatePermissions'])->name('users.permissions-manager.bulk-update');
 
+    Route::get('patients/export/excel', [PatientController::class, 'export'])->name('patients.export')->middleware('permission:patients.view');
     Route::resource('patients', App\Http\Controllers\PatientController::class);
+    Route::get('patients/import/template', [PatientController::class, 'downloadImportTemplate'])->name('patients.import-template')->middleware('permission:patients.view');
+    Route::post('patients/import', [PatientController::class, 'import'])->name('patients.import')->middleware('permission:patients.create');
     Route::get('historias-iniciales/{initialHistory}/pdf', [InitialClinicalHistoryController::class, 'pdf'])->name('initial-histories.pdf');
     Route::resource('historias-iniciales', InitialClinicalHistoryController::class)->except(['destroy'])->parameters(['historias-iniciales' => 'initialHistory'])->names('initial-histories');
     Route::get('consentimientos/{consent}/pdf', [HemodialysisConsentController::class, 'pdf'])->name('consents.pdf');

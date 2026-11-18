@@ -15,11 +15,36 @@
       </div>
     </div>
   </div>
+  <div class="card-body border-bottom">
+    <div class="d-flex flex-wrap align-items-center">
+      <a href="{{ route('patients.import-template') }}" class="btn btn-primary mr-2 mb-2">
+        <i class="ni ni-cloud-download-95 mr-1"></i> Descargar plantilla
+      </a>
+      <button type="button" class="btn btn-info mb-2" data-toggle="modal" data-target="#importPatientsModal">
+        <i class="ni ni-cloud-upload-96 mr-1"></i> Importar pacientes
+      </button>
+      <span class="text-muted ml-md-3 mb-2">Carga masiva desde archivo CSV</span>
+    </div>
+  </div>
   <div class="card-body">
     @if (session('notification'))
       <div class="alert alert-success" role="alert">
         <span class="alert-icon"><i class="ni ni-curved-next"></i></span>
         {{ session('notification') }}
+      </div>
+    @endif
+    @if (session('success'))
+      <div class="alert alert-success" role="alert">{{ session('success') }}</div>
+    @endif
+    @if (session('error'))
+      <div class="alert alert-warning" role="alert">{{ session('error') }}</div>
+    @endif
+    @if (session('import_issues'))
+      <div class="alert alert-light" role="alert">
+        <strong>Detalle de filas omitidas (máximo 20):</strong>
+        <ul class="mb-0 mt-2">
+          @foreach (session('import_issues') as $issue)<li>{{ $issue }}</li>@endforeach
+        </ul>
       </div>
     @endif
   </div>
@@ -104,6 +129,32 @@
   </div>
   <div class="card-body">
     {{ $patients->links() }}
+  </div>
+</div>
+
+<div class="modal fade" id="importPatientsModal" tabindex="-1" role="dialog" aria-labelledby="importPatientsModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form action="{{ route('patients.import') }}" method="POST" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-header">
+          <h5 class="modal-title" id="importPatientsModalLabel">Importar pacientes</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <p>Utilice la plantilla CSV descargada. Mantenga los encabezados y guarde el archivo delimitado por punto y coma.</p>
+          <div class="form-group">
+            <label for="patientsImportFile">Archivo CSV</label>
+            <input class="form-control-file" type="file" name="file" id="patientsImportFile" accept=".csv,.txt,text/csv" required>
+            <small class="form-text text-muted">Los pacientes se registran en la sede activa. Los DNI ya registrados se omiten.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-info">Importar archivo</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 @endsection

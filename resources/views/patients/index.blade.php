@@ -14,10 +14,22 @@
             <h2 class="fw-bold text-dark mb-0">Gestión de Pacientes</h2>
             <p class="text-muted mb-0">Base de datos centralizada de HEMODIAL</p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="" class="btn btn-outline-success rounded-pill px-4 shadow-sm">
-                <i class="bi bi-file-earmark-excel-fill me-2"></i> Exportar Excel
+        <div class="d-flex flex-wrap gap-2">
+            @can('patients.view')
+                <a href="{{ route('patients.import-template') }}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
+                    <i class="bi bi-download me-2"></i> Descargar plantilla
+                </a>
+            @endcan
+            @can('patients.create')
+                <button type="button" class="btn btn-info rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#importPatientsModal">
+                    <i class="bi bi-upload me-2"></i> Importar pacientes
+                </button>
+            @endcan
+            @can('patients.view')
+            <a href="{{ route('patients.export') }}" class="btn btn-outline-success rounded-pill px-4 shadow-sm">
+                <i class="bi bi-file-earmark-excel-fill me-2"></i> Exportar Excel (CSV)
             </a>
+            @endcan
             <button class="btn btn-primary rounded-pill px-4 shadow-sm" @click="openModal()">
                 <i class="bi bi-person-plus-fill me-2"></i> Nuevo Paciente
             </button>
@@ -32,6 +44,14 @@
     @if(session('error'))
         <div class="alert alert-danger border-0 shadow-sm mb-4 d-flex align-items-center">
             <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
+        </div>
+    @endif
+    @if(session('import_issues'))
+        <div class="alert alert-warning border-0 shadow-sm mb-4">
+            <strong>Filas omitidas (máximo 20):</strong>
+            <ul class="mb-0 mt-2">
+                @foreach(session('import_issues') as $issue)<li>{{ $issue }}</li>@endforeach
+            </ul>
         </div>
     @endif
 
@@ -149,6 +169,32 @@
 
     @include('patients.modals.form')
 </div>
+
+@can('patients.create')
+<div class="modal fade" id="importPatientsModal" tabindex="-1" aria-labelledby="importPatientsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ route('patients.import') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importPatientsModalLabel">Importar pacientes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Selecciona el archivo CSV completado con la plantilla descargada.</p>
+                    <label for="patientsImportFile" class="form-label">Archivo CSV</label>
+                    <input class="form-control" type="file" name="file" id="patientsImportFile" accept=".csv,.txt,text/csv" required>
+                    <div class="form-text">Los pacientes se registrarán en la sede activa. Los DNI ya registrados se omiten.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info">Importar archivo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endcan
 
 <script>
     document.addEventListener('alpine:init', () => {
