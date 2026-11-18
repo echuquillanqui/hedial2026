@@ -843,6 +843,23 @@ class LaboratoryOrderController extends Controller
             ]);
         }
 
+        $hematocrit = $laboratoryOrder->items()
+            ->whereHas('test', fn ($query) => $query->where('name', 'Hematocrito'))
+            ->first();
+        $hemoglobin = $laboratoryOrder->items()
+            ->whereHas('test', fn ($query) => $query->where('name', 'Hemoglobina'))
+            ->first();
+        if ($hematocrit && $hemoglobin) {
+            $numericHematocrit = str_replace(',', '.', trim((string) $hematocrit->result_value));
+            $hemoglobinValue = $hematocrit->result_value !== null && $hematocrit->result_value !== '' && is_numeric($numericHematocrit)
+                ? number_format(round(((float) $numericHematocrit) / 3, 1, PHP_ROUND_HALF_UP), 1, '.', '')
+                : null;
+            $hemoglobin->update([
+                'result_value' => $hemoglobinValue,
+                'completed_at' => $hemoglobinValue !== null ? now() : null,
+            ]);
+        }
+
         $hasPending = LaboratoryOrderItem::where('laboratory_order_id', $laboratoryOrder->id)
             ->whereNull('completed_at')
             ->exists();
