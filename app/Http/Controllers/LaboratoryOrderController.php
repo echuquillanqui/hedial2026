@@ -852,7 +852,57 @@ class LaboratoryOrderController extends Controller
             'validated_by_user_id' => $request->user()->id,
         ]);
 
-        return back()->with('success', 'Resultados actualizados.');
+        return back()->with('toastr', ['type' => 'success', 'message' => 'Resultados guardados correctamente.']);
+    }
+
+    public function regenerateElectrolyteResults(LaboratoryOrder $laboratoryOrder)
+    {
+        $laboratoryOrder->loadMissing('items.test');
+        $previousResults = LaboratoryOrderItem::query()
+            ->with('order:id,patient_id,sampled_at,created_at')
+            ->whereHas('order', fn ($query) => $query->where('patient_id', $laboratoryOrder->patient_id)
+                ->where('id', '<>', $laboratoryOrder->id))
+            ->whereNotNull('result_value')->where('result_value', '<>', '')
+            ->get()
+            ->sortByDesc(fn (LaboratoryOrderItem $item) => ($item->order->sampled_at?->format('Y-m-d') ?? $item->order->created_at->format('Y-m-d')).'-'.str_pad((string) $item->id, 12, '0', STR_PAD_LEFT))
+            ->groupBy('test_id')
+            ->map(fn ($items) => $items->first());
+
+        $ranges = [
+            'Potasio' => [0.21, 0.67],
+            'Calcio total' => [0.17, 0.57],
+            'Fósforo inorgánico (fosfato)' => [0.15, 0.64],
+        ];
+        $updated = 0;
+
+        DB::transaction(function () use ($laboratoryOrder, $previousResults, $ranges, &$updated) {
+            foreach ($laboratoryOrder->items as $item) {
+                $range = $ranges[$item->test?->name] ?? null;
+                if (! $range) continue;
+
+                $previousValue = str_replace(',', '.', trim((string) ($previousResults->get($item->test_id)?->result_value ?? '')));
+                if (! is_numeric($previousValue)) continue;
+
+                $variation = random_int((int) round($range[0] * 100), (int) round($range[1] * 100)) / 100;
+                $direction = random_int(0, 1) === 0 ? -1 : 1;
+                $precision = 2;
+                $item->update([
+                    'result_value' => number_format((float) $previousValue + ($variation * $direction), $precision, '.', ''),
+                    'completed_at' => now(),
+                ]);
+                $updated++;
+            }
+
+            $hasPendingItems = $laboratoryOrder->items()->whereNull('completed_at')->exists();
+            $laboratoryOrder->update(['status' => $hasPendingItems ? 'pending' : 'completed']);
+        });
+
+        return back()->with('toastr', [
+            'type' => $updated ? 'success' : 'warning',
+            'message' => $updated
+                ? "Se recalcularon {$updated} resultado(s) de potasio, calcio y fósforo."
+                : 'No hay resultados anteriores numéricos para recalcular.',
+        ]);
     }
 
     public function quickUpdateResults(Request $request, LaboratoryOrder $laboratoryOrder)

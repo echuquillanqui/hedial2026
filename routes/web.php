@@ -143,6 +143,7 @@ Route::middleware(['auth', 'ensure.sede'])->group(function () {
     Route::delete('laboratory/results/duplicates', [LaboratoryOrderController::class, 'removeDuplicates'])->name('laboratory.results.remove-duplicates')->middleware('permission:laboratory.results.update');
     Route::delete('laboratory/results/wrong-sequence', [LaboratoryOrderController::class, 'removeWrongSequence'])->name('laboratory.results.remove-wrong-sequence')->middleware('permission:laboratory.results.update');
     Route::put('laboratory/results/{laboratoryOrder}', [LaboratoryOrderController::class, 'updateResults'])->name('laboratory.results.update');
+    Route::post('laboratory/results/{laboratoryOrder}/regenerate-electrolytes', [LaboratoryOrderController::class, 'regenerateElectrolyteResults'])->middleware('permission:laboratory.results.update')->name('laboratory.results.regenerate-electrolytes');
     Route::patch('laboratory/results/{laboratoryOrder}/quick-results', [LaboratoryOrderController::class, 'quickUpdateResults'])->name('laboratory.results.quick-update');
     Route::put('laboratory/profile/digital-seal', [LaboratoryOrderController::class, 'updateDigitalSeal'])
         ->middleware('permission:laboratory.results.update')->name('laboratory.profile.digital-seal.update');
