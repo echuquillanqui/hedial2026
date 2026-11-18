@@ -456,39 +456,41 @@ class LaboratoryOrderController extends Controller
             ->groupBy(fn (LaboratoryOrderItem $item) => $item->test_id)
             ->map(fn ($items) => $items->first());
 
-        if ($laboratoryOrder->period === 'M') {
-            $testsWithMonthlyVariation = [
-                'Urea pre diálisis', 'Urea post diálisis', 'Cloro', 'Sodio', 'Potasio',
-                'Calcio total', 'Fósforo inorgánico (fosfato)',
-            ];
+        $testsWithAutomaticVariation = [
+            'Urea pre diálisis', 'Urea post diálisis', 'Cloro', 'Sodio', 'Potasio',
+            'Calcio total', 'Fósforo inorgánico (fosfato)',
+        ];
 
-            DB::transaction(function () use ($laboratoryOrder, $previousResults, $testsWithMonthlyVariation) {
-                foreach ($laboratoryOrder->items as $item) {
-                    if (! in_array($item->test?->name, $testsWithMonthlyVariation, true)
-                        || filled($item->result_value)
-                        || $item->completed_at !== null
-                        || filled($item->result_notes)) {
-                        continue;
-                    }
-
-                    $previousValue = $previousResults->get($item->test_id)?->result_value;
-                    $previousNumeric = str_replace(',', '.', trim((string) $previousValue));
-                    if (! is_numeric($previousNumeric)) {
-                        continue;
-                    }
-
-                    $generatedValue = $this->monthlyVariation((float) $previousNumeric);
-                    // Save the range-aware monthly variation the first time this result is viewed.
-                    $item->update([
-                        'result_value' => $generatedValue,
-                        'completed_at' => now(),
-                    ]);
+        if (auth()->user()?->can('laboratory.results.update')) {
+            DB::transaction(function () use ($laboratoryOrder, $previousResults, $testsWithAutomaticVariation) {
+            foreach ($laboratoryOrder->items as $item) {
+                if (! in_array($item->test?->name, $testsWithAutomaticVariation, true)
+                    || filled($item->result_value)
+                    || $item->completed_at !== null
+                    || filled($item->result_notes)) {
+                    continue;
                 }
+
+                $previousValue = $previousResults->get($item->test_id)?->result_value;
+                $previousNumeric = str_replace(',', '.', trim((string) $previousValue));
+                if (! is_numeric($previousNumeric)) {
+                    continue;
+                }
+
+                $generatedValue = $this->monthlyVariation((float) $previousNumeric);
+                $item->update([
+                    'result_value' => $generatedValue,
+                    'completed_at' => now(),
+                ]);
+            }
 
                 $hasPendingItems = $laboratoryOrder->items()->whereNull('completed_at')->exists();
                 $laboratoryOrder->update(['status' => $hasPendingItems ? 'pending' : 'completed']);
             });
         }
+
+        // The results were just updated; reload the relation before rendering the form.
+        $laboratoryOrder->load(['items.test.area', 'validator']);
 
         return view('laboratory.results.show', ['order' => $laboratoryOrder, 'previousResults' => $previousResults]);
     }
