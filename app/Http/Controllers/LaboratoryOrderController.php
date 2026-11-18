@@ -323,7 +323,7 @@ class LaboratoryOrderController extends Controller
                         return '';
                     }
 
-                    $generatedValue = $this->monthlyVariation((float) $previousNumeric);
+                    $generatedValue = $this->generatedPreviousResult($test->name, (float) $previousNumeric);
 
                     if ($order) {
                         $item ??= $order->items()->create(['test_id' => $test->id]);
@@ -477,7 +477,7 @@ class LaboratoryOrderController extends Controller
                     continue;
                 }
 
-                $generatedValue = $this->monthlyVariation((float) $previousNumeric);
+                $generatedValue = $this->generatedPreviousResult($item->test->name, (float) $previousNumeric);
                 $item->update([
                     'result_value' => $generatedValue,
                     'completed_at' => now(),
@@ -495,13 +495,20 @@ class LaboratoryOrderController extends Controller
         return view('laboratory.results.show', ['order' => $laboratoryOrder, 'previousResults' => $previousResults]);
     }
 
-    private function monthlyVariation(float $previousValue): string
+    private function generatedPreviousResult(string $testName, float $previousValue): string
     {
-        $variation = random_int(8, 13) / 10;
+        $ranges = [
+            'Potasio' => [0.21, 0.67],
+            'Calcio total' => [0.17, 0.57],
+            'Fósforo inorgánico (fosfato)' => [0.15, 0.64],
+        ];
+        $hasSpecificRange = isset($ranges[$testName]);
+        $range = $ranges[$testName] ?? [0.8, 1.3];
+        $variation = random_int((int) round($range[0] * 100), (int) round($range[1] * 100)) / 100;
         $direction = random_int(0, 1) === 0 ? -1 : 1;
         $generated = $previousValue + ($variation * $direction);
 
-        return number_format($generated, 1, '.', '');
+        return number_format($generated, $hasSpecificRange ? 2 : 1, '.', '');
     }
 
     public function pdf(LaboratoryOrder $laboratoryOrder, LaboratorySealResolver $sealResolver)
@@ -885,26 +892,17 @@ class LaboratoryOrderController extends Controller
             ->groupBy('test_id')
             ->map(fn ($items) => $items->first());
 
-        $ranges = [
-            'Potasio' => [0.21, 0.67],
-            'Calcio total' => [0.17, 0.57],
-            'Fósforo inorgánico (fosfato)' => [0.15, 0.64],
-        ];
         $updated = 0;
 
-        DB::transaction(function () use ($laboratoryOrder, $previousResults, $ranges, &$updated) {
+        DB::transaction(function () use ($laboratoryOrder, $previousResults, &$updated) {
             foreach ($laboratoryOrder->items as $item) {
-                $range = $ranges[$item->test?->name] ?? null;
-                if (! $range) continue;
+                if (! in_array($item->test?->name, ['Potasio', 'Calcio total', 'Fósforo inorgánico (fosfato)'], true)) continue;
 
                 $previousValue = str_replace(',', '.', trim((string) ($previousResults->get($item->test_id)?->result_value ?? '')));
                 if (! is_numeric($previousValue)) continue;
 
-                $variation = random_int((int) round($range[0] * 100), (int) round($range[1] * 100)) / 100;
-                $direction = random_int(0, 1) === 0 ? -1 : 1;
-                $precision = 2;
                 $item->update([
-                    'result_value' => number_format((float) $previousValue + ($variation * $direction), $precision, '.', ''),
+                    'result_value' => $this->generatedPreviousResult($item->test->name, (float) $previousValue),
                     'completed_at' => now(),
                 ]);
                 $updated++;
