@@ -278,7 +278,8 @@ class LaboratoryOrderController extends Controller
 
         $filename = 'plantilla_resultados_'.$period.'_'.str_replace('-', '', $date).'.csv';
         $testsWithMonthlyVariation = [
-            'Cloro', 'Sodio', 'Potasio', 'Calcio total', 'Fósforo inorgánico (fosfato)',
+            'Urea pre diálisis', 'Urea post diálisis', 'Cloro', 'Sodio', 'Potasio',
+            'Calcio total', 'Fósforo inorgánico (fosfato)',
         ];
         $currentOrders = LaboratoryOrder::query()
             ->with('items')
@@ -317,14 +318,12 @@ class LaboratoryOrderController extends Controller
                         return '';
                     }
 
-                    if (! is_numeric($previousValue)) {
+                    $previousNumeric = str_replace(',', '.', trim((string) $previousValue));
+                    if (! is_numeric($previousNumeric)) {
                         return '';
                     }
 
-                    $generatedValue = $this->monthlyVariation($test, (float) $previousValue);
-                    if ($generatedValue === null) {
-                        return '';
-                    }
+                    $generatedValue = $this->monthlyVariation((float) $previousNumeric);
 
                     if ($order) {
                         $item ??= $order->items()->create(['test_id' => $test->id]);
@@ -459,7 +458,8 @@ class LaboratoryOrderController extends Controller
 
         if ($laboratoryOrder->period === 'M') {
             $testsWithMonthlyVariation = [
-                'Cloro', 'Sodio', 'Potasio', 'Calcio total', 'Fósforo inorgánico (fosfato)',
+                'Urea pre diálisis', 'Urea post diálisis', 'Cloro', 'Sodio', 'Potasio',
+                'Calcio total', 'Fósforo inorgánico (fosfato)',
             ];
 
             DB::transaction(function () use ($laboratoryOrder, $previousResults, $testsWithMonthlyVariation) {
@@ -472,15 +472,12 @@ class LaboratoryOrderController extends Controller
                     }
 
                     $previousValue = $previousResults->get($item->test_id)?->result_value;
-                    if (! is_numeric($previousValue)) {
+                    $previousNumeric = str_replace(',', '.', trim((string) $previousValue));
+                    if (! is_numeric($previousNumeric)) {
                         continue;
                     }
 
-                    $generatedValue = $this->monthlyVariation($item->test, (float) $previousValue);
-                    if ($generatedValue === null) {
-                        continue;
-                    }
-
+                    $generatedValue = $this->monthlyVariation((float) $previousNumeric);
                     // Save the range-aware monthly variation the first time this result is viewed.
                     $item->update([
                         'result_value' => $generatedValue,
@@ -496,26 +493,11 @@ class LaboratoryOrderController extends Controller
         return view('laboratory.results.show', ['order' => $laboratoryOrder, 'previousResults' => $previousResults]);
     }
 
-    private function monthlyVariation(Test $test, float $previousValue): ?string
+    private function monthlyVariation(float $previousValue): string
     {
-        if (! preg_match('/(-?\d+(?:[.,]\d+)?)\s*[-–]\s*(-?\d+(?:[.,]\d+)?)/u', (string) $test->reference_value, $matches)) {
-            return null;
-        }
-
-        $lowerBound = (float) str_replace(',', '.', $matches[1]);
-        $upperBound = (float) str_replace(',', '.', $matches[2]);
-        $variation = random_int(6, 11) / 10;
-
-        if ($previousValue < $lowerBound) {
-            $generated = $previousValue + $variation;
-        } elseif ($previousValue > $upperBound) {
-            $generated = $previousValue - $variation;
-        } else {
-            $direction = random_int(0, 1) === 0 ? -1 : 1;
-            $generated = $previousValue + ($variation * $direction);
-        }
-
-        $generated = min($upperBound, max($lowerBound, $generated));
+        $variation = random_int(8, 13) / 10;
+        $direction = random_int(0, 1) === 0 ? -1 : 1;
+        $generated = $previousValue + ($variation * $direction);
 
         return number_format($generated, 1, '.', '');
     }
