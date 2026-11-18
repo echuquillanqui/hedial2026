@@ -932,6 +932,8 @@ class LaboratoryOrderController extends Controller
             ->whereHas('test', fn ($query) => $query->whereIn('name', [
                 'Hematocrito',
                 'Hemoglobina',
+                'Aspartato aminotransferasa (AST/TGO)',
+                'Alanina aminotransferasa (ALT/TGP)',
                 'Urea pre diálisis',
                 'Urea post diálisis',
                 'Cloro',
